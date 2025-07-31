@@ -1,0 +1,96 @@
+#!/bin/bash
+set -e
+
+# Usage: docker-upgrade-multi <from_version> <to_version>
+# Example: docker-upgrade-multi 14 17
+
+FROM_VERSION="${1:-14}"
+TO_VERSION="${2:-17}"
+
+# Validate versions
+if [[ ! "$FROM_VERSION" =~ ^(14|15|16)$ ]] || [[ ! "$TO_VERSION" =~ ^(15|16|17)$ ]]; then
+    echo "Error: Invalid version. FROM_VERSION must be 14, 15, or 16. TO_VERSION must be 15, 16, or 17."
+    exit 1
+fi
+
+if [ "$FROM_VERSION" -ge "$TO_VERSION" ]; then
+    echo "Error: FROM_VERSION must be less than TO_VERSION"
+    exit 1
+fi
+
+# Run as postgres user if started as root
+if [ "$(id -u)" = '0' ]; then
+    chmod 700 /var/lib/postgresql/*/data 2>/dev/null || true
+    chown postgres .
+    chown -R postgres /var/lib/postgresql
+    exec gosu postgres "$BASH_SOURCE" "$@"
+fi
+
+# Function to perform single upgrade
+perform_upgrade() {
+    local from=$1
+    local to=$2
+    
+    echo "========================================="
+    echo "Upgrading from PostgreSQL $from to $to"
+    echo "========================================="
+    
+    # Set environment variables for current upgrade
+    eval "export PGBINOLD=\$PG${from}BIN"
+    eval "export PGBINNEW=\$PG${to}BIN"
+    eval "export PGDATAOLD=\$PG${from}DATA"
+    eval "export PGDATANEW=\$PG${to}DATA"
+    
+    # Run pre-upgrade tests
+    echo "Running pre-upgrade sanity tests..."
+    task pre-upgrade FROM=$from TO=$to
+    
+    # Initialize new cluster if it doesn't exist
+    if [ ! -s "$PGDATANEW/PG_VERSION" ]; then
+        echo "Initializing PostgreSQL $to cluster..."
+        PGDATA="$PGDATANEW" eval "$PGBINNEW/initdb $POSTGRES_INITDB_ARGS"
+    fi
+    
+    # Perform the upgrade
+    echo "Performing upgrade from $from to $to..."
+    cd /var/lib/postgresql
+    
+    # Run pg_upgrade with --link for efficiency
+    $PGBINNEW/pg_upgrade \
+        --old-bindir="$PGBINOLD" \
+        --new-bindir="$PGBINNEW" \
+        --old-datadir="$PGDATAOLD" \
+        --new-datadir="$PGDATANEW" \
+        --link \
+        --check
+    
+    # If check passes, run the actual upgrade
+    $PGBINNEW/pg_upgrade \
+        --old-bindir="$PGBINOLD" \
+        --new-bindir="$PGBINNEW" \
+        --old-datadir="$PGDATAOLD" \
+        --new-datadir="$PGDATANEW" \
+        --link
+    
+    # Run post-upgrade tests
+    echo "Running post-upgrade sanity tests..."
+    task post-upgrade FROM=$from TO=$to
+    
+    echo "Upgrade from $from to $to completed successfully!"
+}
+
+# Perform sequential upgrades if needed
+current=$FROM_VERSION
+while [ "$current" -lt "$TO_VERSION" ]; do
+    next=$((current + 1))
+    perform_upgrade "$current" "$next"
+    current=$next
+done
+
+echo "========================================="
+echo "All upgrades completed successfully!"
+echo "Final version: PostgreSQL $TO_VERSION"
+echo "========================================="
+
+# Run final verification
+task verify-final VERSION=$TO_VERSION

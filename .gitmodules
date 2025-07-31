@@ -1,0 +1,3 @@
+[submodule "docker-postgres-upgrade"]
+	path = docker-postgres-upgrade
+	url = https://github.com/tianon/docker-postgres-upgrade
