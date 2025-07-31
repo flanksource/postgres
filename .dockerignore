@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+README.md
+LICENSE
+test-data/
+*.log
+*.md
+.DS_Store
+docker-postgres-upgrade/
