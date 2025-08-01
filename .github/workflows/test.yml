@@ -38,6 +38,8 @@ jobs:
 
       - name: Test upgrade to ${{ matrix.target_version }}
         working-directory: modules/docker-postgres-upgrade
+        env:
+          GITHUB_ACTIONS: "true"
         run: |
           # Clean any existing volumes
           make clean || true
@@ -71,6 +73,8 @@ jobs:
 
       - name: Run complete test suite
         working-directory: modules/docker-postgres-upgrade
+        env:
+          GITHUB_ACTIONS: "true"
         run: |
           # Clean any existing state
           make clean || true
