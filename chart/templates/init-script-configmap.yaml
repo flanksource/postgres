@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-init-script
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+data:
+  init-upgrade.sh: |
+    #!/bin/bash
+    set -e
+    
+    # This script runs as an init container before Supabase PostgreSQL starts
+    # It handles the upgrade process if needed
+    
+    echo "PostgreSQL upgrade init container starting..."
+    echo "Data directory: /var/lib/postgresql/data"
+    echo "Target version: ${TARGET_VERSION:-17}"
+    
+    # Check if data directory exists and has PostgreSQL data
+    if [ ! -d "/var/lib/postgresql/data" ]; then
+        echo "No data directory found, creating..."
+        mkdir -p /var/lib/postgresql/data/pgdata
+        chown -R postgres:postgres /var/lib/postgresql/data
+        echo "Fresh installation - no upgrade needed"
+        exit 0
+    fi
+    
+    # Check if PostgreSQL data exists
+    if [ ! -f "/var/lib/postgresql/data/pgdata/PG_VERSION" ] && [ ! -f "/var/lib/postgresql/data/PG_VERSION" ]; then
+        echo "No existing PostgreSQL installation found - no upgrade needed"
+        exit 0
+    fi
+    
+    # Determine the location of PG_VERSION
+    PG_VERSION_FILE=""
+    if [ -f "/var/lib/postgresql/data/pgdata/PG_VERSION" ]; then
+        PG_VERSION_FILE="/var/lib/postgresql/data/pgdata/PG_VERSION"
+        DATA_DIR="/var/lib/postgresql/data/pgdata"
+    elif [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
+        PG_VERSION_FILE="/var/lib/postgresql/data/PG_VERSION"
+        DATA_DIR="/var/lib/postgresql/data"
+    fi
+    
+    if [ -n "$PG_VERSION_FILE" ]; then
+        CURRENT_VERSION=$(cat "$PG_VERSION_FILE")
+        echo "Found PostgreSQL version: $CURRENT_VERSION"
+        
+        # Check if upgrade is needed
+        if [ "$CURRENT_VERSION" -ge "${TARGET_VERSION:-17}" ]; then
+            echo "PostgreSQL $CURRENT_VERSION is already at or above target version ${TARGET_VERSION:-17}"
+            
+            # Handle password reset if requested
+            if [ "$RESET_PASSWORD" = "true" ]; then
+                echo "Password reset will be handled by main container"
+            fi
+            
+            exit 0
+        fi
+        
+        # Check if auto-upgrade is disabled
+        if [ "$AUTO_UPGRADE" = "false" ]; then
+            echo "Auto-upgrade is disabled - skipping upgrade"
+            exit 0
+        fi
+        
+        echo "Upgrading PostgreSQL from $CURRENT_VERSION to ${TARGET_VERSION:-17}"
+        
+        # Run the upgrade using the existing docker-entrypoint.sh
+        # Set environment variables and run upgrade
+        export FROM_VERSION=$CURRENT_VERSION
+        export TO_VERSION=${TARGET_VERSION:-17}
+        export PGDATA="/var/lib/postgresql/data"
+        
+        # Execute the existing upgrade logic
+        /docker-entrypoint.sh
+        
+        echo "PostgreSQL upgrade completed successfully"
+    fi
+    
+    echo "Init container upgrade process completed"

@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "postgres-upgrade.fullname" . }}-test-connection"
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test-connection
+      image: postgres:{{ .Values.postgresql.version }}-alpine
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Testing PostgreSQL connection..."
+          
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h {{ include "postgres-upgrade.serviceName" . }} -p {{ include "postgres-upgrade.port" . }} -U {{ .Values.postgresql.username }}; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          
+          echo "PostgreSQL is ready. Testing connection and basic operations..."
+          
+          # Test connection and basic operations
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -h {{ include "postgres-upgrade.serviceName" . }} -p {{ include "postgres-upgrade.port" . }} -U {{ .Values.postgresql.username }} -d {{ .Values.postgresql.database }} <<EOF
+          -- Test basic connection
+          SELECT version();
+          
+          -- Test database operations
+          CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name TEXT);
+          INSERT INTO test_table (name) VALUES ('test-connection');
+          SELECT COUNT(*) FROM test_table WHERE name = 'test-connection';
+          DROP TABLE test_table;
+          
+          -- Test configuration
+          SHOW shared_buffers;
+          SHOW effective_cache_size;
+          SHOW max_connections;
+          EOF
+          
+          echo "All tests passed successfully!"
+      env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "postgres-upgrade.secretName" . }}
+              key: postgres-password

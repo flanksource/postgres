@@ -1,0 +1,160 @@
+# Production deployment example
+# High performance configuration for production workloads
+
+# Supabase PostgreSQL configuration
+postgresql:
+  image:
+    registry: docker.io
+    repository: supabase/postgres
+    tag: "15.1.0.147"
+    pullPolicy: Always
+
+# Database configuration
+database:
+  version: "17"
+  password: "change-me-in-production"
+  autoUpgrade: true
+  resetPassword: false
+  
+  config:
+    max_connections: "200"
+    # Memory settings will be auto-calculated based on resource limits
+    checkpoint_completion_target: "0.9"
+    random_page_cost: "1.1"
+    effective_io_concurrency: "200"
+    
+    custom:
+      # WAL configuration for better durability
+      wal_level: "replica"
+      synchronous_commit: "on"
+      wal_sync_method: "fsync"
+      
+      # Logging for production monitoring
+      log_min_duration_statement: "1000"  # Log slow queries
+      log_connections: "on"
+      log_disconnections: "on"
+      log_lock_waits: "on"
+      
+      # Performance tuning
+      shared_preload_libraries: "pg_stat_statements"
+      track_activity_query_size: "2048"
+
+# Upgrade container configuration
+upgradeContainer:
+  enabled: true
+  image:
+    registry: ghcr.io
+    repository: flanksource/postgres-upgrade
+    tag: "to-17-latest"
+    pullPolicy: Always
+
+
+resources:
+  limits:
+    cpu: "4000m"
+    memory: "8Gi"
+  requests:
+    cpu: "1000m"
+    memory: "2Gi"
+
+persistence:
+  enabled: true
+  size: "100Gi"
+  storageClass: "fast-ssd"  # Use your fastest storage class
+  annotations:
+    volume.beta.kubernetes.io/storage-provisioner: "kubernetes.io/aws-ebs"
+
+service:
+  type: "ClusterIP"
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+# Security configuration
+podSecurityContext:
+  fsGroup: 999
+  runAsUser: 999
+  runAsGroup: 999
+  fsGroupChangePolicy: "OnRootMismatch"
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 999
+
+# High availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Resource monitoring
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+# Network security
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: application-namespace
+      ports:
+        - protocol: TCP
+          port: 5432
+
+# Monitoring integration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: "monitoring"
+    labels:
+      release: prometheus
+
+# Node placement
+nodeSelector:
+  node-type: "database"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - postgres-upgrade
+        topologyKey: kubernetes.io/hostname
+
+tolerations:
+  - key: "database"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
