@@ -137,6 +137,7 @@ jobs:
             "
 
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
+        timeout-minutes: 10
         run: |
           # Create directories for the upgrade
           mkdir -p test-data/${{ matrix.test.to }}

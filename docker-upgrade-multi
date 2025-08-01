@@ -56,19 +56,24 @@ perform_upgrade() {
     cd /var/lib/postgresql
     
     # Run pg_upgrade check first
+    echo "Running pg_upgrade --check..."
     $PGBINNEW/pg_upgrade \
         --old-bindir="$PGBINOLD" \
         --new-bindir="$PGBINNEW" \
         --old-datadir="$PGDATAOLD" \
         --new-datadir="$PGDATANEW" \
-        --check
+        --check \
+        --verbose
     
     # If check passes, run the actual upgrade
+    echo "Running pg_upgrade..."
     $PGBINNEW/pg_upgrade \
         --old-bindir="$PGBINOLD" \
         --new-bindir="$PGBINNEW" \
         --old-datadir="$PGDATAOLD" \
-        --new-datadir="$PGDATANEW"
+        --new-datadir="$PGDATANEW" \
+        --verbose \
+        --retain
     
     # Run post-upgrade tests
     echo "Running post-upgrade sanity tests..."
