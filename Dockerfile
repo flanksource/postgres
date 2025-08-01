@@ -7,10 +7,12 @@ RUN sed -i 's/$/ 16 15 14/' /etc/apt/sources.list.d/pgdg.list
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		postgresql-14='14.16-1.pgdg120+1' \
-		postgresql-15='15.11-1.pgdg120+1' \
+		postgresql-14='14.18-1.pgdg120+1' \
+		postgresql-15='15.13-1.pgdg120+1' \
 		postgresql-16='16.9-1.pgdg120+1' \
 		gosu \
+		curl \
+		ca-certificates \
 	; \
 	rm -rf /var/lib/apt/lists/*
 
