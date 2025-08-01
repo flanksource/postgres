@@ -100,7 +100,7 @@ jobs:
       - name: Initialize PostgreSQL ${{ matrix.test.from }} with test data
         run: |
           docker run --rm \
-            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/${{ matrix.test.from }}/data \
+            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             -e POSTGRES_USER=testuser \
             -e POSTGRES_DB=testdb \
@@ -133,8 +133,13 @@ jobs:
 
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
         run: |
+          # Create directories for the upgrade
+          mkdir -p test-data/${{ matrix.test.to }}
+          chmod 777 test-data/${{ matrix.test.to }}
+          
           docker run --rm \
-            -v $PWD/test-data:/var/lib/postgresql \
+            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/${{ matrix.test.from }}/data \
+            -v $PWD/test-data/${{ matrix.test.to }}:/var/lib/postgresql/${{ matrix.test.to }}/data \
             -e POSTGRES_PASSWORD=testpass \
             -e POSTGRES_USER=testuser \
             -e POSTGRES_DB=testdb \
