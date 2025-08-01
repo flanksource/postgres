@@ -43,7 +43,7 @@ perform_upgrade() {
     
     # Run pre-upgrade tests
     echo "Running pre-upgrade sanity tests..."
-    task pre-upgrade FROM=$from TO=$to
+    task run:pre-upgrade-check FROM=$from TO=$to
     
     # Initialize new cluster if it doesn't exist
     if [ ! -s "$PGDATANEW/PG_VERSION" ]; then
@@ -74,7 +74,7 @@ perform_upgrade() {
     
     # Run post-upgrade tests
     echo "Running post-upgrade sanity tests..."
-    task post-upgrade FROM=$from TO=$to
+    task run:post-upgrade-check FROM=$from TO=$to
     
     echo "Upgrade from $from to $to completed successfully!"
 }
