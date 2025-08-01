@@ -55,13 +55,12 @@ perform_upgrade() {
     echo "Performing upgrade from $from to $to..."
     cd /var/lib/postgresql
     
-    # Run pg_upgrade with --link for efficiency
+    # Run pg_upgrade check first
     $PGBINNEW/pg_upgrade \
         --old-bindir="$PGBINOLD" \
         --new-bindir="$PGBINNEW" \
         --old-datadir="$PGDATAOLD" \
         --new-datadir="$PGDATANEW" \
-        --link \
         --check
     
     # If check passes, run the actual upgrade
@@ -69,8 +68,7 @@ perform_upgrade() {
         --old-bindir="$PGBINOLD" \
         --new-bindir="$PGBINNEW" \
         --old-datadir="$PGDATAOLD" \
-        --new-datadir="$PGDATANEW" \
-        --link
+        --new-datadir="$PGDATANEW"
     
     # Run post-upgrade tests
     echo "Running post-upgrade sanity tests..."
