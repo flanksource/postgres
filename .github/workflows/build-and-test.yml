@@ -102,7 +102,6 @@ jobs:
           docker run --rm \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
-            -e POSTGRES_USER=testuser \
             -e POSTGRES_DB=testdb \
             postgres:${{ matrix.test.from }}-bookworm \
             bash -c "
@@ -110,7 +109,13 @@ jobs:
               PGPID=\$!
               sleep 10
               
-              # Create test data
+              # Create testuser and test database
+              psql -U postgres -d testdb <<EOF
+          CREATE USER testuser WITH PASSWORD 'testpass';
+          GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
+          EOF
+              
+              # Create test data as testuser
               psql -U testuser -d testdb <<EOF
           CREATE TABLE test_data (
             id SERIAL PRIMARY KEY,
@@ -140,9 +145,6 @@ jobs:
           docker run --rm \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/${{ matrix.test.from }}/data \
             -v $PWD/test-data/${{ matrix.test.to }}:/var/lib/postgresql/${{ matrix.test.to }}/data \
-            -e POSTGRES_PASSWORD=testpass \
-            -e POSTGRES_USER=testuser \
-            -e POSTGRES_DB=testdb \
             -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
             ${{ env.TEST_IMAGE }} \
             ${{ matrix.test.from }} ${{ matrix.test.to }}
