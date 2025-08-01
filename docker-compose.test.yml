@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Note: docker-postgres-upgrade auto-detects the PostgreSQL version in the volume
+  # and upgrades it to the latest version available in the image (17)
+  
+  upgrade-14-to-17:
+    image: postgres-upgrade:latest
+    environment:
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_USER: testuser
+      POSTGRES_DB: testdb
+    volumes:
+      - pg14-test-data:/var/lib/postgresql/data
+    profiles:
+      - upgrade-14
+
+  upgrade-15-to-17:
+    image: postgres-upgrade:latest
+    environment:
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_USER: testuser
+      POSTGRES_DB: testdb
+    volumes:
+      - pg15-test-data:/var/lib/postgresql/data
+    profiles:
+      - upgrade-15
+
+  upgrade-16-to-17:
+    image: postgres-upgrade:latest
+    environment:
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_USER: testuser
+      POSTGRES_DB: testdb
+    volumes:
+      - pg16-test-data:/var/lib/postgresql/data
+    profiles:
+      - upgrade-16
+
+volumes:
+  # These volumes are created and seeded by seed-test-data.sh
+  pg14-test-data:
+    external: true
+  pg15-test-data:
+    external: true
+  pg16-test-data:
+    external: true

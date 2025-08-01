@@ -1,0 +1,31 @@
+name: CI Status
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'modules/docker-postgres-upgrade/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: modules/docker-postgres-upgrade/Dockerfile
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './modules/docker-postgres-upgrade'
+          severity: warning

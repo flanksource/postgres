@@ -1,5 +1,9 @@
 FROM postgres:17-bookworm
 
+# Target version for upgrades (can be 15, 16, or 17)
+ARG TARGET_VERSION=17
+ENV TARGET_VERSION=${TARGET_VERSION}
+
 # Add PostgreSQL 14, 15, and 16 repositories
 RUN sed -i 's/$/ 16 15 14/' /etc/apt/sources.list.d/pgdg.list
 
@@ -41,8 +45,9 @@ WORKDIR /var/lib/postgresql
 
 COPY Taskfile.yml /var/lib/postgresql/
 COPY docker-upgrade-multi /usr/local/bin/
+COPY docker-entrypoint.sh /usr/local/bin/
 
-ENTRYPOINT ["docker-upgrade-multi"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Default: upgrade from 14 to 17
-CMD ["14", "17"]
+# Default: auto-detect version and upgrade to TARGET_VERSION
+CMD []

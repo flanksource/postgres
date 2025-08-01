@@ -1,0 +1,82 @@
+name: Test PostgreSQL Upgrade Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'modules/docker-postgres-upgrade/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'modules/docker-postgres-upgrade/**'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+
+jobs:
+  test-builds:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target_version: ['15', '16', '17']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Task
+        run: |
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+      - name: Build image for target version ${{ matrix.target_version }}
+        working-directory: modules/docker-postgres-upgrade
+        run: |
+          make build-${{ matrix.target_version }}
+
+      - name: Test upgrade to ${{ matrix.target_version }}
+        working-directory: modules/docker-postgres-upgrade
+        run: |
+          # Clean any existing volumes
+          make clean || true
+          
+          # Run tests based on target version
+          case "${{ matrix.target_version }}" in
+            15)
+              # Test 14 -> 15
+              make test-14-to-15
+              ;;
+            16)
+              # Test 14 -> 16 and 15 -> 16
+              make test-14-to-16
+              make test-15-to-16
+              ;;
+            17)
+              # Test all paths to 17
+              make test
+              ;;
+          esac
+
+  test-complete-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Task
+        run: |
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+      - name: Run complete test suite
+        working-directory: modules/docker-postgres-upgrade
+        run: |
+          # Clean any existing state
+          make clean || true
+          
+          # Build default image
+          make build
+          
+          # Run all tests
+          make test
