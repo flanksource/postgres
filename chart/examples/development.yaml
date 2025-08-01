@@ -1,0 +1,106 @@
+# Development deployment example
+# Lightweight configuration for development and testing
+
+# Supabase PostgreSQL configuration
+postgresql:
+  image:
+    registry: docker.io
+    repository: supabase/postgres
+    tag: "15.1.0.147"
+    pullPolicy: IfNotPresent
+
+# Database configuration
+database:
+  version: "17"
+  password: "devpassword123"
+  autoUpgrade: true
+  resetPassword: false
+  
+  config:
+    max_connections: "50"
+    # Memory settings will be auto-calculated based on resource limits
+    
+    custom:
+      # Development-friendly logging
+      log_statement: "all"
+      log_min_duration_statement: "0"
+      log_connections: "on"
+      log_disconnections: "on"
+      
+      # Faster checkpoints for development
+      checkpoint_completion_target: "0.7"
+      
+      # Disable fsync for faster development (NOT for production!)
+      fsync: "off"
+      synchronous_commit: "off"
+
+# Upgrade container configuration
+upgradeContainer:
+  enabled: true
+  image:
+    registry: ghcr.io
+    repository: flanksource/postgres-upgrade
+    tag: "to-17-latest"
+    pullPolicy: IfNotPresent
+
+
+# Minimal resources for development
+resources:
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+  requests:
+    cpu: "200m"
+    memory: "512Mi"
+
+# Small persistent storage
+persistence:
+  enabled: true
+  size: "5Gi"
+  storageClass: ""  # Use default storage class
+
+service:
+  type: "ClusterIP"
+
+# Relaxed probes for development
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 15
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+# No pod disruption budget for development
+podDisruptionBudget:
+  enabled: false
+
+# No network policies for development
+networkPolicy:
+  enabled: false
+
+# Simple node placement
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# Additional development environment variables
+env:
+  - name: POSTGRES_INITDB_ARGS
+    value: "--auth-local=trust --auth-host=md5"

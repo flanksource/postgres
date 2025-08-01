@@ -2,7 +2,7 @@
 set -e
 
 # This entrypoint auto-detects the PostgreSQL version in the data directory
-# and upgrades it to the latest available version (17)
+# and upgrades it to the target version specified by TARGET_VERSION env var
 
 # Function to detect PostgreSQL version from data directory
 detect_postgres_version() {
@@ -80,7 +80,32 @@ if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
     # Check if upgrade is needed
     if [ "$FROM_VERSION" -ge "$TO_VERSION" ]; then
         echo "PostgreSQL $FROM_VERSION is already at or above target version $TO_VERSION"
-        exit 0
+        
+        # Check if password reset is requested
+        if [ "$RESET_PASSWORD" = "true" ]; then
+            echo "Password reset requested for existing installation"
+            # Start PostgreSQL temporarily to reset password
+            echo "Starting PostgreSQL temporarily for password reset..."
+            sudo -u postgres /usr/lib/postgresql/$FROM_VERSION/bin/pg_ctl -D /var/lib/postgresql/data -l /tmp/postgres.log start
+            sleep 5
+            
+            echo "Resetting PostgreSQL password..."
+            sudo -u postgres /usr/lib/postgresql/$FROM_VERSION/bin/psql -c "ALTER USER ${POSTGRES_USER:-postgres} PASSWORD '${POSTGRES_PASSWORD}';"
+            
+            echo "Stopping PostgreSQL..."
+            sudo -u postgres /usr/lib/postgresql/$FROM_VERSION/bin/pg_ctl -D /var/lib/postgresql/data stop
+            echo "Password reset completed"
+        fi
+        
+        # Start normal PostgreSQL service
+        echo "Starting PostgreSQL $FROM_VERSION in normal mode..."
+        exec sudo -u postgres /usr/lib/postgresql/$FROM_VERSION/bin/postgres -D /var/lib/postgresql/data
+    fi
+    
+    # Check if auto-upgrade is disabled
+    if [ "$AUTO_UPGRADE" = "false" ]; then
+        echo "Auto-upgrade is disabled. Starting PostgreSQL $FROM_VERSION without upgrade."
+        exec sudo -u postgres /usr/lib/postgresql/$FROM_VERSION/bin/postgres -D /var/lib/postgresql/data
     fi
     
     echo "Will upgrade from PostgreSQL $FROM_VERSION to $TO_VERSION"

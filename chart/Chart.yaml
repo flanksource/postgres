@@ -1,0 +1,23 @@
+apiVersion: v2
+name: postgres-upgrade
+description: A Helm chart for PostgreSQL with automatic upgrade capabilities
+type: application
+version: 0.1.0
+appVersion: "17"
+
+keywords:
+  - postgresql
+  - database
+  - upgrade
+
+home: https://github.com/flanksource/docker-postgres-upgrade
+sources:
+  - https://github.com/flanksource/docker-postgres-upgrade
+
+maintainers:
+  - name: Flanksource
+    email: support@flanksource.com
+    url: https://flanksource.com
+
+annotations:
+  category: Database
