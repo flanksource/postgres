@@ -5,16 +5,10 @@ on:
     branches:
       - main
       - master
-    paths:
-      - 'modules/docker-postgres-upgrade/**'
-      - '.github/workflows/test.yml'
   pull_request:
     branches:
       - main
       - master
-    paths:
-      - 'modules/docker-postgres-upgrade/**'
-      - '.github/workflows/test.yml'
   workflow_dispatch:
 
 jobs:
@@ -32,12 +26,10 @@ jobs:
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
       - name: Build image for target version ${{ matrix.target_version }}
-        working-directory: modules/docker-postgres-upgrade
         run: |
           make build-${{ matrix.target_version }}
 
       - name: Test upgrade to ${{ matrix.target_version }}
-        working-directory: modules/docker-postgres-upgrade
         env:
           GITHUB_ACTIONS: "true"
         run: |
@@ -72,7 +64,6 @@ jobs:
           sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
       - name: Run complete test suite
-        working-directory: modules/docker-postgres-upgrade
         env:
           GITHUB_ACTIONS: "true"
         run: |
