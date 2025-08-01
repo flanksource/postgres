@@ -208,6 +208,24 @@ tasks:
       - task: run-upgrade-test
         vars: { FROM_VERSION: "16", TO_VERSION: "17" }
 
+  upgrade-14-to-15:
+    desc: Test upgrade from PostgreSQL 14 to 15
+    cmds:
+      - task: run-upgrade-test
+        vars: { FROM_VERSION: "14", TO_VERSION: "15" }
+
+  upgrade-14-to-16:
+    desc: Test upgrade from PostgreSQL 14 to 16
+    cmds:
+      - task: run-upgrade-test
+        vars: { FROM_VERSION: "14", TO_VERSION: "16" }
+
+  upgrade-15-to-16:
+    desc: Test upgrade from PostgreSQL 15 to 16
+    cmds:
+      - task: run-upgrade-test
+        vars: { FROM_VERSION: "15", TO_VERSION: "16" }
+
   run-upgrade-test:
     desc: Run upgrade test from PostgreSQL {{.FROM_VERSION}} to {{.TO_VERSION}}
     internal: true
@@ -250,6 +268,7 @@ tasks:
         docker run --rm \
           --user postgres \
           -v {{.VOLUME}}:/var/lib/postgresql/data \
+          -e TARGET_VERSION={{.TO_VERSION}} \
           -w /var/lib/postgresql \
           {{.IMAGE_NAME}}
 

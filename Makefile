@@ -68,16 +68,16 @@ help:
 
 # Individual upgrade tests
 test-14-to-15:
-	@echo "Testing PostgreSQL 14 to 15 upgrade with TARGET_VERSION=15..."
-	TARGET_VERSION=15 task upgrade-14-to-17
+	@echo "Testing PostgreSQL 14 to 15 upgrade..."
+	task test:upgrade-14-to-15
 
 test-14-to-16:
-	@echo "Testing PostgreSQL 14 to 16 upgrade with TARGET_VERSION=16..."
-	TARGET_VERSION=16 task upgrade-14-to-17
+	@echo "Testing PostgreSQL 14 to 16 upgrade..."
+	task test:upgrade-14-to-16
 
 test-15-to-16:
-	@echo "Testing PostgreSQL 15 to 16 upgrade with TARGET_VERSION=16..."
-	TARGET_VERSION=16 task upgrade-15-to-17
+	@echo "Testing PostgreSQL 15 to 16 upgrade..."
+	task test:upgrade-15-to-16
 
 test-14-to-17:
 	task upgrade-14-to-17
