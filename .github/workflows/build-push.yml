@@ -1,0 +1,70 @@
+name: Build and Push PostgreSQL Upgrade Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'modules/docker-postgres-upgrade/**'
+      - '.github/workflows/build-push.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag (e.g., v1.0.0, latest)'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ${{ github.repository_owner }}/postgres-upgrade
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IMAGE_TAG=${{ github.event.inputs.image_tag }}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          fi
+
+      - name: Build and push all images
+        working-directory: modules/docker-postgres-upgrade
+        run: |
+          export REGISTRY=${{ env.REGISTRY }}
+          export IMAGE_BASE=${{ env.IMAGE_BASE }}
+          export IMAGE_TAG=${{ env.IMAGE_TAG }}
+          
+          # Build all versions
+          make build-all
+          
+          # Push all versions
+          make push-all
+          
+          # Also tag and push latest on main branch
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            docker tag ${REGISTRY}/${IMAGE_BASE}:to-15-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-15-latest
+            docker tag ${REGISTRY}/${IMAGE_BASE}:to-16-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-16-latest
+            docker tag ${REGISTRY}/${IMAGE_BASE}:to-17-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-17-latest
+            
+            docker push ${REGISTRY}/${IMAGE_BASE}:to-15-latest
+            docker push ${REGISTRY}/${IMAGE_BASE}:to-16-latest
+            docker push ${REGISTRY}/${IMAGE_BASE}:to-17-latest
+          fi
