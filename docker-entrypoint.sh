@@ -17,15 +17,31 @@ detect_postgres_version() {
     fi
 }
 
-# Arguments are no longer supported - we auto-detect only
-if [ $# -ge 1 ]; then
-    echo "Error: This container now only supports auto-detection mode"
-    echo "Please mount your PostgreSQL data volume to /var/lib/postgresql/data"
+# Check if arguments are provided (legacy mode) or use auto-detection
+if [ $# -eq 2 ]; then
+    # Legacy mode: FROM_VERSION TO_VERSION provided as arguments
+    FROM_VERSION="$1"
+    TO_VERSION="$2"
+    echo "Using legacy mode: upgrading from PostgreSQL $FROM_VERSION to $TO_VERSION"
+    
+    # Set environment variables for upgrade tasks
+    export FROM_VERSION=$FROM_VERSION
+    export TO_VERSION=$TO_VERSION
+    
+    # Run the upgrade using the multi-upgrade script
+    exec /usr/local/bin/docker-upgrade-multi "$FROM_VERSION" "$TO_VERSION"
+elif [ $# -eq 0 ]; then
+    # Auto-detection mode: detect version from data directory
+    echo "Auto-detecting PostgreSQL version in data directory..."
+else
+    echo "Error: Invalid number of arguments"
+    echo "Usage: $0 [FROM_VERSION TO_VERSION]"
+    echo "  - No arguments: Auto-detect version from data directory"
+    echo "  - Two arguments: FROM_VERSION TO_VERSION (legacy mode)"
     exit 1
 fi
 
-# Otherwise, auto-detect version
-echo "Auto-detecting PostgreSQL version in data directory..."
+# Auto-detection mode continues here
 
 # Look for existing PostgreSQL data
 if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
