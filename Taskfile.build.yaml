@@ -1,0 +1,124 @@
+version: "3"
+
+# GitHub Actions output grouping
+output:
+  group:
+    begin: '::group::{{.TASK}}'
+    end: '::endgroup::'
+
+vars:
+  IMAGE_NAME: postgres-upgrade:latest
+  REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
+  IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres-upgrade"}}'
+  IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
+  TARGET_VERSIONS: [15, 16, 17]
+
+tasks:
+  build:
+    desc: Build the postgres-upgrade Docker image
+    cmds:
+      - docker build -t {{.IMAGE_NAME}} .
+    sources:
+      - Dockerfile
+      - docker-entrypoint.sh
+      - docker-upgrade-multi
+      - Taskfile.yml
+      - Taskfile.*.yaml
+    generates:
+      - .build-timestamp
+    status:
+      - docker images | grep -q "{{.IMAGE_NAME}}" || exit 1
+    method: timestamp
+
+  build-matrix:
+    desc: Build images using matrix (alternative to build-all)
+    cmds:
+      - for:
+          matrix:
+            VERSION: [15, 16, 17]
+        task: build-version
+        vars:
+          VERSION: "{{.ITEM.VERSION}}"
+
+  build-version:
+    desc: Build image that upgrades to PostgreSQL {{.VERSION}}
+    internal: true
+    vars:
+      VERSION: '{{.VERSION}}'
+    cmds:
+      - docker build --build-arg TARGET_VERSION={{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}-{{.IMAGE_TAG}} .
+    sources:
+      - Dockerfile
+      - docker-entrypoint.sh
+      - docker-upgrade-multi
+      - Taskfile.yml
+      - Taskfile.*.yaml
+
+  build-15:
+    desc: Build image that upgrades to PostgreSQL 15
+    cmds:
+      - task: build-version
+        vars: { VERSION: "15" }
+
+  build-16:
+    desc: Build image that upgrades to PostgreSQL 16
+    cmds:
+      - task: build-version
+        vars: { VERSION: "16" }
+
+  build-17:
+    desc: Build image that upgrades to PostgreSQL 17
+    cmds:
+      - task: build-version
+        vars: { VERSION: "17" }
+
+  build-all:
+    desc: Build all target version images
+    cmds:
+      - for: { var: TARGET_VERSIONS }
+        task: build-version
+        vars:
+          VERSION: "{{.ITEM}}"
+
+  push-version:
+    desc: Push PostgreSQL {{.VERSION}} upgrade image
+    internal: true
+    vars:
+      VERSION: '{{.VERSION}}'
+    deps:
+      - task: build-version
+        vars: { VERSION: "{{.VERSION}}" }
+    cmds:
+      - docker push {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}
+      - docker push {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}-{{.IMAGE_TAG}}
+
+  push-15:
+    desc: Push PostgreSQL 15 upgrade image
+    cmds:
+      - task: push-version
+        vars: { VERSION: "15" }
+
+  push-16:
+    desc: Push PostgreSQL 16 upgrade image
+    cmds:
+      - task: push-version
+        vars: { VERSION: "16" }
+
+  push-17:
+    desc: Push PostgreSQL 17 upgrade image
+    cmds:
+      - task: push-version
+        vars: { VERSION: "17" }
+
+  push-all:
+    desc: Push all target version images
+    cmds:
+      - for: { var: TARGET_VERSIONS }
+        task: push-version
+        vars:
+          VERSION: "{{.ITEM}}"
+
+  list-images:
+    desc: List all built postgres-upgrade images
+    cmds:
+      - docker images | grep -E "{{.IMAGE_BASE}}:to-" | sort || echo "No images found"

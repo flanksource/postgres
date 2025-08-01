@@ -140,6 +140,22 @@ The project includes GitHub Actions workflows:
 - **test.yml**: Runs comprehensive tests for all upgrade paths
 - **ci.yml**: Lints Dockerfile and shell scripts
 
+### Output Formatting
+
+The Taskfiles are configured to use GitHub Actions' output grouping when running in CI. This creates collapsible sections in the workflow logs:
+
+```yaml
+# In GitHub Actions, task output will be grouped like:
+::group::test:seed-version
+... task output ...
+::endgroup::
+```
+
+To enable grouped output locally:
+```bash
+TASK_OUTPUT=group task test
+```
+
 ### Manual Image Publishing
 
 To manually publish images:

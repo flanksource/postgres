@@ -10,30 +10,29 @@ build:
 	task build
 
 build-15:
-	docker build --build-arg TARGET_VERSION=15 -t $(REGISTRY)/$(IMAGE_BASE):to-15 -t $(REGISTRY)/$(IMAGE_BASE):to-15-$(IMAGE_TAG) .
+	task build:build-15
 
 build-16:
-	docker build --build-arg TARGET_VERSION=16 -t $(REGISTRY)/$(IMAGE_BASE):to-16 -t $(REGISTRY)/$(IMAGE_BASE):to-16-$(IMAGE_TAG) .
+	task build:build-16
 
 build-17:
-	docker build --build-arg TARGET_VERSION=17 -t $(REGISTRY)/$(IMAGE_BASE):to-17 -t $(REGISTRY)/$(IMAGE_BASE):to-17-$(IMAGE_TAG) .
+	task build:build-17
 
-build-all: build-15 build-16 build-17
+build-all:
+	task build:build-all
 
 # Push operations
-push-15: build-15
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-15
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-15-$(IMAGE_TAG)
+push-15:
+	REGISTRY=$(REGISTRY) IMAGE_BASE=$(IMAGE_BASE) IMAGE_TAG=$(IMAGE_TAG) task build:push-15
 
-push-16: build-16
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-16
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-16-$(IMAGE_TAG)
+push-16:
+	REGISTRY=$(REGISTRY) IMAGE_BASE=$(IMAGE_BASE) IMAGE_TAG=$(IMAGE_TAG) task build:push-16
 
-push-17: build-17
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-17
-	docker push $(REGISTRY)/$(IMAGE_BASE):to-17-$(IMAGE_TAG)
+push-17:
+	REGISTRY=$(REGISTRY) IMAGE_BASE=$(IMAGE_BASE) IMAGE_TAG=$(IMAGE_TAG) task build:push-17
 
-push-all: push-15 push-16 push-17
+push-all:
+	REGISTRY=$(REGISTRY) IMAGE_BASE=$(IMAGE_BASE) IMAGE_TAG=$(IMAGE_TAG) task build:push-all
 
 test-simple:
 	task test-simple

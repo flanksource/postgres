@@ -1,0 +1,201 @@
+version: "3"
+
+# GitHub Actions output grouping
+output:
+  group:
+    begin: '::group::{{.TASK}}'
+    end: '::endgroup::'
+
+# Global environment variables for PostgreSQL paths
+env:
+  PG14BIN: /usr/lib/postgresql/14/bin
+  PG15BIN: /usr/lib/postgresql/15/bin
+  PG16BIN: /usr/lib/postgresql/16/bin
+  PG17BIN: /usr/lib/postgresql/17/bin
+
+tasks:
+  upgrade-single:
+    desc: Perform single PostgreSQL upgrade from {{.FROM}} to {{.TO}}
+    internal: true
+    vars:
+      PGBINOLD: /usr/lib/postgresql/{{.FROM}}/bin
+      PGBINNEW: /usr/lib/postgresql/{{.TO}}/bin
+      PGDATAOLD: /var/lib/postgresql/{{.FROM}}/data
+      PGDATANEW: /var/lib/postgresql/{{.TO}}/data
+    preconditions:
+      - sh: "test {{.FROM}} -lt {{.TO}}"
+        msg: "FROM version must be less than TO version"
+    cmds:
+      - task: pre-upgrade-check
+        vars:
+          FROM: "{{.FROM}}"
+          TO: "{{.TO}}"
+          PGBINOLD: "{{.PGBINOLD}}"
+          PGBINNEW: "{{.PGBINNEW}}"
+          PGDATAOLD: "{{.PGDATAOLD}}"
+          PGDATANEW: "{{.PGDATANEW}}"
+      - task: init-new-cluster
+        vars:
+          FROM: "{{.FROM}}"
+          TO: "{{.TO}}"
+          PGBINOLD: "{{.PGBINOLD}}"
+          PGBINNEW: "{{.PGBINNEW}}"
+          PGDATAOLD: "{{.PGDATAOLD}}"
+          PGDATANEW: "{{.PGDATANEW}}"
+      - task: run-pg-upgrade
+        vars:
+          FROM: "{{.FROM}}"
+          TO: "{{.TO}}"
+          PGBINOLD: "{{.PGBINOLD}}"
+          PGBINNEW: "{{.PGBINNEW}}"
+          PGDATAOLD: "{{.PGDATAOLD}}"
+          PGDATANEW: "{{.PGDATANEW}}"
+      - task: post-upgrade-check
+        vars:
+          FROM: "{{.FROM}}"
+          TO: "{{.TO}}"
+          PGBINOLD: "{{.PGBINOLD}}"
+          PGBINNEW: "{{.PGBINNEW}}"
+          PGDATAOLD: "{{.PGDATAOLD}}"
+          PGDATANEW: "{{.PGDATANEW}}"
+      - echo "✅ Upgrade from PostgreSQL {{.FROM}} to {{.TO}} completed successfully!"
+
+  upgrade-from-env:
+    desc: Upgrade using FROM and TO environment variables (for container entrypoint)
+    vars:
+      FROM: '{{.FROM | default (env "FROM")}}'
+      TO: '{{.TO | default (env "TO")}}'
+    cmds:
+      - task: upgrade-single
+        vars:
+          FROM: "{{.FROM}}"
+          TO: "{{.TO}}"
+
+  pre-upgrade-check:
+    desc: Run pre-upgrade checks for PostgreSQL {{.FROM}} to {{.TO}}
+    internal: true
+    cmds:
+      - |
+        echo "🔍 Running pre-upgrade checks for PostgreSQL {{.FROM}}..."
+
+        # Check if old cluster exists and is valid
+        if [ ! -f "{{.PGDATAOLD}}/PG_VERSION" ]; then
+          echo "ERROR: No PostgreSQL {{.FROM}} cluster found at {{.PGDATAOLD}}"
+          exit 1
+        fi
+
+        # Verify PostgreSQL version
+        VERSION=$(cat "{{.PGDATAOLD}}/PG_VERSION")
+        if [ "$VERSION" != "{{.FROM}}" ]; then
+          echo "ERROR: Expected PostgreSQL {{.FROM}}, but found version $VERSION"
+          exit 1
+        fi
+
+        echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
+
+        # Check cluster health
+        {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
+          echo "WARNING: Database cluster is not cleanly shut down"
+        }
+
+        echo "✅ Pre-upgrade checks completed for PostgreSQL {{.FROM}}"
+
+  init-new-cluster:
+    desc: Initialize new PostgreSQL {{.TO}} cluster if needed
+    internal: true
+    status:
+      - test -s "{{.PGDATANEW}}/PG_VERSION"
+    cmds:
+      - |
+        echo "🔧 Initializing PostgreSQL {{.TO}} cluster..."
+        mkdir -p "{{.PGDATANEW}}"
+        chown postgres:postgres "{{.PGDATANEW}}"
+        {{.PGBINNEW}}/initdb -D "{{.PGDATANEW}}"
+        echo "✅ PostgreSQL {{.TO}} cluster initialized"
+
+  run-pg-upgrade:
+    desc: Run pg_upgrade from PostgreSQL {{.FROM}} to {{.TO}}
+    internal: true
+    cmds:
+      - |
+        echo "⚡ Performing pg_upgrade from PostgreSQL {{.FROM}} to {{.TO}}..."
+        cd /var/lib/postgresql
+
+        # Create socket directory and set permissions
+        mkdir -p /var/run/postgresql
+        chown postgres:postgres /var/run/postgresql
+        chmod 755 /var/run/postgresql
+
+        # Run pg_upgrade check first
+        {{.PGBINNEW}}/pg_upgrade \
+          --old-bindir="{{.PGBINOLD}}" \
+          --new-bindir="{{.PGBINNEW}}" \
+          --old-datadir="{{.PGDATAOLD}}" \
+          --new-datadir="{{.PGDATANEW}}" \
+          --link \
+          --socketdir=/var/run/postgresql \
+          --check
+
+        # If check passes, run the actual upgrade
+        {{.PGBINNEW}}/pg_upgrade \
+          --old-bindir="{{.PGBINOLD}}" \
+          --new-bindir="{{.PGBINNEW}}" \
+          --old-datadir="{{.PGDATAOLD}}" \
+          --new-datadir="{{.PGDATANEW}}" \
+          --link \
+          --socketdir=/var/run/postgresql
+
+        echo "✅ pg_upgrade completed successfully"
+
+  post-upgrade-check:
+    desc: Run post-upgrade checks for PostgreSQL {{.TO}}
+    internal: true
+    cmds:
+      - |
+        echo "🔍 Running post-upgrade checks for PostgreSQL {{.TO}}..."
+
+        # Check if new cluster exists
+        if [ ! -f "{{.PGDATANEW}}/PG_VERSION" ]; then
+          echo "ERROR: No PostgreSQL {{.TO}} cluster found at {{.PGDATANEW}}"
+          exit 1
+        fi
+
+        # Verify PostgreSQL version
+        VERSION=$(cat "{{.PGDATANEW}}/PG_VERSION")
+        if [ "$VERSION" != "{{.TO}}" ]; then
+          echo "ERROR: Expected PostgreSQL {{.TO}}, but found version $VERSION"
+          exit 1
+        fi
+
+        echo "✅ PostgreSQL {{.TO}} cluster verified at {{.PGDATANEW}}"
+
+        # Start the new cluster temporarily for verification
+        {{.PGBINNEW}}/pg_ctl -D "{{.PGDATANEW}}" -o "-p 5433" start -w || {
+          echo "ERROR: Failed to start PostgreSQL {{.TO}} cluster"
+          exit 1
+        }
+
+        # Verify database connectivity and run basic checks
+        {{.PGBINNEW}}/psql -p 5433 -U postgres -d postgres -c "SELECT version();" || {
+          echo "ERROR: Cannot connect to upgraded PostgreSQL {{.TO}} cluster"
+          {{.PGBINNEW}}/pg_ctl -D "{{.PGDATANEW}}" stop -w
+          exit 1
+        }
+
+        # Check for any issues in the database
+        {{.PGBINNEW}}/psql -p 5433 -U postgres -d postgres -c "
+          SELECT datname, encoding, datcollate, datctype
+          FROM pg_database
+          WHERE datname NOT IN ('template0', 'template1');" || {
+          echo "WARNING: Could not list databases"
+        }
+
+        # Run vacuum analyze to update statistics
+        {{.PGBINNEW}}/vacuumdb -p 5433 -U postgres -a -z || {
+          echo "WARNING: vacuum analyze failed"
+        }
+
+        # Stop the cluster
+        {{.PGBINNEW}}/pg_ctl -D "{{.PGDATANEW}}" stop -w
+
+        echo "✅ Post-upgrade checks completed for PostgreSQL {{.TO}}"

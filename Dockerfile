@@ -4,20 +4,33 @@ FROM postgres:17-bookworm
 ARG TARGET_VERSION=17
 ENV TARGET_VERSION=${TARGET_VERSION}
 
-# Add PostgreSQL 14, 15, and 16 repositories
-RUN sed -i 's/$/ 16 15 14/' /etc/apt/sources.list.d/pgdg.list
+# Conditionally add PostgreSQL repositories based on TARGET_VERSION
+RUN set -eux; \
+	if [ "$TARGET_VERSION" = "17" ]; then \
+		sed -i 's/$/ 16 15 14/' /etc/apt/sources.list.d/pgdg.list; \
+	elif [ "$TARGET_VERSION" = "16" ]; then \
+		sed -i 's/$/ 15 14/' /etc/apt/sources.list.d/pgdg.list; \
+	elif [ "$TARGET_VERSION" = "15" ]; then \
+		sed -i 's/$/ 14/' /etc/apt/sources.list.d/pgdg.list; \
+	fi
 
-# Install PostgreSQL versions 14, 15, and 16
+# Install only necessary PostgreSQL versions based on TARGET_VERSION
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		postgresql-14='14.18-1.pgdg120+1' \
-		postgresql-15='15.13-1.pgdg120+1' \
-		postgresql-16='16.9-1.pgdg120+1' \
 		gosu \
 		curl \
 		ca-certificates \
 	; \
+	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ] || [ "$TARGET_VERSION" = "15" ]; then \
+		apt-get install -y --no-install-recommends postgresql-14='14.18-1.pgdg120+1'; \
+	fi; \
+	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ]; then \
+		apt-get install -y --no-install-recommends postgresql-15='15.13-1.pgdg120+1'; \
+	fi; \
+	if [ "$TARGET_VERSION" = "17" ]; then \
+		apt-get install -y --no-install-recommends postgresql-16='16.9-1.pgdg120+1'; \
+	fi; \
 	rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for all versions
@@ -32,9 +45,18 @@ ENV PG15DATA /var/lib/postgresql/15/data
 ENV PG16DATA /var/lib/postgresql/16/data
 ENV PG17DATA /var/lib/postgresql/17/data
 
-# Create data directories
+# Create only necessary data directories based on TARGET_VERSION
 RUN set -eux; \
-	mkdir -p "$PG14DATA" "$PG15DATA" "$PG16DATA" "$PG17DATA"; \
+	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ] || [ "$TARGET_VERSION" = "15" ]; then \
+		mkdir -p "$PG14DATA"; \
+	fi; \
+	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ]; then \
+		mkdir -p "$PG15DATA"; \
+	fi; \
+	if [ "$TARGET_VERSION" = "17" ]; then \
+		mkdir -p "$PG16DATA"; \
+	fi; \
+	mkdir -p "/var/lib/postgresql/${TARGET_VERSION}/data"; \
 	chown -R postgres:postgres /var/lib/postgresql
 
 # Install task for running pre/post sanity tests
@@ -43,7 +65,7 @@ RUN set -eux; \
 
 WORKDIR /var/lib/postgresql
 
-COPY Taskfile.yml /var/lib/postgresql/
+COPY Taskfile.yml Taskfile.*.yaml /var/lib/postgresql/
 COPY docker-upgrade-multi /usr/local/bin/
 COPY docker-entrypoint.sh /usr/local/bin/
 
