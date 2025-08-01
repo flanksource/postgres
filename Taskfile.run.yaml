@@ -73,7 +73,6 @@ tasks:
 
   pre-upgrade-check:
     desc: Run pre-upgrade checks for PostgreSQL {{.FROM}} to {{.TO}}
-    internal: true
     cmds:
       - |
         echo "🔍 Running pre-upgrade checks for PostgreSQL {{.FROM}}..."
@@ -149,7 +148,6 @@ tasks:
 
   post-upgrade-check:
     desc: Run post-upgrade checks for PostgreSQL {{.TO}}
-    internal: true
     cmds:
       - |
         echo "🔍 Running post-upgrade checks for PostgreSQL {{.TO}}..."
