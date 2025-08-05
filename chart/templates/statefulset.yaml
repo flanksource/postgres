@@ -149,7 +149,7 @@ spec:
             - name: dshm
               mountPath: /dev/shm
             - name: config
-              mountPath: /etc/postgresql/postgresql.conf
+              mountPath: /tmp/postgresql-config.conf
               subPath: postgresql.conf
             - name: scripts
               mountPath: /docker-entrypoint-initdb.d
@@ -171,10 +171,18 @@ spec:
         - name: config
           configMap:
             name: {{ include "postgres-upgrade.fullname" . }}-config
+            items:
+              - key: postgresql.conf
+                path: postgresql.conf
         - name: scripts
           configMap:
-            name: {{ include "postgres-upgrade.fullname" . }}-scripts
+            name: {{ include "postgres-upgrade.fullname" . }}-config
             defaultMode: 0755
+            items:
+              - key: 01-setup-config.sh
+                path: 01-setup-config.sh
+              - key: 02-init.sh
+                path: 02-init.sh
         {{- range .Values.extraVolumes }}
         - {{- toYaml . | nindent 10 }}
         {{- end }}

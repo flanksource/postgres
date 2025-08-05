@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuites tests="11" disabled="4" errors="1" failures="0" time="474.79603025">
+      <testsuite name="PostgreSQL Upgrade Helm Chart Suite" package="/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test" tests="11" disabled="0" skipped="4" errors="1" failures="0" time="474.79603025" timestamp="2025-08-04T16:13:45">
+          <properties>
+              <property name="SuiteSucceeded" value="false"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[]"></property>
+              <property name="RandomSeed" value="1754313224"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="true"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[BeforeSuite]" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="122.162016125">
+              <system-err>&gt; Enter [BeforeSuite] TOP-LEVEL - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:30 @ 08/04/25 16:13:45.245&#xA;STEP: Creating kind cluster for testing - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:35 @ 08/04/25 16:13:45.245&#xA;STEP: Waiting for cluster to be ready - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:39 @ 08/04/25 16:14:02.017&#xA;STEP: Loading required Docker images - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:43 @ 08/04/25 16:14:24.008&#xA;&lt; Exit [BeforeSuite] TOP-LEVEL - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:30 @ 08/04/25 16:15:47.407 (2m2.162s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Helm Chart Basic Tests Chart Structure should have a valid Chart.yaml file" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="0.000466917">
+              <system-err>&gt; Enter [It] should have a valid Chart.yaml file - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:13 @ 08/04/25 16:15:47.407&#xA;&lt; Exit [It] should have a valid Chart.yaml file - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:13 @ 08/04/25 16:15:47.407 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Helm Chart Basic Tests Chart Structure should have a values.yaml file" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="0.000317292">
+              <system-err>&gt; Enter [It] should have a values.yaml file - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:29 @ 08/04/25 16:15:47.407&#xA;&lt; Exit [It] should have a values.yaml file - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:29 @ 08/04/25 16:15:47.408 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Helm Chart Basic Tests Chart Structure should have required templates" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="4.6208e-05">
+              <system-err>&gt; Enter [It] should have required templates - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:46 @ 08/04/25 16:15:47.408&#xA;&lt; Exit [It] should have required templates - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:46 @ 08/04/25 16:15:47.408 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Helm Chart Basic Tests Helm Lint should pass helm lint" classname="PostgreSQL Upgrade Helm Chart Suite" status="skipped" time="0.00012175">
+              <skipped message="skipped - Requires helm to be installed"></skipped>
+              <system-err>&gt; Enter [It] should pass helm lint - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:70 @ 08/04/25 16:15:47.408&#xA;[SKIPPED] Requires helm to be installed&#xA;In [It] at: /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:71 @ 08/04/25 16:15:47.408&#xA;&lt; Exit [It] should pass helm lint - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:70 @ 08/04/25 16:15:47.408 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] PostgreSQL Upgrade Helm Chart Helm Chart Operations should install with default values" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="48.522792958">
+              <system-err>&gt; Enter [BeforeEach] PostgreSQL Upgrade Helm Chart - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:21 @ 08/04/25 16:15:47.408&#xA;&lt; Exit [BeforeEach] PostgreSQL Upgrade Helm Chart - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:21 @ 08/04/25 16:15:47.408 (0s)&#xA;&gt; Enter [It] should install with default values - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:29 @ 08/04/25 16:15:47.408&#xA;STEP: Installing the Helm chart using fluent API - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:30 @ 08/04/25 16:15:47.408&#xA;STEP: Waiting for StatefulSet to be ready - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:39 @ 08/04/25 16:16:34.483&#xA;STEP: Verifying pod is running - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:47 @ 08/04/25 16:16:34.966&#xA;STEP: Getting password from secret - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:51 @ 08/04/25 16:16:35.253&#xA;STEP: Testing database connectivity - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:57 @ 08/04/25 16:16:35.439&#xA;&lt; Exit [It] should install with default values - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:29 @ 08/04/25 16:16:35.931 (48.523s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] PostgreSQL Upgrade Helm Chart Helm Chart Operations should upgrade with new configuration" classname="PostgreSQL Upgrade Helm Chart Suite" status="panicked" time="301.588006791">
+              <error message="helm upgrade failed: ExitCode: 1&#xA;Stdout:&#xA;&#xA;Stderr:&#xA;Error: UPGRADE FAILED: context deadline exceeded&#xA;&#xA;Error: exit status 1" type="panicked">[PANICKED] Test Panicked&#xA;In [It] at: /Users/moshe/go/src/github.com/flanksource/commons/test/helm.go:295 @ 08/04/25 16:21:37.537&#xA;&#xA;helm upgrade failed: ExitCode: 1&#xA;Stdout:&#xA;&#xA;Stderr:&#xA;Error: UPGRADE FAILED: context deadline exceeded&#xA;&#xA;Error: exit status 1&#xA;&#xA;Full Stack Trace&#xA;  github.com/flanksource/commons/test.(*HelmChart).MustSucceed(...)&#xA;  &#x9;/Users/moshe/go/src/github.com/flanksource/commons/test/helm.go:295&#xA;  github.com/flanksource/docker-postgres-upgrade/test.init.func4.2.2()&#xA;  &#x9;/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:78 +0x4b8&#xA;</error>
+              <system-err>&gt; Enter [BeforeEach] PostgreSQL Upgrade Helm Chart - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:21 @ 08/04/25 16:16:35.931&#xA;&lt; Exit [BeforeEach] PostgreSQL Upgrade Helm Chart - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:21 @ 08/04/25 16:16:35.931 (0s)&#xA;&gt; Enter [It] should upgrade with new configuration - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:65 @ 08/04/25 16:16:35.931&#xA;STEP: Getting current generation - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:66 @ 08/04/25 16:16:35.931&#xA;STEP: Upgrading with new values - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:71 @ 08/04/25 16:16:36.096&#xA;[PANICKED] Test Panicked&#xA;In [It] at: /Users/moshe/go/src/github.com/flanksource/commons/test/helm.go:295 @ 08/04/25 16:21:37.537&#xA;&#xA;helm upgrade failed: ExitCode: 1&#xA;Stdout:&#xA;&#xA;Stderr:&#xA;Error: UPGRADE FAILED: context deadline exceeded&#xA;&#xA;Error: exit status 1&#xA;&#xA;Full Stack Trace&#xA;  github.com/flanksource/commons/test.(*HelmChart).MustSucceed(...)&#xA;  &#x9;/Users/moshe/go/src/github.com/flanksource/commons/test/helm.go:295&#xA;  github.com/flanksource/docker-postgres-upgrade/test.init.func4.2.2()&#xA;  &#x9;/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:78 +0x4b8&#xA;&lt; Exit [It] should upgrade with new configuration - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:65 @ 08/04/25 16:21:37.537 (5m1.588s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] PostgreSQL Upgrade Helm Chart Helm Chart Operations should handle PostgreSQL version upgrade from 15 to 17" classname="PostgreSQL Upgrade Helm Chart Suite" status="skipped" time="0">
+              <skipped message="skipped"></skipped>
+          </testcase>
+          <testcase name="[It] PostgreSQL Upgrade Helm Chart Helm Chart Operations should support complex chained operations" classname="PostgreSQL Upgrade Helm Chart Suite" status="skipped" time="0">
+              <skipped message="skipped"></skipped>
+          </testcase>
+          <testcase name="[It] PostgreSQL Upgrade Helm Chart Namespace Management should manage namespaces" classname="PostgreSQL Upgrade Helm Chart Suite" status="skipped" time="0">
+              <skipped message="skipped"></skipped>
+          </testcase>
+          <testcase name="[AfterSuite]" classname="PostgreSQL Upgrade Helm Chart Suite" status="passed" time="2.521346791">
+              <system-err>&gt; Enter [AfterSuite] TOP-LEVEL - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:75 @ 08/04/25 16:21:37.537&#xA;STEP: Deleting kind cluster - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:83 @ 08/04/25 16:21:37.943&#xA;&lt; Exit [AfterSuite] TOP-LEVEL - /Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go:75 @ 08/04/25 16:21:40.058 (2.521s)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+  </testsuites>

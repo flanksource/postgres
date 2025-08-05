@@ -96,6 +96,8 @@ jobs:
         run: |
           mkdir -p test-data/${{ matrix.test.from }}
           chmod 777 test-data/${{ matrix.test.from }}
+          # Set SELinux context to allow Docker access
+          sudo chcon -Rt svirt_sandbox_file_t test-data/ 2>/dev/null || true
 
       - name: Initialize PostgreSQL ${{ matrix.test.from }} with test data
         run: |
@@ -134,6 +136,9 @@ jobs:
               # Gracefully stop PostgreSQL
               pg_ctl -D /var/lib/postgresql/data stop -m smart -w
               sleep 5
+              
+              # Fix permissions for GitHub Actions runner
+              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
             "
 
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
@@ -180,16 +185,40 @@ jobs:
               
               # Stop PostgreSQL
               pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+              
+              # Fix permissions for GitHub Actions runner
+              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
             "
 
-      - name: Upload test artifacts on failure
+      - name: Fix permissions after test
+        if: always()
+        run: |
+          # Always fix permissions after test, regardless of success/failure
+          sudo chown -R $USER:$USER test-data/ || true
+          
+      - name: Collect and show test artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-logs-${{ matrix.test.from }}-to-${{ matrix.test.to }}
-          path: |
-            test-data/**/pg_upgrade_output.d/
-            test-data/**/*.log
+        run: |
+          echo "=== Test failed, collecting available information ==="
+          
+          # Try to fix permissions first
+          sudo chown -R $USER:$USER test-data/ || true
+          
+          # Show directory structure
+          echo "Test data directory structure:"
+          find test-data/ -type f -name "*.log" 2>/dev/null || echo "No log files found"
+          
+          # Show any pg_upgrade output if available
+          find test-data/ -name "pg_upgrade_output.d" -type d 2>/dev/null | while read dir; do
+            echo "=== Contents of $dir ==="
+            ls -la "$dir" 2>/dev/null || echo "Cannot access $dir"
+          done
+          
+          # Show recent log entries
+          find test-data/ -name "*.log" -type f 2>/dev/null | head -5 | while read logfile; do
+            echo "=== Last 20 lines of $logfile ==="
+            tail -20 "$logfile" 2>/dev/null || echo "Cannot read $logfile"
+          done
 
   test-arm64:
     needs: build
