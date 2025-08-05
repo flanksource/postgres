@@ -8,398 +8,182 @@ output:
 
 vars:
   IMAGE_NAME: postgres-upgrade:latest
-  PG_VERSIONS: [14, 15, 16]
-  UPGRADE_MATRIX:
-    - FROM: 14
-      TO: 17
-    - FROM: 15
-      TO: 17
-    - FROM: 16
-      TO: 17
+  TEST_DIR: ./test
+  GO_TEST_FLAGS: -v -timeout 30m
+  UPGRADE_TEST_ENV: RUN_UPGRADE_TESTS=true
 
 tasks:
-  build:
-    cmds:
-      - task build:build
-  # Volume management tasks
-  create-volumes:
-    desc: Create all test volumes
-    cmds:
-      - for: { var: PG_VERSIONS }
-        task: create-volume
-        vars:
-          VERSION: "{{.ITEM}}"
-
-  create-volume:
-    desc: Create PostgreSQL volume for version {{.VERSION}}
-    internal: true
-    cmds:
-      - docker volume create pg{{.VERSION}}-test-data
-    status:
-      - docker volume inspect pg{{.VERSION}}-test-data >/dev/null 2>&1
-
-  # Seeding tasks
-  seed-all:
-    desc: Seed all PostgreSQL versions with test data
-    deps: [create-volumes]
-    cmds:
-      - for: { var: PG_VERSIONS }
-        task: seed-version
-        vars:
-          VERSION: "{{.ITEM}}"
-
-  seed-pg14:
-    desc: Seed PostgreSQL 14 volume with test data
-    cmds:
-      - task: seed-version
-        vars: { VERSION: "14" }
-
-  seed-pg15:
-    desc: Seed PostgreSQL 15 volume with test data
-    cmds:
-      - task: seed-version
-        vars: { VERSION: "15" }
-
-  seed-pg16:
-    desc: Seed PostgreSQL 16 volume with test data
-    cmds:
-      - task: seed-version
-        vars: { VERSION: "16" }
-
-  seed-version:
-    desc: Seed PostgreSQL {{.VERSION}} with test data
-    internal: true
-    vars:
-      VOLUME: pg{{.VERSION}}-test-data
-      CONTAINER_NAME: postgres-seed-{{.VERSION}}-{{now | date "20060102150405"}}
-    deps:
-      - task: create-volume
-        vars: { VERSION: "{{.VERSION}}" }
-    preconditions:
-      - docker volume inspect {{.VOLUME}} >/dev/null 2>&1
-    cmds:
-      - docker rm -f postgres-seed-{{.VERSION}} 2>/dev/null || true
-      - |
-        echo "🌱 Seeding PostgreSQL {{.VERSION}} volume {{.VOLUME}}..."
-        docker run -d \
-          --name {{.CONTAINER_NAME}} \
-          -e POSTGRES_PASSWORD=testpass \
-          -e POSTGRES_DB=testdb \
-          -v {{.VOLUME}}:/var/lib/postgresql/data \
-          postgres:{{.VERSION}}
-      - |
-        echo "⏳ Waiting for PostgreSQL {{.VERSION}} to be ready..."
-        for i in {1..30}; do
-          if docker exec {{.CONTAINER_NAME}} pg_isready -U postgres >/dev/null 2>&1; then
-            echo "✅ PostgreSQL {{.VERSION}} is ready"
-            break
-          fi
-          echo -n "."
-          sleep 1
-        done
-      - |
-        echo "📊 Creating test data for PostgreSQL {{.VERSION}}..."
-        docker exec {{.CONTAINER_NAME}} psql -U postgres -d testdb -c "
-          DO \$\$
-          BEGIN
-            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'testuser') THEN
-              CREATE USER testuser WITH PASSWORD 'testpass';
-            END IF;
-          END
-          \$\$;
-
-          GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
-
-          DROP TABLE IF EXISTS test_table CASCADE;
-          CREATE TABLE test_table (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            version VARCHAR(10) DEFAULT '{{.VERSION}}'
-          );
-
-          INSERT INTO test_table (name) VALUES
-            ('Test Record 1 from PG{{.VERSION}}'),
-            ('Test Record 2 from PG{{.VERSION}}'),
-            ('Test Record 3 from PG{{.VERSION}}');
-
-          DROP TABLE IF EXISTS version_info CASCADE;
-          CREATE TABLE version_info (
-            id INTEGER PRIMARY KEY,
-            original_version VARCHAR(10),
-            seed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-
-          INSERT INTO version_info (id, original_version) VALUES (1, '{{.VERSION}}');
-        "
-      - docker stop {{.CONTAINER_NAME}}
-      - docker rm {{.CONTAINER_NAME}}
-      - task: verify-seed
-        vars: { VERSION: "{{.VERSION}}" }
-      - echo "✅ Successfully seeded PostgreSQL {{.VERSION}} volume"
-
-  copy-volume:
-    desc: Copy a Docker volume
-    internal: true
-    vars:
-      SOURCE: "{{.SOURCE}}"
-      DEST: "{{.DEST}}"
-    cmds:
-      - docker volume create {{.DEST}}
-      - |
-        docker run --rm \
-          -v {{.SOURCE}}:/source:ro \
-          -v {{.DEST}}:/dest \
-          --user root \
-          postgres:17 bash -c "
-            cp -a /source/* /dest/ &&
-            chown -R postgres:postgres /dest/ &&
-            chmod 700 /dest/
-          "
-
-  verify-seed:
-    desc: Verify seeded data for PostgreSQL {{.VERSION}}
-    internal: true
-    vars:
-      VOLUME: pg{{.VERSION}}-test-data
-      CONTAINER_NAME: verify-seed-{{.VERSION}}-{{now | date "20060102150405"}}
-    cmds:
-      - |
-        echo "🔍 Verifying seed data for PostgreSQL {{.VERSION}}..."
-        docker run --rm \
-          --name {{.CONTAINER_NAME}} \
-          --user postgres \
-          -v {{.VOLUME}}:/var/lib/postgresql/data \
-          postgres:{{.VERSION}} \
-          bash -c "
-            pg_ctl -D /var/lib/postgresql/data start -w &&
-            psql -U postgres -d testdb -c 'SELECT COUNT(*) as record_count FROM test_table;' &&
-            psql -U postgres -d testdb -c 'SELECT * FROM version_info;' &&
-            pg_ctl -D /var/lib/postgresql/data stop -w
-          " || (echo "❌ Seed verification failed for PostgreSQL {{.VERSION}}" && exit 1)
-        echo "✅ Seed verification passed for PostgreSQL {{.VERSION}}"
-
-  # Test tasks
+  # Main test tasks using Go tests
   all:
-    desc: Test all PostgreSQL upgrades
-    deps: [seed-all]
+    desc: Run all PostgreSQL upgrade tests
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - for: { var: UPGRADE_MATRIX }
-        task: run-upgrade-test
-        vars:
-          FROM_VERSION: "{{.ITEM.FROM}}"
-          TO_VERSION: "{{.ITEM.TO}}"
+      - task: build
+      - |
+        echo "🧪 Running all PostgreSQL upgrade tests..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgrade
 
   upgrade-14-to-17:
     desc: Test upgrade from PostgreSQL 14 to 17
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "14", TO_VERSION: "17" }
+      - task: build
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL 14 to 17..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_14_to_17"
 
   upgrade-15-to-17:
     desc: Test upgrade from PostgreSQL 15 to 17
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "15", TO_VERSION: "17" }
+      - task: build
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL 15 to 17..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_17"
 
   upgrade-16-to-17:
     desc: Test upgrade from PostgreSQL 16 to 17
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "16", TO_VERSION: "17" }
-
-  upgrade-14-to-15:
-    desc: Test upgrade from PostgreSQL 14 to 15
-    cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "14", TO_VERSION: "15" }
-
-  upgrade-14-to-16:
-    desc: Test upgrade from PostgreSQL 14 to 16
-    cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "14", TO_VERSION: "16" }
+      - task: build
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL 16 to 17..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_16_to_17"
 
   upgrade-15-to-16:
     desc: Test upgrade from PostgreSQL 15 to 16
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - task: run-upgrade-test
-        vars: { FROM_VERSION: "15", TO_VERSION: "16" }
-
-  run-upgrade-test:
-    desc: Run upgrade test from PostgreSQL {{.FROM_VERSION}} to {{.TO_VERSION}}
-    internal: true
-    vars:
-      SOURCE_VOLUME: pg{{.FROM_VERSION}}-test-data
-      TEST_VOLUME: pg{{.FROM_VERSION}}-to-{{.TO_VERSION}}-test-{{now | date "20060102150405"}}
-    deps:
-      - task: seed-version
-        vars: { VERSION: "{{.FROM_VERSION}}" }
-    preconditions:
-      - docker volume inspect {{.SOURCE_VOLUME}} >/dev/null 2>&1
-    cmds:
-      - task: copy-volume
-        vars:
-          SOURCE: "{{.SOURCE_VOLUME}}"
-          DEST: "{{.TEST_VOLUME}}"
-      - task: run-upgrade
-        vars:
-          FROM_VERSION: "{{.FROM_VERSION}}"
-          TO_VERSION: "{{.TO_VERSION}}"
-          VOLUME: "{{.TEST_VOLUME}}"
-      - task: verify-upgrade
-        vars:
-          FROM_VERSION: "{{.FROM_VERSION}}"
-          TO_VERSION: "{{.TO_VERSION}}"
-          VOLUME: "{{.TEST_VOLUME}}"
-      - docker volume rm {{.TEST_VOLUME}} || true
-
-  run-upgrade:
-    desc: Run PostgreSQL upgrade from {{.FROM_VERSION}} to {{.TO_VERSION}}
-    deps:
       - task: build
-    preconditions:
-      - docker volume inspect {{.VOLUME}} >/dev/null 2>&1
-      - sh: "test {{.FROM_VERSION}} -lt {{.TO_VERSION}}"
-        msg: "FROM_VERSION must be less than TO_VERSION"
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL 15 to 16..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_16"
+
+  # Quick test for development
+  dev-test-quick:
+    desc: Quick development test (14 to 17 upgrade only)
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - task: build
+      - |
+        echo "⚡ Running quick test..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgradeQuick
+
+  # Build task
+  build:
+    desc: Build the PostgreSQL upgrade Docker image
+    cmds:
+      - task build:build
+
+  # Status task using Go test
+  status:
+    desc: Show status of volumes and images
+    dir: "{{.TEST_DIR}}"
     cmds:
       - |
-        echo "🚀 Starting upgrade from PostgreSQL {{.FROM_VERSION}} to {{.TO_VERSION}}..."
-        docker run --rm \
-          --user postgres \
-          -v {{.VOLUME}}:/var/lib/postgresql/data \
-          -e TARGET_VERSION={{.TO_VERSION}} \
-          -w /var/lib/postgresql \
-          {{.IMAGE_NAME}}
-
-  verify-upgrade:
-    desc: Verify upgrade results
-    internal: true
-    vars:
-      CONTAINER_NAME: verify-upgrade-{{.FROM_VERSION}}-to-{{.TO_VERSION}}
-    cmds:
-      - |
-        echo "🔍 Verifying upgrade from PostgreSQL {{.FROM_VERSION}} to {{.TO_VERSION}}..."
-        docker run --rm \
-          --name {{.CONTAINER_NAME}} \
-          -v {{.VOLUME}}:/var/lib/postgresql/data \
-          --user postgres \
-          postgres:{{.TO_VERSION}} \
-          bash -c '
-            # Start PostgreSQL
-            pg_ctl -D /var/lib/postgresql/data start -w || exit 1
-
-            # Check version
-            actual_version=$(psql -U postgres -t -c "SHOW server_version;" | sed "s/^ *//" | grep -oE "^[0-9]+" | head -1)
-            if [ "$actual_version" != "{{.TO_VERSION}}" ]; then
-              echo "❌ Version mismatch. Expected {{.TO_VERSION}}, got $actual_version"
-              exit 1
-            fi
-            echo "✅ PostgreSQL version is {{.TO_VERSION}}"
-
-            # Check tables exist
-            table_count=$(psql -U postgres -d testdb -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = '"'"'public'"'"';" | tr -d " ")
-            if [ "$table_count" -lt 2 ]; then
-              echo "❌ Tables missing. Expected at least 2, found $table_count"
-              exit 1
-            fi
-            echo "✅ Tables are present"
-
-            # Check data integrity
-            record_count=$(psql -U postgres -d testdb -t -c "SELECT COUNT(*) FROM test_table;" | tr -d " ")
-            if [ "$record_count" != "3" ]; then
-              echo "❌ Data integrity check failed. Expected 3 records, found $record_count"
-              exit 1
-            fi
-            echo "✅ Data integrity verified"
-
-            # Check original version info
-            original_version=$(psql -U postgres -d testdb -t -c "SELECT original_version FROM version_info WHERE id = 1;" | tr -d " ")
-            if [ "$original_version" != "{{.FROM_VERSION}}" ]; then
-              echo "❌ Original version info corrupted. Expected {{.FROM_VERSION}}, found $original_version"
-              exit 1
-            fi
-            echo "✅ Original version info preserved"
-
-            # Display sample data
-            echo "Sample data after upgrade:"
-            psql -U postgres -d testdb -c "SELECT * FROM test_table LIMIT 2;"
-
-            # Stop PostgreSQL
-            pg_ctl -D /var/lib/postgresql/data stop -w
-          ' || (echo "❌ Upgrade verification failed" && exit 1)
-        echo "✅ Upgrade verification passed!"
+        echo "📊 Checking Docker resources status..."
+        go test {{.GO_TEST_FLAGS}} -run TestShowUpgradeStatus
 
   # Cleanup tasks
+  clean:
+    desc: Clean up all test resources
+    cmds:
+      - task: clean-volumes
+      - task: clean-images
+      - echo "🧹 Cleanup completed"
+
   clean-volumes:
     desc: Remove all test volumes
     cmds:
       - |
-        echo "🧹 Removing containers using test volumes..."
-        # Remove containers using base volumes
-        for version in {{.PG_VERSIONS}}; do
-          volume="pg${version}-test-data"
-          docker ps -a --filter volume=$volume -q | xargs -r docker rm -f 2>/dev/null || true
-        done
-        # Remove containers using temporary test volumes
+        echo "🧹 Removing test volumes..."
+        # Remove containers using test volumes
         docker ps -a -q | xargs -r docker inspect --format '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{end}}{{end}}' | \
-          grep -E "^pg[0-9]+-to-[0-9]+-test-" | \
+          grep -E "(pg[0-9]+-test-data|pg[0-9]+-to-[0-9]+-test-)" | \
           xargs -r -I {} docker ps -a --filter volume={} -q | \
           xargs -r docker rm -f 2>/dev/null || true
-      - |
-        echo "🧹 Removing temporary test volumes..."
-        docker volume ls -q | grep -E "^pg[0-9]+-to-[0-9]+-test-" | xargs -r docker volume rm 2>/dev/null || true
-      - |
-        echo "🧹 Removing base test volumes..."
-        for version in {{.PG_VERSIONS}}; do
-          docker volume rm -f pg${version}-test-data 2>/dev/null || true
-        done
+        # Remove test volumes
+        docker volume ls -q | grep -E "(pg[0-9]+-test-data|pg[0-9]+-to-[0-9]+-test-)" | xargs -r docker volume rm 2>/dev/null || true
 
   clean-images:
     desc: Remove Docker images
     cmds:
-      - docker rmi {{.IMAGE_NAME}} {{.IMAGE_NAME}}-test || true
+      - docker rmi {{.IMAGE_NAME}} 2>/dev/null || true
+      - docker images | grep postgres-upgrade | awk '{print $1":"$2}' | xargs -r docker rmi 2>/dev/null || true
 
-  clean:
-    desc: Clean up everything
-    deps: [clean-volumes, clean-images]
+  # Test coverage and reporting
+  test-coverage:
+    desc: Run tests with coverage report
+    dir: "{{.TEST_DIR}}"
     cmds:
-      - echo "🧹 Cleanup completed"
-
-  # Development tasks
-  dev-setup:
-    desc: Set up development environment
-    deps: [create-volumes]
-    cmds:
-      - echo "🔧 Development environment ready"
-
-  dev-test-quick:
-    desc: Quick development test (14 to 17 upgrade only)
-    deps: [seed-pg14, upgrade-14-to-17]
-    cmds:
-      - echo "⚡ Quick test completed"
-
-  # Status tasks
-  status:
-    desc: Show status of volumes and images
-    cmds:
-      - echo "📊 Docker Volumes:"
       - |
-        volumes_found=false
-        for version in {{range .PG_VERSIONS}}{{.}} {{end}}; do
-          if docker volume inspect pg${version}-test-data >/dev/null 2>&1; then
-            echo "  ✅ pg${version}-test-data"
-            volumes_found=true
-          else
-            echo "  ❌ pg${version}-test-data (missing)"
-          fi
-        done
-        if [ "$volumes_found" = false ]; then
-          echo "  No test volumes found"
-        fi
-      - echo
-      - echo "📊 Docker Images:"
-      - docker images | grep postgres-upgrade || echo "  No postgres-upgrade images found"
-      - echo
-      - echo "📊 Running Containers:"
-      - docker ps | grep -E "(postgres|upgrade)" || echo "  No related containers running"
+        echo "📊 Running tests with coverage..."
+        {{.UPGRADE_TEST_ENV}} go test -coverprofile=coverage.out {{.GO_TEST_FLAGS}} ./...
+        go tool cover -html=coverage.out -o coverage.html
+        echo "✅ Coverage report generated: test/coverage.html"
+
+  test-report:
+    desc: Generate test report
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "📊 Generating test report..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -json ./... | tee test-report.json
+        echo "✅ Test report generated: test/test-report.json"
+
+  # Development helpers
+  test-watch:
+    desc: Run tests in watch mode
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "👀 Running tests in watch mode..."
+        which ginkgo >/dev/null 2>&1 || go install github.com/onsi/ginkgo/v2/ginkgo@latest
+        ginkgo watch -v
+
+  # CI/CD specific tasks
+  ci-test:
+    desc: Run tests in CI environment
+    dir: "{{.TEST_DIR}}"
+    env:
+      CI: "true"
+    cmds:
+      - task: build
+      - |
+        echo "🤖 Running tests in CI mode..."
+        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -json ./... | tee test-results.json
+        # Generate JUnit XML for CI systems
+        go install github.com/jstemmer/go-junit-report/v2@latest
+        cat test-results.json | go-junit-report -out junit.xml
+        echo "✅ Test results saved to test/junit.xml"
+
+  # Manual seed tasks (for debugging)
+  seed-pg14:
+    desc: Manually seed PostgreSQL 14 volume
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "🌱 Seeding PostgreSQL 14 volume..."
+        go run . -test.run=TestSeedVolume -pg.version=14
+
+  seed-pg15:
+    desc: Manually seed PostgreSQL 15 volume
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "🌱 Seeding PostgreSQL 15 volume..."
+        go run . -test.run=TestSeedVolume -pg.version=15
+
+  seed-pg16:
+    desc: Manually seed PostgreSQL 16 volume
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "🌱 Seeding PostgreSQL 16 volume..."
+        go run . -test.run=TestSeedVolume -pg.version=16
+
+  # Help task
+  help:
+    desc: Show available tasks
+    cmds:
+      - task --list

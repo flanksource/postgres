@@ -12,7 +12,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-connection
-      image: postgres:{{ .Values.postgresql.version }}-alpine
+      image: postgres:{{ .Values.database.version }}-alpine
       command:
         - /bin/sh
         - -c
@@ -21,7 +21,7 @@ spec:
           echo "Testing PostgreSQL connection..."
           
           # Wait for PostgreSQL to be ready
-          until pg_isready -h {{ include "postgres-upgrade.serviceName" . }} -p {{ include "postgres-upgrade.port" . }} -U {{ .Values.postgresql.username }}; do
+          until pg_isready -h {{ include "postgres-upgrade.fullname" . }} -p 5432 -U {{ .Values.database.username }}; do
             echo "Waiting for PostgreSQL to be ready..."
             sleep 2
           done
@@ -29,7 +29,7 @@ spec:
           echo "PostgreSQL is ready. Testing connection and basic operations..."
           
           # Test connection and basic operations
-          PGPASSWORD="${POSTGRES_PASSWORD}" psql -h {{ include "postgres-upgrade.serviceName" . }} -p {{ include "postgres-upgrade.port" . }} -U {{ .Values.postgresql.username }} -d {{ .Values.postgresql.database }} <<EOF
+          PGPASSWORD="${POSTGRES_PASSWORD}" psql -h {{ include "postgres-upgrade.fullname" . }} -p 5432 -U {{ .Values.database.username }} -d {{ .Values.database.name }} <<EOF
           -- Test basic connection
           SELECT version();
           

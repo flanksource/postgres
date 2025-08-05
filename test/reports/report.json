@@ -1,0 +1,876 @@
+[
+  {
+    "SuitePath": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test",
+    "SuiteDescription": "PostgreSQL Upgrade Helm Chart Suite",
+    "SuiteLabels": [],
+    "SuiteSucceeded": false,
+    "SuiteHasProgrammaticFocus": false,
+    "SpecialSuiteFailureReasons": null,
+    "PreRunStats": {
+      "TotalSpecs": 9,
+      "SpecsThatWillRun": 9
+    },
+    "StartTime": "2025-08-04T16:13:45.244848+03:00",
+    "EndTime": "2025-08-04T16:21:40.0589+03:00",
+    "RunTime": 474796030250,
+    "SuiteConfig": {
+      "RandomSeed": 1754313224,
+      "RandomizeAllSpecs": false,
+      "FocusStrings": null,
+      "SkipStrings": null,
+      "FocusFiles": null,
+      "SkipFiles": null,
+      "LabelFilter": "",
+      "FailOnPending": false,
+      "FailOnEmpty": false,
+      "FailFast": true,
+      "FlakeAttempts": 0,
+      "MustPassRepeatedly": 0,
+      "DryRun": false,
+      "PollProgressAfter": 0,
+      "PollProgressInterval": 0,
+      "Timeout": 1799359919166,
+      "EmitSpecProgress": false,
+      "OutputInterceptorMode": "",
+      "SourceRoots": null,
+      "GracePeriod": 30000000000,
+      "ParallelProcess": 1,
+      "ParallelTotal": 1,
+      "ParallelHost": ""
+    },
+    "SpecReports": [
+      {
+        "ContainerHierarchyTexts": null,
+        "ContainerHierarchyLocations": null,
+        "ContainerHierarchyLabels": null,
+        "LeafNodeType": "BeforeSuite",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+          "LineNumber": 30
+        },
+        "LeafNodeLabels": null,
+        "LeafNodeText": "",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:13:45.245094+03:00",
+        "EndTime": "2025-08-04T16:15:47.407193+03:00",
+        "RunTime": 122162016125,
+        "ParallelProcess": 1,
+        "NumAttempts": 0,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 30
+            },
+            "TimelineLocation": {
+              "Order": 1,
+              "Time": "2025-08-04T16:13:45.245095+03:00"
+            },
+            "Message": "TOP-LEVEL",
+            "NodeType": "BeforeSuite"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 35
+            },
+            "TimelineLocation": {
+              "Order": 2,
+              "Time": "2025-08-04T16:13:45.245165+03:00"
+            },
+            "Message": "Creating kind cluster for testing"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 39
+            },
+            "TimelineLocation": {
+              "Order": 3,
+              "Time": "2025-08-04T16:14:02.017623+03:00"
+            },
+            "Message": "Waiting for cluster to be ready"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 43
+            },
+            "TimelineLocation": {
+              "Order": 4,
+              "Time": "2025-08-04T16:14:24.00874+03:00"
+            },
+            "Message": "Loading required Docker images"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 30
+            },
+            "TimelineLocation": {
+              "Order": 6,
+              "Time": "2025-08-04T16:15:47.407186+03:00"
+            },
+            "Message": "TOP-LEVEL",
+            "Duration": 122162007792,
+            "NodeType": "BeforeSuite"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Helm Chart Basic Tests",
+          "Chart Structure"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 11
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 12
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+          "LineNumber": 13
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should have a valid Chart.yaml file",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:15:47.407362+03:00",
+        "EndTime": "2025-08-04T16:15:47.407829+03:00",
+        "RunTime": 466917,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 13
+            },
+            "TimelineLocation": {
+              "Order": 7,
+              "Time": "2025-08-04T16:15:47.407368+03:00"
+            },
+            "Message": "should have a valid Chart.yaml file",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 13
+            },
+            "TimelineLocation": {
+              "Order": 9,
+              "Time": "2025-08-04T16:15:47.407826+03:00"
+            },
+            "Message": "should have a valid Chart.yaml file",
+            "Duration": 458000,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Helm Chart Basic Tests",
+          "Chart Structure"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 11
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 12
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+          "LineNumber": 29
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should have a values.yaml file",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:15:47.407864+03:00",
+        "EndTime": "2025-08-04T16:15:47.408182+03:00",
+        "RunTime": 317292,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 29
+            },
+            "TimelineLocation": {
+              "Order": 10,
+              "Time": "2025-08-04T16:15:47.407866+03:00"
+            },
+            "Message": "should have a values.yaml file",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 29
+            },
+            "TimelineLocation": {
+              "Order": 12,
+              "Time": "2025-08-04T16:15:47.40818+03:00"
+            },
+            "Message": "should have a values.yaml file",
+            "Duration": 314208,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Helm Chart Basic Tests",
+          "Chart Structure"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 11
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 12
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+          "LineNumber": 46
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should have required templates",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:15:47.408212+03:00",
+        "EndTime": "2025-08-04T16:15:47.408258+03:00",
+        "RunTime": 46208,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 46
+            },
+            "TimelineLocation": {
+              "Order": 13,
+              "Time": "2025-08-04T16:15:47.408213+03:00"
+            },
+            "Message": "should have required templates",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 46
+            },
+            "TimelineLocation": {
+              "Order": 15,
+              "Time": "2025-08-04T16:15:47.408257+03:00"
+            },
+            "Message": "should have required templates",
+            "Duration": 44333,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "Helm Chart Basic Tests",
+          "Helm Lint"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 11
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 69
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+          "LineNumber": 70
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should pass helm lint",
+        "State": "skipped",
+        "StartTime": "2025-08-04T16:15:47.40828+03:00",
+        "EndTime": "2025-08-04T16:15:47.408401+03:00",
+        "RunTime": 121750,
+        "ParallelProcess": 1,
+        "Failure": {
+          "Message": "Requires helm to be installed",
+          "Location": {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 71,
+            "FullStackTrace": "github.com/flanksource/docker-postgres-upgrade/test.init.func1.2.1()\n\t/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go:71 +0x34"
+          },
+          "TimelineLocation": {
+            "Order": 17,
+            "Time": "2025-08-04T16:15:47.408383+03:00"
+          },
+          "FailureNodeContext": "leaf-node",
+          "FailureNodeType": "It",
+          "FailureNodeLocation": {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+            "LineNumber": 70
+          },
+          "ProgressReport": {
+            "LeafNodeLocation": {},
+            "SpecStartTime": "0001-01-01T00:00:00Z",
+            "CurrentNodeLocation": {},
+            "CurrentNodeStartTime": "0001-01-01T00:00:00Z",
+            "CurrentStepLocation": {},
+            "CurrentStepStartTime": "0001-01-01T00:00:00Z",
+            "TimelineLocation": {
+              "Time": "0001-01-01T00:00:00Z"
+            }
+          }
+        },
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 70
+            },
+            "TimelineLocation": {
+              "Order": 16,
+              "Time": "2025-08-04T16:15:47.40828+03:00"
+            },
+            "Message": "should pass helm lint",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_basic_test.go",
+              "LineNumber": 70
+            },
+            "TimelineLocation": {
+              "Order": 18,
+              "Time": "2025-08-04T16:15:47.408401+03:00"
+            },
+            "Message": "should pass helm lint",
+            "Duration": 120250,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "PostgreSQL Upgrade Helm Chart",
+          "Helm Chart Operations"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 13
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 28
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+          "LineNumber": 29
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should install with default values",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:15:47.408442+03:00",
+        "EndTime": "2025-08-04T16:16:35.931268+03:00",
+        "RunTime": 48522792958,
+        "ParallelProcess": 1,
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 21
+            },
+            "TimelineLocation": {
+              "Order": 19,
+              "Time": "2025-08-04T16:15:47.408445+03:00"
+            },
+            "Message": "PostgreSQL Upgrade Helm Chart",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 21
+            },
+            "TimelineLocation": {
+              "Order": 21,
+              "Time": "2025-08-04T16:15:47.408493+03:00"
+            },
+            "Message": "PostgreSQL Upgrade Helm Chart",
+            "Duration": 47250,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 29
+            },
+            "TimelineLocation": {
+              "Order": 22,
+              "Time": "2025-08-04T16:15:47.408493+03:00"
+            },
+            "Message": "should install with default values",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 30
+            },
+            "TimelineLocation": {
+              "Order": 23,
+              "Time": "2025-08-04T16:15:47.408505+03:00"
+            },
+            "Message": "Installing the Helm chart using fluent API"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 39
+            },
+            "TimelineLocation": {
+              "Order": 24,
+              "Time": "2025-08-04T16:16:34.483048+03:00"
+            },
+            "Message": "Waiting for StatefulSet to be ready"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 47
+            },
+            "TimelineLocation": {
+              "Order": 25,
+              "Time": "2025-08-04T16:16:34.966648+03:00"
+            },
+            "Message": "Verifying pod is running"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 51
+            },
+            "TimelineLocation": {
+              "Order": 26,
+              "Time": "2025-08-04T16:16:35.253649+03:00"
+            },
+            "Message": "Getting password from secret"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 57
+            },
+            "TimelineLocation": {
+              "Order": 27,
+              "Time": "2025-08-04T16:16:35.439434+03:00"
+            },
+            "Message": "Testing database connectivity"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 29
+            },
+            "TimelineLocation": {
+              "Order": 29,
+              "Time": "2025-08-04T16:16:35.931261+03:00"
+            },
+            "Message": "should install with default values",
+            "Duration": 48522734959,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "PostgreSQL Upgrade Helm Chart",
+          "Helm Chart Operations"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 13
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 28
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+          "LineNumber": 65
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should upgrade with new configuration",
+        "State": "panicked",
+        "StartTime": "2025-08-04T16:16:35.931325+03:00",
+        "EndTime": "2025-08-04T16:21:37.537228+03:00",
+        "RunTime": 301588006791,
+        "ParallelProcess": 1,
+        "Failure": {
+          "Message": "Test Panicked",
+          "Location": {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/commons/test/helm.go",
+            "LineNumber": 295,
+            "FullStackTrace": "github.com/flanksource/commons/test.(*HelmChart).MustSucceed(...)\n\t/Users/moshe/go/src/github.com/flanksource/commons/test/helm.go:295\ngithub.com/flanksource/docker-postgres-upgrade/test.init.func4.2.2()\n\t/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go:78 +0x4b8"
+          },
+          "TimelineLocation": {
+            "Order": 36,
+            "Time": "2025-08-04T16:21:37.53715+03:00"
+          },
+          "ForwardedPanic": "helm upgrade failed: ExitCode: 1\nStdout:\n\nStderr:\nError: UPGRADE FAILED: context deadline exceeded\n\nError: exit status 1",
+          "FailureNodeContext": "leaf-node",
+          "FailureNodeType": "It",
+          "FailureNodeLocation": {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 65
+          },
+          "ProgressReport": {
+            "LeafNodeLocation": {},
+            "SpecStartTime": "0001-01-01T00:00:00Z",
+            "CurrentNodeLocation": {},
+            "CurrentNodeStartTime": "0001-01-01T00:00:00Z",
+            "CurrentStepLocation": {},
+            "CurrentStepStartTime": "0001-01-01T00:00:00Z",
+            "TimelineLocation": {
+              "Time": "0001-01-01T00:00:00Z"
+            }
+          }
+        },
+        "NumAttempts": 1,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 21
+            },
+            "TimelineLocation": {
+              "Order": 30,
+              "Time": "2025-08-04T16:16:35.931329+03:00"
+            },
+            "Message": "PostgreSQL Upgrade Helm Chart",
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 21
+            },
+            "TimelineLocation": {
+              "Order": 32,
+              "Time": "2025-08-04T16:16:35.931349+03:00"
+            },
+            "Message": "PostgreSQL Upgrade Helm Chart",
+            "Duration": 20584,
+            "NodeType": "BeforeEach"
+          },
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 65
+            },
+            "TimelineLocation": {
+              "Order": 33,
+              "Time": "2025-08-04T16:16:35.93135+03:00"
+            },
+            "Message": "should upgrade with new configuration",
+            "NodeType": "It"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 66
+            },
+            "TimelineLocation": {
+              "Order": 34,
+              "Time": "2025-08-04T16:16:35.931358+03:00"
+            },
+            "Message": "Getting current generation"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 71
+            },
+            "TimelineLocation": {
+              "Order": 35,
+              "Time": "2025-08-04T16:16:36.09609+03:00"
+            },
+            "Message": "Upgrading with new values"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+              "LineNumber": 65
+            },
+            "TimelineLocation": {
+              "Order": 37,
+              "Time": "2025-08-04T16:21:37.53722+03:00"
+            },
+            "Message": "should upgrade with new configuration",
+            "Duration": 301587974250,
+            "NodeType": "It"
+          }
+        ]
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "PostgreSQL Upgrade Helm Chart",
+          "Helm Chart Operations"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 13
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 28
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+          "LineNumber": 93
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should handle PostgreSQL version upgrade from 15 to 17",
+        "State": "skipped",
+        "StartTime": "2025-08-04T16:21:37.537396+03:00",
+        "EndTime": "0001-01-01T00:00:00Z",
+        "RunTime": 0,
+        "ParallelProcess": 1,
+        "NumAttempts": 0,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "PostgreSQL Upgrade Helm Chart",
+          "Helm Chart Operations"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 13
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 28
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+          "LineNumber": 187
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should support complex chained operations",
+        "State": "skipped",
+        "StartTime": "2025-08-04T16:21:37.537403+03:00",
+        "EndTime": "0001-01-01T00:00:00Z",
+        "RunTime": 0,
+        "ParallelProcess": 1,
+        "NumAttempts": 0,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0
+      },
+      {
+        "ContainerHierarchyTexts": [
+          "PostgreSQL Upgrade Helm Chart",
+          "Namespace Management"
+        ],
+        "ContainerHierarchyLocations": [
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 13
+          },
+          {
+            "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+            "LineNumber": 252
+          }
+        ],
+        "ContainerHierarchyLabels": [
+          [],
+          []
+        ],
+        "LeafNodeType": "It",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_test.go",
+          "LineNumber": 253
+        },
+        "LeafNodeLabels": [],
+        "LeafNodeText": "should manage namespaces",
+        "State": "skipped",
+        "StartTime": "2025-08-04T16:21:37.53742+03:00",
+        "EndTime": "0001-01-01T00:00:00Z",
+        "RunTime": 0,
+        "ParallelProcess": 1,
+        "NumAttempts": 0,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0
+      },
+      {
+        "ContainerHierarchyTexts": null,
+        "ContainerHierarchyLocations": null,
+        "ContainerHierarchyLabels": null,
+        "LeafNodeType": "AfterSuite",
+        "LeafNodeLocation": {
+          "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+          "LineNumber": 75
+        },
+        "LeafNodeLabels": null,
+        "LeafNodeText": "",
+        "State": "passed",
+        "StartTime": "2025-08-04T16:21:37.537433+03:00",
+        "EndTime": "2025-08-04T16:21:40.058789+03:00",
+        "RunTime": 2521346791,
+        "ParallelProcess": 1,
+        "NumAttempts": 0,
+        "MaxFlakeAttempts": 0,
+        "MaxMustPassRepeatedly": 0,
+        "SpecEvents": [
+          {
+            "SpecEventType": "Node",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 75
+            },
+            "TimelineLocation": {
+              "Order": 38,
+              "Time": "2025-08-04T16:21:37.537433+03:00"
+            },
+            "Message": "TOP-LEVEL",
+            "NodeType": "AfterSuite"
+          },
+          {
+            "SpecEventType": "By",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 83
+            },
+            "TimelineLocation": {
+              "Order": 39,
+              "Time": "2025-08-04T16:21:37.943918+03:00"
+            },
+            "Message": "Deleting kind cluster"
+          },
+          {
+            "SpecEventType": "Node (End)",
+            "CodeLocation": {
+              "FileName": "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade/test/helm_suite_test.go",
+              "LineNumber": 75
+            },
+            "TimelineLocation": {
+              "Order": 41,
+              "Time": "2025-08-04T16:21:40.058777+03:00"
+            },
+            "Message": "TOP-LEVEL",
+            "Duration": 2521334833,
+            "NodeType": "AfterSuite"
+          }
+        ]
+      }
+    ]
+  }
+]

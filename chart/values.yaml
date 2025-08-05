@@ -1,22 +1,22 @@
 # Default values for postgres-upgrade chart
 
-# Main PostgreSQL container (Supabase)
+# Main PostgreSQL container (Standard PostgreSQL for testing)
 postgresql:
   image:
     registry: docker.io
-    repository: supabase/postgres
-    tag: "15.1.0.147"
+    repository: postgres
+    tag: "15-bookworm"
     pullPolicy: IfNotPresent
 
 # PostgreSQL upgrade init container
 upgradeContainer:
   image:
     registry: ghcr.io
-    repository: flanksource/postgres-upgrade
-    # Tag options: to-15-latest, to-16-latest, to-17-latest
-    tag: "to-17-latest"
+    repository: flanksource/docker-postgres-upgrade-upgrade
+    # Tag options: to-15-latest, to-16-latest, to-17-latest, latest
+    tag: "latest"
     pullPolicy: IfNotPresent
-  
+
   # Whether to run upgrade on startup
   enabled: true
 
@@ -24,19 +24,19 @@ upgradeContainer:
 database:
   # PostgreSQL version to run (will upgrade to this version on startup if data exists)
   version: "17"
-  
+
   # Database configuration
   name: postgres
   username: postgres
   # Leave password empty to generate a random one
   password: ""
-  
+
   # Admin password reset on startup (handled by init container)
   resetPassword: false
-  
+
   # Automatic upgrade on startup (handled by init container)
   autoUpgrade: true
-  
+
   # PostgreSQL configuration settings
   # These will be dynamically adjusted based on resource limits if not explicitly set
   config:
@@ -45,18 +45,18 @@ database:
     effective_cache_size: ""
     work_mem: ""
     maintenance_work_mem: ""
-    
+
     # Connection settings
     max_connections: "100"
-    
+
     # WAL settings
     wal_buffers: ""
     checkpoint_completion_target: "0.9"
-    
+
     # Performance settings
     random_page_cost: "1.1"
     effective_io_concurrency: "200"
-    
+
     # Custom configuration (key-value pairs)
     custom: {}
 
@@ -101,7 +101,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 999
