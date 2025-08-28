@@ -242,6 +242,17 @@ func Run(opts ContainerOptions) (*Container, error) {
 	return container, nil
 }
 
+// Stop gracefully stops the container
+func (c *Container) Stop() error {
+	c.client.runner.Printf(colorGray, "", "Stopping container: %s", c.getIdentifier())
+	// Give container 10 seconds to stop gracefully
+	result := c.client.runner.RunCommand("docker", "stop", "-t", "10", c.ID)
+	if result.ExitCode != 0 {
+		return fmt.Errorf("failed to stop container: %v", result.Err)
+	}
+	return nil
+}
+
 // Delete removes the container
 func (c *Container) Delete() error {
 	c.client.runner.Printf(colorRed, "", "Deleting container: %s", c.getIdentifier())

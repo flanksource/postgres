@@ -201,13 +201,13 @@ func (put *PostgresUpgradeTest) seedVolumeWithScript(volume *Volume, version str
 
 	// Start PostgreSQL container with seed script mounted
 	// PostgreSQL automatically runs scripts in /docker-entrypoint-initdb.d/
+	// Use postgres user as the superuser to match what pg_upgrade expects
 	container, err := Run(ContainerOptions{
 		Name:  containerName,
 		Image: fmt.Sprintf("postgres:%s", version),
 		Env: map[string]string{
 			"POSTGRES_PASSWORD": put.config.TestPassword,
 			"POSTGRES_DB":       put.config.TestDatabase,
-			"POSTGRES_USER":     put.config.TestUser,
 		},
 		Volumes: map[string]string{
 			volume.Name:    "/var/lib/postgresql/data",
@@ -224,7 +224,7 @@ func (put *PostgresUpgradeTest) seedVolumeWithScript(volume *Volume, version str
 	put.client.runner.Statusf("⏳ Waiting for PostgreSQL %s to initialize and seed...", version)
 	maxRetries := 60
 	for i := 0; i < maxRetries; i++ {
-		output, err := container.Exec("pg_isready", "-U", put.config.TestUser)
+		output, err := container.Exec("pg_isready", "-U", "postgres")
 		if err == nil && strings.Contains(output, "accepting connections") {
 			// Give it a bit more time for seed script to complete
 			time.Sleep(3 * time.Second)
@@ -232,7 +232,7 @@ func (put *PostgresUpgradeTest) seedVolumeWithScript(volume *Volume, version str
 			break
 		}
 		if i == maxRetries-1 {
-			logs := container.Logs()
+			logs, _ := container.Logs()
 			put.client.runner.Errorf("Container logs:\n%s", logs)
 			return fmt.Errorf("PostgreSQL %s failed to start and seed after %d seconds", version, maxRetries)
 		}
@@ -240,13 +240,18 @@ func (put *PostgresUpgradeTest) seedVolumeWithScript(volume *Volume, version str
 	}
 
 	// Verify seed completed successfully
-	logs := container.Logs()
+	logs, _ := container.Logs()
 	if strings.Contains(logs, "ERROR") && !strings.Contains(logs, "already exists") {
 		put.client.runner.Errorf("Seed script errors found in logs:\n%s", logs)
 		return fmt.Errorf("seed script failed")
 	}
 
-	// Clean up container on success
+	// Gracefully stop container to ensure clean shutdown
+	if err := container.Stop(); err != nil {
+		put.client.runner.Printf(colorYellow, "", "⚠️  Failed to stop container gracefully: %v", err)
+	}
+	
+	// Clean up container after stopping
 	container.Delete()
 	put.client.runner.Printf(colorGray, "", "✅ Volume seeded successfully")
 	return nil
@@ -535,42 +540,44 @@ echo "✅ PostgreSQL version is %s"
 
 # Check tables exist
 table_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';" | tr -d " ")
-if [ "$table_count" -lt 2 ]; then
-    echo "ERROR: Tables missing. Expected at least 2, found $table_count"
+if [ "$table_count" -lt 1 ]; then
+    echo "ERROR: Tables missing. Expected at least 1, found $table_count"
     exit 1
 fi
-echo "✅ Tables are present"
+echo "✅ Tables are present ($table_count)"
 
 # Check data integrity
-record_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_table;" | tr -d " ")
-if [ "$record_count" != "3" ]; then
-    echo "ERROR: Data integrity check failed. Expected 3 records, found $record_count"
+record_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade;" | tr -d " ")
+if [ "$record_count" != "5" ]; then
+    echo "ERROR: Data integrity check failed. Expected 5 records, found $record_count"
     exit 1
 fi
-echo "✅ Data integrity verified"
+echo "✅ Data integrity verified (5 records)"
 
-# Check original version info
-original_version=$(psql -U postgres -d %s -t -c "SELECT original_version FROM version_info WHERE id = 1;" | tr -d " ")
-if [ "$original_version" != "%s" ]; then
-    echo "ERROR: Original version info corrupted. Expected %s, found $original_version"
+# Check that we can query the view
+view_count=$(psql -U postgres -d %s -t -c "SELECT total_records FROM test_upgrade_summary;" | tr -d " ")
+if [ "$view_count" != "5" ]; then
+    echo "ERROR: View check failed. Expected 5 total_records, found $view_count"
     exit 1
 fi
-echo "✅ Original version info preserved"
+echo "✅ View test_upgrade_summary is working"
 
 # Display sample data
 echo "Sample data after upgrade:"
-psql -U postgres -d %s -c "SELECT * FROM test_table LIMIT 2;"
+psql -U postgres -d %s -c "SELECT * FROM test_upgrade LIMIT 3;"
 
 # Stop PostgreSQL
 pg_ctl -D /var/lib/postgresql/data stop -w
 `, toVersion, toVersion, toVersion, put.config.TestDatabase, put.config.TestDatabase,
-			put.config.TestDatabase, fromVersion, fromVersion, put.config.TestDatabase))
+			put.config.TestDatabase, put.config.TestDatabase))
 
 	// Clean up container regardless of result
 	defer put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
 
 	if result.ExitCode != 0 {
-		return fmt.Errorf("verification failed with exit code %d: %s", result.ExitCode, result.Stderr)
+		put.client.runner.Errorf("Verification STDOUT:\n%s", result.Stdout)
+		put.client.runner.Errorf("Verification STDERR:\n%s", result.Stderr)
+		return fmt.Errorf("verification failed with exit code %d", result.ExitCode)
 	}
 
 	// Get the output from the command result
@@ -586,7 +593,7 @@ pg_ctl -D /var/lib/postgresql/data stop -w
 		"PostgreSQL version is",
 		"Tables are present",
 		"Data integrity verified",
-		"Original version info preserved",
+		"View test_upgrade_summary is working",
 	}
 
 	for _, check := range requiredChecks {
