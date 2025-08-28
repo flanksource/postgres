@@ -1,10 +1,10 @@
 version: "3"
 
-# GitHub Actions output grouping
-output:
-  group:
-    begin: "::group::{{.TASK}}"
-    end: "::endgroup::"
+# GitHub Actions output grouping - disabled in container
+# output:
+#   group:
+#     begin: "::group::{{.TASK}}"
+#     end: "::endgroup::"
 
 # Global environment variables for PostgreSQL paths
 env:
@@ -16,26 +16,29 @@ env:
 tasks:
   detect-current-version:
     desc: Detect current PostgreSQL version from data directory
-    internal: true
+    silent: true
     cmds:
-      - |
-        if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
-          cat /var/lib/postgresql/data/PG_VERSION
-        else
-          echo "0"
-        fi
+      - cmd: |
+          if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
+            cat /var/lib/postgresql/data/PG_VERSION
+          else
+            echo "0"
+          fi
+        silent: true
 
   detect-target-version:
     desc: Detect target PostgreSQL version from PG_VERSION env var (default 17)
-    internal: true
+    silent: true
     cmds:
-      - echo "${PG_VERSION:-17}"
+      - cmd: echo "${PG_VERSION:-17}"
+        silent: true
 
   reset-password:
     desc: Reset PostgreSQL password if RESET_PASSWORD=true
+    silent: true
     vars:
       CURRENT_VERSION:
-        sh: task detect-current-version
+        sh: task run:detect-current-version
     status:
       - test "$RESET_PASSWORD" != "true"
     cmds:
@@ -49,7 +52,7 @@ tasks:
 
         # Start PostgreSQL temporarily for password reset
         echo "Starting PostgreSQL {{.CURRENT_VERSION}} temporarily for password reset..."
-        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
+        /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
           -D /var/lib/postgresql/data \
           -l /tmp/postgres-reset.log \
           -o "-p 5433" \
@@ -59,13 +62,13 @@ tasks:
 
         # Reset password
         echo "Resetting password for user ${POSTGRES_USER:-postgres}..."
-        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/psql \
+        /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/psql \
           -p 5433 \
           -c "ALTER USER ${POSTGRES_USER:-postgres} PASSWORD '${POSTGRES_PASSWORD}';"
 
         # Stop PostgreSQL
         echo "Stopping PostgreSQL..."
-        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
+        /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
           -D /var/lib/postgresql/data \
           stop
 
@@ -73,71 +76,103 @@ tasks:
 
   auto-upgrade:
     desc: Auto-detect current version and upgrade to PG_VERSION target (with password reset if needed)
-    vars:
-      CURRENT_VERSION:
-        sh: task detect-current-version
-      TARGET_VERSION:
-        sh: task detect-target-version
+    silent: true
     cmds:
       - |
-        echo "🔍 PostgreSQL Auto-Upgrade Detection"
-        echo "Current version: {{.CURRENT_VERSION}}"
-        echo "Target version:  {{.TARGET_VERSION}}"
+        # Detect versions without group markers
+        if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
+          CURRENT_VERSION=$(cat /var/lib/postgresql/data/PG_VERSION)
+        else
+          CURRENT_VERSION=0
+        fi
 
-        if [ "{{.CURRENT_VERSION}}" = "0" ]; then
+        TARGET_VERSION="${PG_VERSION:-17}"
+
+        echo "🔍 PostgreSQL Auto-Upgrade Detection"
+        echo "Current version: $CURRENT_VERSION"
+        echo "Target version:  $TARGET_VERSION"
+
+        if [ "$CURRENT_VERSION" = "0" ]; then
           echo "❌ No PostgreSQL data found in /var/lib/postgresql/data"
           echo "Please mount a volume with existing PostgreSQL data"
           exit 1
         fi
 
-        if [ "{{.CURRENT_VERSION}}" -ge "{{.TARGET_VERSION}}" ]; then
-          echo "✅ PostgreSQL {{.CURRENT_VERSION}} is already at target version {{.TARGET_VERSION}}"
+        if [ "$CURRENT_VERSION" -ge "$TARGET_VERSION" ]; then
+          echo "✅ PostgreSQL $CURRENT_VERSION is already at or above target version $TARGET_VERSION"
 
           # Handle password reset for existing installation
-          task reset-password
+          if [ "$RESET_PASSWORD" = "true" ]; then
+            task run:reset-password
+          fi
 
-          echo "Starting PostgreSQL {{.CURRENT_VERSION}} in normal mode..."
-          exec sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/postgres -D /var/lib/postgresql/data
+          echo "Starting PostgreSQL $CURRENT_VERSION in normal mode..."
+          exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
         fi
 
         # Validate versions
-        if [ "{{.CURRENT_VERSION}}" -lt 14 ] || [ "{{.TARGET_VERSION}}" -gt 17 ]; then
-          echo "❌ Invalid version range. Current: {{.CURRENT_VERSION}}, Target: {{.TARGET_VERSION}}"
+        if [ "$CURRENT_VERSION" -lt 14 ] || [ "$TARGET_VERSION" -gt 17 ]; then
+          echo "❌ Invalid version range. Current: $CURRENT_VERSION, Target: $TARGET_VERSION"
           echo "Supported versions: 14-17"
           exit 1
         fi
 
-        echo "🚀 Starting upgrade from PostgreSQL {{.CURRENT_VERSION}} to {{.TARGET_VERSION}}"
+        echo "🚀 Starting upgrade from PostgreSQL $CURRENT_VERSION to $TARGET_VERSION"
 
         # Check if auto-upgrade is disabled
         if [ "$AUTO_UPGRADE" = "false" ]; then
-          echo "Auto-upgrade disabled. Starting PostgreSQL {{.CURRENT_VERSION}} without upgrade."
-          exec sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/postgres -D /var/lib/postgresql/data
+          echo "Auto-upgrade disabled. Starting PostgreSQL $CURRENT_VERSION without upgrade."
+          exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
         fi
 
         # Setup working directory for upgrade - pg_upgrade needs specific structure
         echo "📦 Setting up upgrade environment..."
-        
-        # The main data directory is already at /var/lib/postgresql/data
-        # We'll upgrade in place using hard links (--link option)
-        # Create the version-specific links for pg_upgrade to work with
-        ln -sfn /var/lib/postgresql/data /var/lib/postgresql/{{.CURRENT_VERSION}}/data
 
-      # Perform sequential upgrades
-      - task: sequential-upgrade
-        vars:
-          FROM: "{{.CURRENT_VERSION}}"
-          TO: "{{.TARGET_VERSION}}"
+        # Create backup directory structure
+        mkdir -p /var/lib/postgresql/backups
 
-      - |
-        # Update the symlink to point to the upgraded version
-        ln -sfn /var/lib/postgresql/{{.TARGET_VERSION}}/data /var/lib/postgresql/data
-        
+        # Copy existing data to backup location with version suffix (preserving all attributes)
+        echo "Copying existing PostgreSQL $CURRENT_VERSION data to backup location..."
+        cp -a /var/lib/postgresql/data /var/lib/postgresql/backups/data-$CURRENT_VERSION
+
+        # Create symlink from version-specific location to backup
+        rm -rf /var/lib/postgresql/$CURRENT_VERSION/data
+        ln -sfn /var/lib/postgresql/backups/data-$CURRENT_VERSION /var/lib/postgresql/$CURRENT_VERSION/data
+
+        # Perform sequential upgrades
+        current=$CURRENT_VERSION
+        target=$TARGET_VERSION
+
+        while [ $current -lt $target ]; do
+          next=$((current + 1))
+          echo "========================================="
+          echo "Upgrading from PostgreSQL $current to $next"
+          echo "========================================="
+
+          # Call the upgrade task
+          FROM=$current TO=$next task run:upgrade-single
+
+          current=$next
+        done
+
+        # The upgraded data is now in /var/lib/postgresql/$TARGET_VERSION/data
+        # Copy it back to the main data location
+        echo "Copying upgraded PostgreSQL $TARGET_VERSION data to main location..."
+        rm -rf /var/lib/postgresql/data/*
+        rm -rf /var/lib/postgresql/data/.[^.]*
+        cp -a /var/lib/postgresql/$TARGET_VERSION/data/* /var/lib/postgresql/data/
+        cp -a /var/lib/postgresql/$TARGET_VERSION/data/.[^.]* /var/lib/postgresql/data/ 2>/dev/null || true
+
+        # Clean up symlinks and upgrade directories but keep backups
+        rm -rf /var/lib/postgresql/[0-9]*/data
+        echo "✅ Original data preserved in /var/lib/postgresql/backups/data-$CURRENT_VERSION"
+
         echo "🎉 All upgrades completed successfully!"
-        echo "Final version: PostgreSQL {{.TARGET_VERSION}}"
+        echo "Final version: PostgreSQL $TARGET_VERSION"
 
   sequential-upgrade:
     desc: Perform sequential upgrades from FROM to TO version
+    silent: true
     vars:
       FROM: '{{.FROM | default (env "FROM")}}'
       TO: '{{.TO | default (env "TO")}}'
@@ -152,14 +187,17 @@ tasks:
           echo "Upgrading from PostgreSQL $current to $next"
           echo "========================================="
 
-          task upgrade-single FROM=$current TO=$next
+          task run:upgrade-single FROM=$current TO=$next
 
           current=$next
         done
 
   upgrade-single:
     desc: Perform single PostgreSQL upgrade from {{.FROM}} to {{.TO}}
+    silent: true
     vars:
+      FROM: '{{.FROM | default (env "FROM")}}'
+      TO: '{{.TO | default (env "TO")}}'
       PGBINOLD: /usr/lib/postgresql/{{.FROM}}/bin
       PGBINNEW: /usr/lib/postgresql/{{.TO}}/bin
       PGDATAOLD: /var/lib/postgresql/{{.FROM}}/data
@@ -168,42 +206,97 @@ tasks:
       - sh: "test {{.FROM}} -lt {{.TO}}"
         msg: "FROM version must be less than TO version"
     cmds:
-      - task: pre-upgrade-check
-        vars:
-          FROM: "{{.FROM}}"
-          TO: "{{.TO}}"
-          PGBINOLD: "{{.PGBINOLD}}"
-          PGBINNEW: "{{.PGBINNEW}}"
-          PGDATAOLD: "{{.PGDATAOLD}}"
-          PGDATANEW: "{{.PGDATANEW}}"
-      - task: init-new-cluster
-        vars:
-          FROM: "{{.FROM}}"
-          TO: "{{.TO}}"
-          PGBINOLD: "{{.PGBINOLD}}"
-          PGBINNEW: "{{.PGBINNEW}}"
-          PGDATAOLD: "{{.PGDATAOLD}}"
-          PGDATANEW: "{{.PGDATANEW}}"
-      - task: run-pg-upgrade
-        vars:
-          FROM: "{{.FROM}}"
-          TO: "{{.TO}}"
-          PGBINOLD: "{{.PGBINOLD}}"
-          PGBINNEW: "{{.PGBINNEW}}"
-          PGDATAOLD: "{{.PGDATAOLD}}"
-          PGDATANEW: "{{.PGDATANEW}}"
-      - task: post-upgrade-check
-        vars:
-          FROM: "{{.FROM}}"
-          TO: "{{.TO}}"
-          PGBINOLD: "{{.PGBINOLD}}"
-          PGBINNEW: "{{.PGBINNEW}}"
-          PGDATAOLD: "{{.PGDATAOLD}}"
-          PGDATANEW: "{{.PGDATANEW}}"
-      - echo "✅ Upgrade from PostgreSQL {{.FROM}} to {{.TO}} completed successfully!"
+      - |
+        # Pre-upgrade check
+        echo "🔍 Running pre-upgrade checks for PostgreSQL {{.FROM}}..."
+
+        if [ ! -f "{{.PGDATAOLD}}/PG_VERSION" ]; then
+          echo "ERROR: No PostgreSQL {{.FROM}} cluster found at {{.PGDATAOLD}}"
+          exit 1
+        fi
+
+        VERSION=$(cat "{{.PGDATAOLD}}/PG_VERSION")
+        if [ "$VERSION" != "{{.FROM}}" ]; then
+          echo "ERROR: Expected PostgreSQL {{.FROM}}, but found version $VERSION"
+          exit 1
+        fi
+
+        echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
+
+        {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
+          echo "WARNING: Database cluster is not cleanly shut down"
+        }
+
+        echo "✅ Pre-upgrade checks completed for PostgreSQL {{.FROM}}"
+
+        # Initialize new cluster
+        if [ ! -s "{{.PGDATANEW}}/PG_VERSION" ]; then
+          echo "🔧 Initializing PostgreSQL {{.TO}} cluster..."
+          mkdir -p "{{.PGDATANEW}}"
+          chown postgres:postgres "{{.PGDATANEW}}"
+          {{.PGBINNEW}}/initdb -D "{{.PGDATANEW}}"
+          echo "✅ PostgreSQL {{.TO}} cluster initialized"
+        else
+          echo "✅ PostgreSQL {{.TO}} cluster already exists"
+        fi
+
+        # Run pg_upgrade
+        echo "⚡ Performing pg_upgrade from PostgreSQL {{.FROM}} to {{.TO}}..."
+        cd /var/lib/postgresql
+
+        # Check first to validate compatibility
+        echo "Checking cluster compatibility..."
+        {{.PGBINNEW}}/pg_upgrade \
+          --old-bindir="{{.PGBINOLD}}" \
+          --new-bindir="{{.PGBINNEW}}" \
+          --old-datadir="{{.PGDATAOLD}}" \
+          --new-datadir="{{.PGDATANEW}}" \
+          --link \
+          --check
+
+        # Perform the actual upgrade
+        echo "Performing upgrade..."
+        {{.PGBINNEW}}/pg_upgrade \
+          --old-bindir="{{.PGBINOLD}}" \
+          --new-bindir="{{.PGBINNEW}}" \
+          --old-datadir="{{.PGDATAOLD}}" \
+          --new-datadir="{{.PGDATANEW}}" \
+          --link
+
+        echo "✅ pg_upgrade completed successfully"
+
+        # Post-upgrade check
+        echo "🔍 Running post-upgrade checks for PostgreSQL {{.TO}}..."
+
+        if [ ! -f "{{.PGDATANEW}}/PG_VERSION" ]; then
+          echo "ERROR: No PostgreSQL {{.TO}} cluster found at {{.PGDATANEW}}"
+          exit 1
+        fi
+
+        VERSION=$(cat "{{.PGDATANEW}}/PG_VERSION")
+        if [ "$VERSION" != "{{.TO}}" ]; then
+          echo "ERROR: Expected PostgreSQL {{.TO}}, but found version $VERSION"
+          exit 1
+        fi
+
+        echo "✅ PostgreSQL {{.TO}} cluster verified at {{.PGDATANEW}}"
+
+        {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
+          echo "ERROR: Cannot read control data from upgraded cluster"
+          exit 1
+        }
+
+        if [ ! -f "{{.PGDATANEW}}/postgresql.conf" ] || [ ! -f "{{.PGDATANEW}}/pg_hba.conf" ]; then
+          echo "ERROR: Missing configuration files in upgraded cluster"
+          exit 1
+        fi
+
+        echo "✅ Post-upgrade checks completed for PostgreSQL {{.TO}}"
+        echo "✅ Upgrade from PostgreSQL {{.FROM}} to {{.TO}} completed successfully!"
 
   upgrade-from-env:
     desc: Upgrade using FROM and TO environment variables (for container entrypoint)
+    silent: true
     vars:
       FROM: '{{.FROM | default (env "FROM")}}'
       TO: '{{.TO | default (env "TO")}}'
@@ -215,6 +308,7 @@ tasks:
 
   pre-upgrade-check:
     desc: Run pre-upgrade checks for PostgreSQL {{.FROM}} to {{.TO}}
+    silent: true
     cmds:
       - |
         echo "🔍 Running pre-upgrade checks for PostgreSQL {{.FROM}}..."
@@ -243,6 +337,7 @@ tasks:
 
   init-new-cluster:
     desc: Initialize new PostgreSQL {{.TO}} cluster if needed
+    silent: true
     status:
       - test -s "{{.PGDATANEW}}/PG_VERSION"
     cmds:
@@ -288,6 +383,7 @@ tasks:
 
   post-upgrade-check:
     desc: Run post-upgrade checks for PostgreSQL {{.TO}}
+    silent: true
     cmds:
       - |
         echo "🔍 Running post-upgrade checks for PostgreSQL {{.TO}}..."
