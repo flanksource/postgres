@@ -3,71 +3,69 @@ version: "3"
 # GitHub Actions output grouping
 output:
   group:
-    begin: '::group::{{.TASK}}'
-    end: '::endgroup::'
+    begin: "::group::{{.TASK}}"
+    end: "::endgroup::"
 
 vars:
-  IMAGE_NAME: postgres-upgrade:latest
   TEST_DIR: ./test
   GO_TEST_FLAGS: -v -timeout 30m
-  UPGRADE_TEST_ENV: RUN_UPGRADE_TESTS=true
 
 tasks:
   # Main test tasks using Go tests
   all:
     desc: Run all PostgreSQL upgrade tests
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "🧪 Running all PostgreSQL upgrade tests..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgrade
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgrade
 
   upgrade-14-to-17:
     desc: Test upgrade from PostgreSQL 14 to 17
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "🧪 Testing upgrade from PostgreSQL 14 to 17..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_14_to_17"
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_14_to_17"
 
   upgrade-15-to-17:
     desc: Test upgrade from PostgreSQL 15 to 17
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "🧪 Testing upgrade from PostgreSQL 15 to 17..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_17"
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_17"
 
   upgrade-16-to-17:
     desc: Test upgrade from PostgreSQL 16 to 17
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "🧪 Testing upgrade from PostgreSQL 16 to 17..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_16_to_17"
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_16_to_17"
 
   upgrade-15-to-16:
     desc: Test upgrade from PostgreSQL 15 to 16
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "🧪 Testing upgrade from PostgreSQL 15 to 16..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_16"
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_16"
 
   # Quick test for development
   dev-test-quick:
     desc: Quick development test (14 to 17 upgrade only)
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
-      - task: build
       - |
         echo "⚡ Running quick test..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgradeQuick
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgradeQuick
 
   # Build task
   build:
@@ -84,103 +82,43 @@ tasks:
         echo "📊 Checking Docker resources status..."
         go test {{.GO_TEST_FLAGS}} -run TestShowUpgradeStatus
 
-  # Cleanup tasks
-  clean:
-    desc: Clean up all test resources
-    cmds:
-      - task: clean-volumes
-      - task: clean-images
-      - echo "🧹 Cleanup completed"
-
-  clean-volumes:
-    desc: Remove all test volumes
-    cmds:
-      - |
-        echo "🧹 Removing test volumes..."
-        # Remove containers using test volumes
-        docker ps -a -q | xargs -r docker inspect --format '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}}{{end}}{{end}}' | \
-          grep -E "(pg[0-9]+-test-data|pg[0-9]+-to-[0-9]+-test-)" | \
-          xargs -r -I {} docker ps -a --filter volume={} -q | \
-          xargs -r docker rm -f 2>/dev/null || true
-        # Remove test volumes
-        docker volume ls -q | grep -E "(pg[0-9]+-test-data|pg[0-9]+-to-[0-9]+-test-)" | xargs -r docker volume rm 2>/dev/null || true
-
-  clean-images:
-    desc: Remove Docker images
-    cmds:
-      - docker rmi {{.IMAGE_NAME}} 2>/dev/null || true
-      - docker images | grep postgres-upgrade | awk '{print $1":"$2}' | xargs -r docker rmi 2>/dev/null || true
-
   # Test coverage and reporting
   test-coverage:
     desc: Run tests with coverage report
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
       - |
         echo "📊 Running tests with coverage..."
-        {{.UPGRADE_TEST_ENV}} go test -coverprofile=coverage.out {{.GO_TEST_FLAGS}} ./...
+        go test -coverprofile=coverage.out {{.GO_TEST_FLAGS}} ./...
         go tool cover -html=coverage.out -o coverage.html
         echo "✅ Coverage report generated: test/coverage.html"
 
   test-report:
     desc: Generate test report
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     cmds:
       - |
         echo "📊 Generating test report..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -json ./... | tee test-report.json
+        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-report.json
         echo "✅ Test report generated: test/test-report.json"
-
-  # Development helpers
-  test-watch:
-    desc: Run tests in watch mode
-    dir: "{{.TEST_DIR}}"
-    cmds:
-      - |
-        echo "👀 Running tests in watch mode..."
-        which ginkgo >/dev/null 2>&1 || go install github.com/onsi/ginkgo/v2/ginkgo@latest
-        ginkgo watch -v
 
   # CI/CD specific tasks
   ci-test:
     desc: Run tests in CI environment
     dir: "{{.TEST_DIR}}"
+    deps: [build]
     env:
       CI: "true"
     cmds:
-      - task: build
       - |
         echo "🤖 Running tests in CI mode..."
-        {{.UPGRADE_TEST_ENV}} go test {{.GO_TEST_FLAGS}} -json ./... | tee test-results.json
+        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-results.json
         # Generate JUnit XML for CI systems
         go install github.com/jstemmer/go-junit-report/v2@latest
         cat test-results.json | go-junit-report -out junit.xml
         echo "✅ Test results saved to test/junit.xml"
-
-  # Manual seed tasks (for debugging)
-  seed-pg14:
-    desc: Manually seed PostgreSQL 14 volume
-    dir: "{{.TEST_DIR}}"
-    cmds:
-      - |
-        echo "🌱 Seeding PostgreSQL 14 volume..."
-        go run . -test.run=TestSeedVolume -pg.version=14
-
-  seed-pg15:
-    desc: Manually seed PostgreSQL 15 volume
-    dir: "{{.TEST_DIR}}"
-    cmds:
-      - |
-        echo "🌱 Seeding PostgreSQL 15 volume..."
-        go run . -test.run=TestSeedVolume -pg.version=15
-
-  seed-pg16:
-    desc: Manually seed PostgreSQL 16 volume
-    dir: "{{.TEST_DIR}}"
-    cmds:
-      - |
-        echo "🌱 Seeding PostgreSQL 16 volume..."
-        go run . -test.run=TestSeedVolume -pg.version=16
 
   # Help task
   help:

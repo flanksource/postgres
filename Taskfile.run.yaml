@@ -3,8 +3,8 @@ version: "3"
 # GitHub Actions output grouping
 output:
   group:
-    begin: '::group::{{.TASK}}'
-    end: '::endgroup::'
+    begin: "::group::{{.TASK}}"
+    end: "::endgroup::"
 
 # Global environment variables for PostgreSQL paths
 env:
@@ -14,9 +14,151 @@ env:
   PG17BIN: /usr/lib/postgresql/17/bin
 
 tasks:
+  detect-current-version:
+    desc: Detect current PostgreSQL version from data directory
+    internal: true
+    cmds:
+      - |
+        if [ -f "/var/lib/postgresql/data/PG_VERSION" ]; then
+          cat /var/lib/postgresql/data/PG_VERSION
+        else
+          echo "0"
+        fi
+
+  detect-target-version:
+    desc: Detect target PostgreSQL version from PG_VERSION env var (default 17)
+    internal: true
+    cmds:
+      - echo "${PG_VERSION:-17}"
+
+  reset-password:
+    desc: Reset PostgreSQL password if RESET_PASSWORD=true
+    vars:
+      CURRENT_VERSION:
+        sh: task detect-current-version
+    status:
+      - test "$RESET_PASSWORD" != "true"
+    cmds:
+      - |
+        if [ "{{.CURRENT_VERSION}}" = "0" ]; then
+          echo "ERROR: No PostgreSQL data found, cannot reset password"
+          exit 1
+        fi
+
+        echo "🔑 Resetting PostgreSQL password..."
+
+        # Start PostgreSQL temporarily for password reset
+        echo "Starting PostgreSQL {{.CURRENT_VERSION}} temporarily for password reset..."
+        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
+          -D /var/lib/postgresql/data \
+          -l /tmp/postgres-reset.log \
+          -o "-p 5433" \
+          start
+
+        sleep 3
+
+        # Reset password
+        echo "Resetting password for user ${POSTGRES_USER:-postgres}..."
+        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/psql \
+          -p 5433 \
+          -c "ALTER USER ${POSTGRES_USER:-postgres} PASSWORD '${POSTGRES_PASSWORD}';"
+
+        # Stop PostgreSQL
+        echo "Stopping PostgreSQL..."
+        sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
+          -D /var/lib/postgresql/data \
+          stop
+
+        echo "✅ Password reset completed"
+
+  auto-upgrade:
+    desc: Auto-detect current version and upgrade to PG_VERSION target (with password reset if needed)
+    vars:
+      CURRENT_VERSION:
+        sh: task detect-current-version
+      TARGET_VERSION:
+        sh: task detect-target-version
+    cmds:
+      - |
+        echo "🔍 PostgreSQL Auto-Upgrade Detection"
+        echo "Current version: {{.CURRENT_VERSION}}"
+        echo "Target version:  {{.TARGET_VERSION}}"
+
+        if [ "{{.CURRENT_VERSION}}" = "0" ]; then
+          echo "❌ No PostgreSQL data found in /var/lib/postgresql/data"
+          echo "Please mount a volume with existing PostgreSQL data"
+          exit 1
+        fi
+
+        if [ "{{.CURRENT_VERSION}}" -ge "{{.TARGET_VERSION}}" ]; then
+          echo "✅ PostgreSQL {{.CURRENT_VERSION}} is already at target version {{.TARGET_VERSION}}"
+
+          # Handle password reset for existing installation
+          task reset-password
+
+          echo "Starting PostgreSQL {{.CURRENT_VERSION}} in normal mode..."
+          exec sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/postgres -D /var/lib/postgresql/data
+        fi
+
+        # Validate versions
+        if [ "{{.CURRENT_VERSION}}" -lt 14 ] || [ "{{.TARGET_VERSION}}" -gt 17 ]; then
+          echo "❌ Invalid version range. Current: {{.CURRENT_VERSION}}, Target: {{.TARGET_VERSION}}"
+          echo "Supported versions: 14-17"
+          exit 1
+        fi
+
+        echo "🚀 Starting upgrade from PostgreSQL {{.CURRENT_VERSION}} to {{.TARGET_VERSION}}"
+
+        # Check if auto-upgrade is disabled
+        if [ "$AUTO_UPGRADE" = "false" ]; then
+          echo "Auto-upgrade disabled. Starting PostgreSQL {{.CURRENT_VERSION}} without upgrade."
+          exec sudo -u postgres /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/postgres -D /var/lib/postgresql/data
+        fi
+
+        # Setup working directory for upgrade - pg_upgrade needs specific structure
+        echo "📦 Setting up upgrade environment..."
+        
+        # The main data directory is already at /var/lib/postgresql/data
+        # We'll upgrade in place using hard links (--link option)
+        # Create the version-specific links for pg_upgrade to work with
+        ln -sfn /var/lib/postgresql/data /var/lib/postgresql/{{.CURRENT_VERSION}}/data
+
+      # Perform sequential upgrades
+      - task: sequential-upgrade
+        vars:
+          FROM: "{{.CURRENT_VERSION}}"
+          TO: "{{.TARGET_VERSION}}"
+
+      - |
+        # Update the symlink to point to the upgraded version
+        ln -sfn /var/lib/postgresql/{{.TARGET_VERSION}}/data /var/lib/postgresql/data
+        
+        echo "🎉 All upgrades completed successfully!"
+        echo "Final version: PostgreSQL {{.TARGET_VERSION}}"
+
+  sequential-upgrade:
+    desc: Perform sequential upgrades from FROM to TO version
+    vars:
+      FROM: '{{.FROM | default (env "FROM")}}'
+      TO: '{{.TO | default (env "TO")}}'
+    cmds:
+      - |
+        current={{.FROM}}
+        target={{.TO}}
+
+        while [ $current -lt $target ]; do
+          next=$((current + 1))
+          echo "========================================="
+          echo "Upgrading from PostgreSQL $current to $next"
+          echo "========================================="
+
+          task upgrade-single FROM=$current TO=$next
+
+          current=$next
+        done
+
   upgrade-single:
     desc: Perform single PostgreSQL upgrade from {{.FROM}} to {{.TO}}
-    internal: true
     vars:
       PGBINOLD: /usr/lib/postgresql/{{.FROM}}/bin
       PGBINNEW: /usr/lib/postgresql/{{.TO}}/bin
@@ -101,7 +243,6 @@ tasks:
 
   init-new-cluster:
     desc: Initialize new PostgreSQL {{.TO}} cluster if needed
-    internal: true
     status:
       - test -s "{{.PGDATANEW}}/PG_VERSION"
     cmds:
@@ -114,7 +255,6 @@ tasks:
 
   run-pg-upgrade:
     desc: Run pg_upgrade from PostgreSQL {{.FROM}} to {{.TO}}
-    internal: true
     cmds:
       - |
         echo "⚡ Performing pg_upgrade from PostgreSQL {{.FROM}} to {{.TO}}..."
@@ -169,19 +309,19 @@ tasks:
 
         # Verify cluster data without starting the server
         echo "Verifying upgraded cluster data..."
-        
+
         # Check control data
         {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
           echo "ERROR: Cannot read control data from upgraded cluster"
           exit 1
         }
-        
+
         # Verify basic file structure
         if [ ! -f "{{.PGDATANEW}}/postgresql.conf" ] || [ ! -f "{{.PGDATANEW}}/pg_hba.conf" ]; then
           echo "ERROR: Missing configuration files in upgraded cluster"
           exit 1
         fi
-        
+
         echo "NOTE: Full database verification skipped in container environment"
         echo "To verify the upgrade, start PostgreSQL {{.TO}} and run:"
         echo "  - SELECT version();"

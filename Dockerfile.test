@@ -1,9 +1,0 @@
-# Test stage - builds on top of the main image
-FROM postgres-upgrade:latest
-
-# Copy test script
-COPY test-postgres-versions.sh /test-postgres-versions.sh
-RUN chmod +x /test-postgres-versions.sh
-
-# Run tests
-RUN /test-postgres-versions.sh

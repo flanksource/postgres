@@ -66,7 +66,6 @@ RUN set -eux; \
 WORKDIR /var/lib/postgresql
 
 COPY Taskfile.yml Taskfile.*.yaml /var/lib/postgresql/
-COPY docker-upgrade-multi /usr/local/bin/
 COPY docker-entrypoint.sh /usr/local/bin/
 
 ENTRYPOINT ["docker-entrypoint.sh"]
