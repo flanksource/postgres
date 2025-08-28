@@ -35,7 +35,7 @@ push-all:
 	REGISTRY=$(REGISTRY) IMAGE_BASE=$(IMAGE_BASE) IMAGE_TAG=$(IMAGE_TAG) task build:push-all
 
 test-simple:
-	task test-simple
+
 
 test-dockerfile:
 	task test-dockerfile

@@ -3,8 +3,8 @@ version: "3"
 # GitHub Actions output grouping when GITHUB_ACTIONS=true or CI=true
 output:
   group:
-    begin: '::group::{{.TASK}}'
-    end: '::endgroup::'
+    begin: "::group::{{.TASK}}"
+    end: "::endgroup::"
 
 includes:
   build: ./Taskfile.build.yaml
@@ -14,9 +14,9 @@ includes:
 # Default tasks that delegate to included files
 tasks:
   default:
-    desc: Show available tasks
+    desc: Auto-detect PostgreSQL version and upgrade to PG_VERSION target (default 17)
     cmds:
-      - task --list
+      - task: run:auto-upgrade
 
   # Build shortcuts
   build:
@@ -60,6 +60,16 @@ tasks:
       - task: test:dev-test-quick
 
   # Upgrade shortcuts (for running inside container)
+  auto-upgrade:
+    desc: Auto-detect and upgrade PostgreSQL (with password reset if needed)
+    cmds:
+      - task: run:auto-upgrade
+
+  reset-password:
+    desc: Reset PostgreSQL password if RESET_PASSWORD=true
+    cmds:
+      - task: run:reset-password
+
   upgrade-single:
     desc: Perform single PostgreSQL upgrade
     cmds:
@@ -76,6 +86,18 @@ tasks:
     cmds:
       - echo "PostgreSQL Upgrade Docker Container - Task Runner"
       - echo "================================================"
+      - 'echo ""'
+      - echo "Main Tasks (Container):"
+      - echo "  task (default)          - Auto-detect current PostgreSQL version and upgrade to target"
+      - echo "  task auto-upgrade       - Same as default - auto-detect and upgrade with password reset"
+      - echo "  task reset-password     - Reset PostgreSQL password (if RESET_PASSWORD=true)"
+      - 'echo ""'
+      - echo "Environment Variables:"
+      - 'echo "  PG_VERSION=17           - Target PostgreSQL version (default: 17)"'
+      - 'echo "  AUTO_UPGRADE=false      - Disable auto-upgrade (default: true)"'
+      - 'echo "  RESET_PASSWORD=true     - Reset password on startup (default: false)"'
+      - 'echo "  POSTGRES_PASSWORD=...   - New password for reset"'
+      - 'echo "  POSTGRES_USER=postgres  - User for password reset (default: postgres)"'
       - 'echo ""'
       - echo "Build Tasks:"
       - echo "  task build              - Build the default postgres-upgrade image"
@@ -96,5 +118,9 @@ tasks:
       - echo "  task status             - Show status of volumes and images"
       - echo "  task dev-setup          - Set up development environment"
       - echo "  task dev-test-quick     - Quick test (14 to 17 only)"
+      - 'echo ""'
+      - echo "Legacy Tasks (Advanced):"
+      - 'echo "  task upgrade-single     - Perform single version upgrade (FROM= TO=)"'
+      - 'echo "  task upgrade-from-env   - Upgrade using FROM/TO environment variables"'
       - 'echo ""'
       - 'echo "For more details on any task, run: task --summary <task-name>"'
