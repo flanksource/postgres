@@ -153,9 +153,8 @@ tasks:
           fi
         done 2>/dev/null || true
 
-        # Copy backup to version-specific location for pg_upgrade
-        mkdir -p /var/lib/postgresql/$CURRENT_VERSION
-        cp -a /var/lib/postgresql/data/backups/data-$CURRENT_VERSION /var/lib/postgresql/$CURRENT_VERSION/data
+        # Create upgrade directory structure inside data volume
+        mkdir -p /var/lib/postgresql/data/upgrades
 
         # Perform sequential upgrades
         current=$CURRENT_VERSION
@@ -167,33 +166,38 @@ tasks:
           echo "Upgrading from PostgreSQL $current to $next"
           echo "========================================="
 
-          # Call the upgrade task
+          # For first iteration, old data is in /var/lib/postgresql/data
+          # For subsequent iterations, it's still in /var/lib/postgresql/data (moved from previous upgrade)
           FROM=$current TO=$next task run:upgrade-single
+
+          # After upgrade, move new version data back to main location
+          if [ -d "/var/lib/postgresql/data/upgrades/$next" ]; then
+            echo "Moving PostgreSQL $next data to main location..."
+            # Clear main data directory (except backups and upgrades)
+            for item in /var/lib/postgresql/data/*; do
+              basename=$(basename "$item")
+              if [ "$basename" != "backups" ] && [ "$basename" != "upgrades" ] && [ -e "$item" ]; then
+                rm -rf "$item"
+              fi
+            done
+            # Move hidden files too
+            for item in /var/lib/postgresql/data/.[^.]*; do
+              if [ -e "$item" ] && [ "$(basename "$item")" != "." ] && [ "$(basename "$item")" != ".." ]; then
+                rm -rf "$item"
+              fi
+            done 2>/dev/null || true
+            
+            # Move upgraded data
+            mv /var/lib/postgresql/data/upgrades/$next/* /var/lib/postgresql/data/
+            mv /var/lib/postgresql/data/upgrades/$next/.[^.]* /var/lib/postgresql/data/ 2>/dev/null || true
+            rm -rf /var/lib/postgresql/data/upgrades/$next
+          fi
 
           current=$next
         done
 
-        # The upgraded data is now in /var/lib/postgresql/$TARGET_VERSION/data
-        # Move it back to the main data location (preserving backups)
-        echo "Moving upgraded PostgreSQL $TARGET_VERSION data back to main location..."
-        
-        # Move upgraded data contents back (excluding any backups directory)
-        for item in /var/lib/postgresql/$TARGET_VERSION/data/*; do
-          basename=$(basename "$item")
-          if [ "$basename" != "backups" ] && [ -e "$item" ]; then
-            mv "$item" /var/lib/postgresql/data/
-          fi
-        done
-
-        # Move hidden files
-        for item in /var/lib/postgresql/$TARGET_VERSION/data/.[^.]*; do
-          if [ -e "$item" ]; then
-            mv "$item" /var/lib/postgresql/data/
-          fi
-        done 2>/dev/null || true
-
         # Clean up upgrade directories but keep backups
-        rm -rf /var/lib/postgresql/[0-9]*
+        rm -rf /var/lib/postgresql/data/upgrades
         echo "✅ Original data preserved in /var/lib/postgresql/data/backups/data-$CURRENT_VERSION"
 
         echo "🎉 All upgrades completed successfully!"
@@ -207,6 +211,9 @@ tasks:
       TO: '{{.TO | default (env "TO")}}'
     cmds:
       - |
+        # Create upgrade directory structure inside data volume
+        mkdir -p /var/lib/postgresql/data/upgrades
+        
         current={{.FROM}}
         target={{.TO}}
 
@@ -218,8 +225,34 @@ tasks:
 
           task run:upgrade-single FROM=$current TO=$next
 
+          # After upgrade, move new version data back to main location for next iteration
+          if [ -d "/var/lib/postgresql/data/upgrades/$next" ]; then
+            echo "Moving PostgreSQL $next data to main location for next upgrade step..."
+            # Clear main data directory (except backups and upgrades)
+            for item in /var/lib/postgresql/data/*; do
+              basename=$(basename "$item")
+              if [ "$basename" != "backups" ] && [ "$basename" != "upgrades" ] && [ -e "$item" ]; then
+                rm -rf "$item"
+              fi
+            done
+            # Move hidden files too
+            for item in /var/lib/postgresql/data/.[^.]*; do
+              if [ -e "$item" ] && [ "$(basename "$item")" != "." ] && [ "$(basename "$item")" != ".." ]; then
+                rm -rf "$item"
+              fi
+            done 2>/dev/null || true
+            
+            # Move upgraded data
+            mv /var/lib/postgresql/data/upgrades/$next/* /var/lib/postgresql/data/
+            mv /var/lib/postgresql/data/upgrades/$next/.[^.]* /var/lib/postgresql/data/ 2>/dev/null || true
+            rm -rf /var/lib/postgresql/data/upgrades/$next
+          fi
+
           current=$next
         done
+        
+        # Clean up upgrade directories
+        rm -rf /var/lib/postgresql/data/upgrades
 
   upgrade-single:
     desc: Perform single PostgreSQL upgrade from {{.FROM}} to {{.TO}}
@@ -229,8 +262,8 @@ tasks:
       TO: '{{.TO | default (env "TO")}}'
       PGBINOLD: /usr/lib/postgresql/{{.FROM}}/bin
       PGBINNEW: /usr/lib/postgresql/{{.TO}}/bin
-      PGDATAOLD: /var/lib/postgresql/{{.FROM}}/data
-      PGDATANEW: /var/lib/postgresql/{{.TO}}/data
+      PGDATAOLD: /var/lib/postgresql/data
+      PGDATANEW: /var/lib/postgresql/data/upgrades/{{.TO}}
     preconditions:
       - sh: "test {{.FROM}} -lt {{.TO}}"
         msg: "FROM version must be less than TO version"
