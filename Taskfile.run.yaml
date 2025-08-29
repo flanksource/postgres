@@ -131,16 +131,31 @@ tasks:
         # Setup working directory for upgrade - pg_upgrade needs specific structure
         echo "📦 Setting up upgrade environment..."
 
-        # Create backup directory structure
-        mkdir -p /var/lib/postgresql/backups
+        # Create backup directory inside data folder
+        mkdir -p /var/lib/postgresql/data/backups
 
-        # Copy existing data to backup location with version suffix (preserving all attributes)
-        echo "Copying existing PostgreSQL $CURRENT_VERSION data to backup location..."
-        cp -a /var/lib/postgresql/data /var/lib/postgresql/backups/data-$CURRENT_VERSION
+        # Move all contents EXCEPT backups directory to backup location
+        echo "Moving existing PostgreSQL $CURRENT_VERSION data to backup location..."
+        mkdir -p /var/lib/postgresql/data/backups/data-$CURRENT_VERSION
 
-        # Create symlink from version-specific location to backup
-        rm -rf /var/lib/postgresql/$CURRENT_VERSION/data
-        ln -sfn /var/lib/postgresql/backups/data-$CURRENT_VERSION /var/lib/postgresql/$CURRENT_VERSION/data
+        # Move all files and directories except 'backups'
+        for item in /var/lib/postgresql/data/*; do
+          basename=$(basename "$item")
+          if [ "$basename" != "backups" ] && [ -e "$item" ]; then
+            mv "$item" /var/lib/postgresql/data/backups/data-$CURRENT_VERSION/
+          fi
+        done
+
+        # Move hidden files too (except . and ..)
+        for item in /var/lib/postgresql/data/.[^.]*; do
+          if [ -e "$item" ]; then
+            mv "$item" /var/lib/postgresql/data/backups/data-$CURRENT_VERSION/
+          fi
+        done 2>/dev/null || true
+
+        # Copy backup to version-specific location for pg_upgrade
+        mkdir -p /var/lib/postgresql/$CURRENT_VERSION
+        cp -a /var/lib/postgresql/data/backups/data-$CURRENT_VERSION /var/lib/postgresql/$CURRENT_VERSION/data
 
         # Perform sequential upgrades
         current=$CURRENT_VERSION
@@ -159,16 +174,27 @@ tasks:
         done
 
         # The upgraded data is now in /var/lib/postgresql/$TARGET_VERSION/data
-        # Copy it back to the main data location
-        echo "Copying upgraded PostgreSQL $TARGET_VERSION data to main location..."
-        rm -rf /var/lib/postgresql/data/*
-        rm -rf /var/lib/postgresql/data/.[^.]*
-        cp -a /var/lib/postgresql/$TARGET_VERSION/data/* /var/lib/postgresql/data/
-        cp -a /var/lib/postgresql/$TARGET_VERSION/data/.[^.]* /var/lib/postgresql/data/ 2>/dev/null || true
+        # Move it back to the main data location (preserving backups)
+        echo "Moving upgraded PostgreSQL $TARGET_VERSION data back to main location..."
+        
+        # Move upgraded data contents back (excluding any backups directory)
+        for item in /var/lib/postgresql/$TARGET_VERSION/data/*; do
+          basename=$(basename "$item")
+          if [ "$basename" != "backups" ] && [ -e "$item" ]; then
+            mv "$item" /var/lib/postgresql/data/
+          fi
+        done
 
-        # Clean up symlinks and upgrade directories but keep backups
-        rm -rf /var/lib/postgresql/[0-9]*/data
-        echo "✅ Original data preserved in /var/lib/postgresql/backups/data-$CURRENT_VERSION"
+        # Move hidden files
+        for item in /var/lib/postgresql/$TARGET_VERSION/data/.[^.]*; do
+          if [ -e "$item" ]; then
+            mv "$item" /var/lib/postgresql/data/
+          fi
+        done 2>/dev/null || true
+
+        # Clean up upgrade directories but keep backups
+        rm -rf /var/lib/postgresql/[0-9]*
+        echo "✅ Original data preserved in /var/lib/postgresql/data/backups/data-$CURRENT_VERSION"
 
         echo "🎉 All upgrades completed successfully!"
         echo "Final version: PostgreSQL $TARGET_VERSION"
@@ -226,7 +252,20 @@ tasks:
 
         echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
 
+        # Ensure clean shutdown if needed
+        if [ -f "{{.PGDATAOLD}}/postmaster.pid" ]; then
+          echo "Stopping PostgreSQL {{.FROM}} for clean shutdown..."
+          echo "Running: {{.PGBINOLD}}/pg_ctl -D {{.PGDATAOLD}} stop -m fast -w"
+          {{.PGBINOLD}}/pg_ctl -D "{{.PGDATAOLD}}" stop -m fast -w || true
+          sleep 2
+        fi
+
+        echo "=== Pre-upgrade cluster info for PostgreSQL {{.FROM}} ==="
         echo "Running: {{.PGBINOLD}}/pg_controldata {{.PGDATAOLD}}"
+        {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -E "(Database cluster state|Latest checkpoint location|Latest checkpoint's REDO location|Latest checkpoint's NextXID|Database system identifier|pg_control version|Catalog version)" || {
+          echo "WARNING: Cannot read cluster state information"
+        }
+
         {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
           echo "WARNING: Database cluster is not cleanly shut down"
         }
@@ -286,8 +325,9 @@ tasks:
 
         echo "✅ PostgreSQL {{.TO}} cluster verified at {{.PGDATANEW}}"
 
+        echo "=== Post-upgrade cluster info for PostgreSQL {{.TO}} ==="
         echo "Running: {{.PGBINNEW}}/pg_controldata {{.PGDATANEW}}"
-        {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
+        {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|Latest checkpoint location|Latest checkpoint's REDO location|Latest checkpoint's NextXID|Database system identifier|pg_control version|Catalog version)" || {
           echo "ERROR: Cannot read control data from upgraded cluster"
           exit 1
         }
@@ -334,8 +374,21 @@ tasks:
 
         echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
 
-        # Check cluster health
+        # Ensure clean shutdown if needed
+        if [ -f "{{.PGDATAOLD}}/postmaster.pid" ]; then
+          echo "Stopping PostgreSQL {{.FROM}} for clean shutdown..."
+          echo "Running: {{.PGBINOLD}}/pg_ctl -D {{.PGDATAOLD}} stop -m fast -w"
+          {{.PGBINOLD}}/pg_ctl -D "{{.PGDATAOLD}}" stop -m fast -w || true
+          sleep 2
+        fi
+
+        # Check cluster health with comprehensive logging
+        echo "=== Cluster state for PostgreSQL {{.FROM}} ==="
         echo "Running: {{.PGBINOLD}}/pg_controldata {{.PGDATAOLD}}"
+        {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -E "(Database cluster state|Latest checkpoint location|Latest checkpoint's REDO location|Latest checkpoint's NextXID|Database system identifier)" || {
+          echo "WARNING: Cannot read cluster state information"
+        }
+
         {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
           echo "WARNING: Database cluster is not cleanly shut down"
         }
@@ -414,9 +467,10 @@ tasks:
         # Verify cluster data without starting the server
         echo "Verifying upgraded cluster data..."
 
-        # Check control data
+        # Check control data with comprehensive logging
+        echo "=== Post-upgrade cluster verification for PostgreSQL {{.TO}} ==="
         echo "Running: {{.PGBINNEW}}/pg_controldata {{.PGDATANEW}}"
-        {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
+        {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|Latest checkpoint location|Latest checkpoint's REDO location|Latest checkpoint's NextXID|Database system identifier|pg_control version|Catalog version)" || {
           echo "ERROR: Cannot read control data from upgraded cluster"
           exit 1
         }
