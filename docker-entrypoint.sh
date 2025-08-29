@@ -41,15 +41,18 @@ elif [ $# -eq 0 ]; then
         echo "⚠️  Using legacy TARGET_VERSION, consider switching to PG_VERSION"
     fi
     
-    # Run as postgres user if started as root
-    if [ "$(id -u)" = '0' ]; then
-        # Switch to postgres user and delegate to the main auto-upgrade task
-        # Note: Cannot change ownership of mounted volumes, only ensure we run as postgres
-        exec gosu postgres task auto-upgrade
-    else
-        # Already running as non-root user
-        exec task auto-upgrade
-    fi
+    # Debug: Check what's in the data directory
+    echo "=== Debug: Checking data directory ==="
+    echo "Running as user: $(id -u):$(id -g)"
+    echo "Data directory contents:"
+    ls -la /var/lib/postgresql/data/ || echo "Cannot list data directory"
+    echo "PG_VERSION file:"
+    cat /var/lib/postgresql/data/PG_VERSION 2>/dev/null || echo "PG_VERSION not found"
+    echo "=== End Debug ==="
+    
+    # Delegate to the main auto-upgrade task
+    # Note: PostgreSQL commands will be run as postgres user when needed
+    exec task auto-upgrade
     
 else
     echo "❌ Invalid number of arguments"

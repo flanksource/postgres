@@ -12,6 +12,8 @@ env:
   PG15BIN: /usr/lib/postgresql/15/bin
   PG16BIN: /usr/lib/postgresql/16/bin
   PG17BIN: /usr/lib/postgresql/17/bin
+  # Helper function to run commands as postgres user when root
+  RUN_AS_POSTGRES: 'if [ "$(id -u)" = "0" ]; then gosu postgres; fi'
 
 tasks:
   detect-current-version:
