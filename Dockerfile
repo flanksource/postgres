@@ -63,6 +63,11 @@ RUN set -eux; \
 RUN set -eux; \
 	curl -fsSL https://taskfile.dev/install.sh | sh -s -- -d -b /usr/local/bin
 
+# Ensure postgres user can access mounted volumes (common UID in GitHub Actions)
+RUN set -eux; \
+	usermod -u 1001 postgres; \
+	groupmod -g 1001 postgres
+
 WORKDIR /var/lib/postgresql
 
 COPY Taskfile.yml Taskfile.*.yaml /var/lib/postgresql/
