@@ -115,11 +115,14 @@ func (put *PostgresUpgradeTest) buildUpgradeImage() error {
 func (put *PostgresUpgradeTest) testUpgrade(fromVersion, toVersion string) error {
 	put.client.runner.Printf(colorBlue, colorBold, "Testing upgrade from PostgreSQL %s to %s", fromVersion, toVersion)
 
-	// Create test volume for upgrade
+	// Use existing seeded volume (created by Taskfile seed tasks)
+	sourceVolumeName := fmt.Sprintf("pg%s-test-data", fromVersion)
+	
+	// Create a copy of the source volume for this test to avoid conflicts
 	testVolumeName := fmt.Sprintf("pg%s-to-%s-test-%d", fromVersion, toVersion, time.Now().Unix())
-	testVolume, err := put.createAndSeedVolume(fromVersion, testVolumeName)
+	testVolume, err := put.copyVolume(sourceVolumeName, testVolumeName, fromVersion)
 	if err != nil {
-		return fmt.Errorf("failed to create and seed test volume: %w", err)
+		return fmt.Errorf("failed to copy test volume: %w", err)
 	}
 
 	// Run the upgrade
@@ -146,309 +149,55 @@ func (put *PostgresUpgradeTest) testUpgrade(fromVersion, toVersion string) error
 	return nil
 }
 
-// createAndSeedVolume creates a volume and seeds it with test data
-func (put *PostgresUpgradeTest) createAndSeedVolume(version string, volumeName ...string) (*Volume, error) {
-	var name string
-	if len(volumeName) > 0 {
-		name = volumeName[0]
-	} else {
-		name = fmt.Sprintf("pg%s-test-data-%d", version, time.Now().Unix())
-	}
+// copyVolume creates a copy of an existing volume for testing
+func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, version string) (*Volume, error) {
+	put.client.runner.Printf(colorGray, "", "📋 Copying volume %s to %s for testing...", sourceVolumeName, targetVolumeName)
 
-	// Create new volume
-	volume, err := CreateVolume(VolumeOptions{
-		Name: name,
+	// Create target volume
+	targetVolume, err := CreateVolume(VolumeOptions{
+		Name: targetVolumeName,
 		Labels: map[string]string{
 			"postgres.version": version,
 			"test":             "true",
+			"source":           sourceVolumeName,
 			"created":          time.Now().Format(time.RFC3339),
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create volume: %w", err)
+		return nil, fmt.Errorf("failed to create target volume: %w", err)
 	}
 
-	// Seed the volume using mounted script
-	if err := put.seedVolumeWithScript(volume, version); err != nil {
-		// Don't delete on failure - preserve for debugging
-		put.client.runner.Errorf("Failed to seed volume %s, preserving for debugging", volume.Name)
-		return nil, fmt.Errorf("failed to seed volume: %w", err)
-	}
-
-	return volume, nil
-}
-
-// seedVolumeWithScript seeds a PostgreSQL volume with test data using mounted scripts
-func (put *PostgresUpgradeTest) seedVolumeWithScript(volume *Volume, version string) error {
-	put.client.runner.Printf(colorGray, "", "🌱 Seeding PostgreSQL %s volume with mounted script...", version)
-
-	// Create seed SQL script
-	seedScript := put.createSeedScript()
-	
-	// Create temporary file for seed script
-	tmpFile, err := os.CreateTemp("", "seed-*.sql")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	
-	if _, err := tmpFile.WriteString(seedScript); err != nil {
-		return fmt.Errorf("failed to write seed script: %w", err)
-	}
-	tmpFile.Close()
-
-	containerName := fmt.Sprintf("postgres-seed-%s-%d", version, time.Now().Unix())
-
-	// Start PostgreSQL container with seed script mounted
-	// PostgreSQL automatically runs scripts in /docker-entrypoint-initdb.d/
-	// Use postgres user as the superuser to match what pg_upgrade expects
+	// Copy data from source to target volume using a temporary container
+	copyContainerName := fmt.Sprintf("volume-copy-%d", time.Now().Unix())
 	container, err := Run(ContainerOptions{
-		Name:  containerName,
-		Image: fmt.Sprintf("postgres:%s", version),
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": put.config.TestPassword,
-			"POSTGRES_DB":       put.config.TestDatabase,
-		},
+		Name:  copyContainerName,
+		Image: "alpine:latest",
 		Volumes: map[string]string{
-			volume.Name:    "/var/lib/postgresql/data",
-			tmpFile.Name(): "/docker-entrypoint-initdb.d/01-seed.sql:ro",
+			sourceVolumeName: "/source:ro",
+			targetVolumeName: "/target",
 		},
-		Detach: true,
-		Remove: false, // Don't auto-remove on failure for debugging
+		Entrypoint: []string{"sh", "-c", "cp -a /source/. /target/"},
+		Remove:     true,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to start postgres container: %w", err)
+		targetVolume.Delete() // Clean up on failure
+		return nil, fmt.Errorf("failed to copy volume data: %w", err)
 	}
 
-	// Wait for PostgreSQL to be ready and seed to complete
-	put.client.runner.Statusf("⏳ Waiting for PostgreSQL %s to initialize and seed...", version)
-	maxRetries := 60
-	for i := 0; i < maxRetries; i++ {
-		output, err := container.Exec("pg_isready", "-U", "postgres")
-		if err == nil && strings.Contains(output, "accepting connections") {
-			// Give it a bit more time for seed script to complete
-			time.Sleep(3 * time.Second)
-			put.client.runner.Successf("✅ PostgreSQL %s is ready and seeded", version)
-			break
-		}
-		if i == maxRetries-1 {
-			logs, _ := container.Logs()
-			put.client.runner.Errorf("Container logs:\n%s", logs)
-			return fmt.Errorf("PostgreSQL %s failed to start and seed after %d seconds", version, maxRetries)
-		}
-		time.Sleep(1 * time.Second)
+	// Wait for copy to complete
+	if err := container.Wait(); err != nil {
+		targetVolume.Delete() // Clean up on failure
+		return nil, fmt.Errorf("volume copy failed: %w", err)
 	}
 
-	// Verify seed completed successfully
-	logs, _ := container.Logs()
-	if strings.Contains(logs, "ERROR") && !strings.Contains(logs, "already exists") {
-		put.client.runner.Errorf("Seed script errors found in logs:\n%s", logs)
-		return fmt.Errorf("seed script failed")
-	}
-
-	// Gracefully stop container to ensure clean shutdown
-	if err := container.Stop(); err != nil {
-		put.client.runner.Printf(colorYellow, "", "⚠️  Failed to stop container gracefully: %v", err)
-	}
-	
-	// Clean up container after stopping
-	container.Delete()
-	put.client.runner.Printf(colorGray, "", "✅ Volume seeded successfully")
-	return nil
+	put.client.runner.Printf(colorGray, "", "✅ Volume copied successfully")
+	return targetVolume, nil
 }
 
-// createSeedScript generates the SQL script for seeding test data
-func (put *PostgresUpgradeTest) createSeedScript() string {
-	return fmt.Sprintf(`-- Test seed data for PostgreSQL upgrade testing
-CREATE TABLE IF NOT EXISTS test_upgrade (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    value INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
-INSERT INTO test_upgrade (name, value) VALUES
-    ('record1', 100),
-    ('record2', 200),
-    ('record3', 300),
-    ('record4', 400),
-    ('record5', 500);
 
--- Create some additional test objects
-CREATE INDEX idx_test_upgrade_name ON test_upgrade(name);
-CREATE INDEX idx_test_upgrade_value ON test_upgrade(value);
 
--- Create a view
-CREATE VIEW test_upgrade_summary AS
-SELECT COUNT(*) as total_records, SUM(value) as total_value
-FROM test_upgrade;
 
--- Create a test user if not exists
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '%s') THEN
-        CREATE USER %s WITH PASSWORD '%s';
-    END IF;
-END$$;
-
-GRANT ALL PRIVILEGES ON DATABASE %s TO %s;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO %s;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO %s;
-
--- Add some PostgreSQL version-specific features if needed
-DO $$
-BEGIN
-    RAISE NOTICE 'Seed script completed successfully';
-END $$;
-`, put.config.TestUser, put.config.TestUser, put.config.TestPassword,
-   put.config.TestDatabase, put.config.TestUser,
-   put.config.TestUser, put.config.TestUser)
-}
-
-// seedVolume seeds a PostgreSQL volume with test data
-func (put *PostgresUpgradeTest) seedVolume(volume *Volume, version string) error {
-	put.client.runner.Printf(colorGray, "", "🌱 Seeding PostgreSQL %s volume...", version)
-
-	containerName := fmt.Sprintf("postgres-seed-%s-%d", version, time.Now().Unix())
-
-	// Start PostgreSQL container
-	container, err := Run(ContainerOptions{
-		Name:  containerName,
-		Image: fmt.Sprintf("postgres:%s", version),
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": put.config.TestPassword,
-			"POSTGRES_DB":       put.config.TestDatabase,
-		},
-		Volumes: map[string]string{
-			volume.Name: "/var/lib/postgresql/data",
-		},
-		Detach: true,
-		Remove: false, // Don't auto-remove for debugging
-	})
-	if err != nil {
-		return fmt.Errorf("failed to start PostgreSQL container: %w", err)
-	}
-
-	// Wait for PostgreSQL to be ready
-	put.client.runner.Statusf("⏳ Waiting for PostgreSQL %s to be ready...", version)
-	maxRetries := 30
-	for i := 0; i < maxRetries; i++ {
-		output, err := container.Exec("pg_isready", "-U", "postgres")
-		if err == nil && strings.Contains(output, "accepting connections") {
-			put.client.runner.Successf("✅ PostgreSQL %s is ready", version)
-			break
-		}
-		if i == maxRetries-1 {
-			return fmt.Errorf("PostgreSQL %s failed to start after %d seconds", version, maxRetries)
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	// Create test data
-	put.client.runner.Infof("📊 Creating test data for PostgreSQL %s...", version)
-
-	sqlCommands := fmt.Sprintf(`
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '%s') THEN
-        CREATE USER %s WITH PASSWORD '%s';
-    END IF;
-END
-$$;
-
-GRANT ALL PRIVILEGES ON DATABASE %s TO %s;
-
-DROP TABLE IF EXISTS test_table CASCADE;
-CREATE TABLE test_table (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    version VARCHAR(10) DEFAULT '%s'
-);
-
-INSERT INTO test_table (name) VALUES
-    ('Test Record 1 from PG%s'),
-    ('Test Record 2 from PG%s'),
-    ('Test Record 3 from PG%s');
-
-DROP TABLE IF EXISTS version_info CASCADE;
-CREATE TABLE version_info (
-    id INTEGER PRIMARY KEY,
-    original_version VARCHAR(10),
-    seed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-INSERT INTO version_info (id, original_version) VALUES (1, '%s');
-`, put.config.TestUser, put.config.TestUser, put.config.TestPassword,
-		put.config.TestDatabase, put.config.TestUser,
-		version, version, version, version, version)
-
-	_, err = container.Exec("psql", "-U", "postgres", "-d", put.config.TestDatabase, "-c", sqlCommands)
-	if err != nil {
-		return fmt.Errorf("failed to create test data: %w", err)
-	}
-
-	// Verify the seed
-	if err := put.verifySeedData(volume, version); err != nil {
-		// Don't delete container on failure for debugging
-		return fmt.Errorf("seed verification failed: %w", err)
-	}
-
-	// Clean up container on success
-	container.Delete()
-	put.client.runner.Successf("✅ Successfully seeded PostgreSQL %s volume", version)
-	return nil
-}
-
-// verifySeedData verifies that a volume contains the expected seed data
-func (put *PostgresUpgradeTest) verifySeedData(volume *Volume, version string) error {
-	put.client.runner.Infof("🔍 Verifying seed data for PostgreSQL %s...", version)
-
-	containerName := fmt.Sprintf("verify-seed-%s-%d", version, time.Now().Unix())
-
-	// Use direct docker run command to avoid container management issues
-	result := put.client.runner.RunCommand("docker", "run", 
-		"--name", containerName,
-		"-u", "postgres",
-		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
-		fmt.Sprintf("postgres:%s", version),
-		"bash", "-c", fmt.Sprintf(`
-pg_ctl -D /var/lib/postgresql/data start -w &&
-psql -U postgres -d %s -t -c 'SELECT COUNT(*) FROM test_table;' | tr -d ' ' &&
-echo "SEPARATOR" &&
-psql -U postgres -d %s -t -c 'SELECT original_version FROM version_info WHERE id = 1;' | tr -d ' ' &&
-pg_ctl -D /var/lib/postgresql/data stop -w
-`, put.config.TestDatabase, put.config.TestDatabase))
-	
-	// Clean up container regardless of result
-	defer put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
-	
-	if result.ExitCode != 0 {
-		return fmt.Errorf("verification container failed: %v", result.Err)
-	}
-	
-	// The output should be in stdout/stderr from the run command
-	logs := result.Stdout + result.Stderr
-
-	// Parse output
-	parts := strings.Split(logs, "SEPARATOR")
-	if len(parts) < 2 {
-		return fmt.Errorf("unexpected output format")
-	}
-
-	recordCount := strings.TrimSpace(parts[0])
-	if !strings.Contains(recordCount, "3") {
-		return fmt.Errorf("expected 3 records, found: %s", recordCount)
-	}
-
-	originalVersion := strings.TrimSpace(parts[1])
-	if !strings.Contains(originalVersion, version) {
-		return fmt.Errorf("expected version %s, found: %s", version, originalVersion)
-	}
-
-	put.client.runner.Infof("✅ Seed verification passed for PostgreSQL %s", version)
-	return nil
-}
 
 // runUpgrade runs the PostgreSQL upgrade process
 func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersion string) error {
