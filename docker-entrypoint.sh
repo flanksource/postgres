@@ -43,10 +43,8 @@ elif [ $# -eq 0 ]; then
     
     # Run as postgres user if started as root
     if [ "$(id -u)" = '0' ]; then
-        # Fix ownership of data directories
-        chown -R postgres:postgres /var/lib/postgresql
-        
         # Switch to postgres user and delegate to the main auto-upgrade task
+        # Note: Cannot change ownership of mounted volumes, only ensure we run as postgres
         exec gosu postgres task auto-upgrade
     else
         # Already running as non-root user
