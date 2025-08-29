@@ -41,8 +41,17 @@ elif [ $# -eq 0 ]; then
         echo "⚠️  Using legacy TARGET_VERSION, consider switching to PG_VERSION"
     fi
     
-    # Delegate to the main auto-upgrade task
-    exec task auto-upgrade
+    # Run as postgres user if started as root
+    if [ "$(id -u)" = '0' ]; then
+        # Fix ownership of data directories
+        chown -R postgres:postgres /var/lib/postgresql
+        
+        # Switch to postgres user and delegate to the main auto-upgrade task
+        exec gosu postgres task auto-upgrade
+    else
+        # Already running as non-root user
+        exec task auto-upgrade
+    fi
     
 else
     echo "❌ Invalid number of arguments"
