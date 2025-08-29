@@ -156,6 +156,11 @@ tasks:
         # Create upgrade directory structure inside data volume
         mkdir -p /var/lib/postgresql/data/upgrades
 
+        # Restore backup data to main location for the first upgrade
+        echo "Restoring backup data to main location for upgrade..."
+        cp -a /var/lib/postgresql/data/backups/data-$CURRENT_VERSION/* /var/lib/postgresql/data/
+        cp -a /var/lib/postgresql/data/backups/data-$CURRENT_VERSION/.[^.]* /var/lib/postgresql/data/ 2>/dev/null || true
+
         # Perform sequential upgrades
         current=$CURRENT_VERSION
         target=$TARGET_VERSION
@@ -166,8 +171,7 @@ tasks:
           echo "Upgrading from PostgreSQL $current to $next"
           echo "========================================="
 
-          # For first iteration, old data is in /var/lib/postgresql/data
-          # For subsequent iterations, it's still in /var/lib/postgresql/data (moved from previous upgrade)
+          # Now data is available in /var/lib/postgresql/data for upgrade
           FROM=$current TO=$next task run:upgrade-single
 
           # After upgrade, move new version data back to main location
@@ -213,6 +217,9 @@ tasks:
       - |
         # Create upgrade directory structure inside data volume
         mkdir -p /var/lib/postgresql/data/upgrades
+        
+        # Note: For sequential-upgrade, we assume data is already in the correct location
+        # (either already in /var/lib/postgresql/data or restored by calling task)
         
         current={{.FROM}}
         target={{.TO}}
