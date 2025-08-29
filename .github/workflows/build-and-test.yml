@@ -69,6 +69,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false  # Don't cancel other tests if one fails
       matrix:
         include:
           # AMD64 tests - full matrix
@@ -91,6 +92,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
 
       - name: Set image name
         run: |
