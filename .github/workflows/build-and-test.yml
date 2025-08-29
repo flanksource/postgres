@@ -70,16 +70,24 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test:
-          # Direct upgrades
-          - { from: 14, to: 15, name: "14 to 15" }
-          - { from: 15, to: 16, name: "15 to 16" }
-          - { from: 16, to: 17, name: "16 to 17" }
-          # Multi-step upgrades
-          - { from: 14, to: 16, name: "14 to 16 (multi-step)" }
-          - { from: 15, to: 17, name: "15 to 17 (multi-step)" }
-          - { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
-    name: Test upgrade ${{ matrix.test.name }}
+        include:
+          # AMD64 tests - full matrix
+          - platform: linux/amd64
+            test: { from: 14, to: 15, name: "14 to 15" }
+          - platform: linux/amd64
+            test: { from: 15, to: 16, name: "15 to 16" }
+          - platform: linux/amd64
+            test: { from: 16, to: 17, name: "16 to 17" }
+          - platform: linux/amd64
+            test: { from: 14, to: 16, name: "14 to 16 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          # ARM64 test - just one to verify it works
+          - platform: linux/arm64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+    name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -102,6 +110,7 @@ jobs:
       - name: Initialize PostgreSQL ${{ matrix.test.from }} with test data
         run: |
           docker run --rm \
+            --platform ${{ matrix.platform }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             -e POSTGRES_DB=testdb \
@@ -145,6 +154,7 @@ jobs:
         timeout-minutes: 10
         run: |
           docker run --rm \
+            --platform ${{ matrix.platform }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
             -e PG_VERSION=${{ matrix.test.to }} \
@@ -153,6 +163,7 @@ jobs:
       - name: Verify upgraded data
         run: |
           docker run --rm \
+            --platform ${{ matrix.platform }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
@@ -215,53 +226,3 @@ jobs:
             tail -20 "$logfile" 2>/dev/null || echo "Cannot read $logfile"
           done
 
-  test-arm64:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    strategy:
-      matrix:
-        platform: [linux/arm64]
-        test:
-          - { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
-    name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set image name
-        run: |
-          echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
-
-      - name: Test upgrade on ${{ matrix.platform }}
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -e POSTGRES_PASSWORD=testpass \
-            -e POSTGRES_USER=testuser \
-            -e POSTGRES_DB=testdb \
-            -e PG_VERSION=${{ matrix.test.to }} \
-            ${{ env.TEST_IMAGE }} \
-            bash -c "
-              # Initialize test data in PostgreSQL ${{ matrix.test.from }}
-              export PGDATA=/var/lib/postgresql/data
-              export PGBIN=/usr/lib/postgresql/${{ matrix.test.from }}/bin
-              
-              \$PGBIN/initdb
-              echo \"host all all 0.0.0.0/0 md5\" >> \$PGDATA/pg_hba.conf
-              \$PGBIN/pg_ctl start -w
-              
-              \$PGBIN/createuser -s testuser
-              \$PGBIN/createdb -O testuser testdb
-              
-              \$PGBIN/psql -U testuser -d testdb -c \"CREATE TABLE test (id INT); INSERT INTO test VALUES (1), (2), (3);\"
-              \$PGBIN/psql -U testuser -d testdb -c \"SELECT COUNT(*) FROM test;\"
-              
-              \$PGBIN/pg_ctl stop -w
-              
-              # Run the upgrade using auto-upgrade (no explicit from/to parameters)
-              exec /usr/local/bin/docker-entrypoint.sh
-            "
