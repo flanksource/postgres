@@ -23,13 +23,13 @@ RUN set -eux; \
 		ca-certificates \
 	; \
 	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ] || [ "$TARGET_VERSION" = "15" ]; then \
-		apt-get install -y --no-install-recommends postgresql-14='14.18-1.pgdg120+1'; \
+		apt-get install -y --no-install-recommends postgresql-14; \
 	fi; \
 	if [ "$TARGET_VERSION" = "17" ] || [ "$TARGET_VERSION" = "16" ]; then \
-		apt-get install -y --no-install-recommends postgresql-15='15.13-1.pgdg120+1'; \
+		apt-get install -y --no-install-recommends postgresql-15; \
 	fi; \
 	if [ "$TARGET_VERSION" = "17" ]; then \
-		apt-get install -y --no-install-recommends postgresql-16='16.9-1.pgdg120+1'; \
+		apt-get install -y --no-install-recommends postgresql-16; \
 	fi; \
 	rm -rf /var/lib/apt/lists/*
 
