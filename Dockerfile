@@ -61,7 +61,14 @@ RUN set -eux; \
 
 # Install task for running pre/post sanity tests
 RUN set -eux; \
-	curl -fsSL https://taskfile.dev/install.sh | sh -s -- -d -b /usr/local/bin
+	ARCH=$(dpkg --print-architecture); \
+	case "$ARCH" in \
+		amd64) TASK_ARCH="x86_64" ;; \
+		arm64) TASK_ARCH="arm64" ;; \
+		*) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+	esac; \
+	curl -fsSL "https://github.com/go-task/task/releases/latest/download/task_linux_${TASK_ARCH}.tar.gz" | \
+	tar -xz -C /usr/local/bin task
 
 # Ensure postgres user can access mounted volumes (common UID in GitHub Actions)
 RUN set -eux; \
