@@ -52,6 +52,7 @@ tasks:
 
         # Start PostgreSQL temporarily for password reset
         echo "Starting PostgreSQL {{.CURRENT_VERSION}} temporarily for password reset..."
+        echo "Running: /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl -D /var/lib/postgresql/data -l /tmp/postgres-reset.log -o '-p 5433' start"
         /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
           -D /var/lib/postgresql/data \
           -l /tmp/postgres-reset.log \
@@ -62,12 +63,14 @@ tasks:
 
         # Reset password
         echo "Resetting password for user ${POSTGRES_USER:-postgres}..."
+        echo "Running: /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/psql -p 5433 -c 'ALTER USER ...'"
         /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/psql \
           -p 5433 \
           -c "ALTER USER ${POSTGRES_USER:-postgres} PASSWORD '${POSTGRES_PASSWORD}';"
 
         # Stop PostgreSQL
         echo "Stopping PostgreSQL..."
+        echo "Running: /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl -D /var/lib/postgresql/data stop"
         /usr/lib/postgresql/{{.CURRENT_VERSION}}/bin/pg_ctl \
           -D /var/lib/postgresql/data \
           stop
@@ -223,6 +226,7 @@ tasks:
 
         echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
 
+        echo "Running: {{.PGBINOLD}}/pg_controldata {{.PGDATAOLD}}"
         {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
           echo "WARNING: Database cluster is not cleanly shut down"
         }
@@ -234,6 +238,7 @@ tasks:
           echo "🔧 Initializing PostgreSQL {{.TO}} cluster..."
           mkdir -p "{{.PGDATANEW}}"
           chown postgres:postgres "{{.PGDATANEW}}"
+          echo "Running: {{.PGBINNEW}}/initdb -D {{.PGDATANEW}}"
           {{.PGBINNEW}}/initdb -D "{{.PGDATANEW}}"
           echo "✅ PostgreSQL {{.TO}} cluster initialized"
         else
@@ -246,22 +251,22 @@ tasks:
 
         # Check first to validate compatibility
         echo "Checking cluster compatibility..."
+        echo "Running: {{.PGBINNEW}}/pg_upgrade --old-bindir={{.PGBINOLD}} --new-bindir={{.PGBINNEW}} --old-datadir={{.PGDATAOLD}} --new-datadir={{.PGDATANEW}} --check"
         {{.PGBINNEW}}/pg_upgrade \
           --old-bindir="{{.PGBINOLD}}" \
           --new-bindir="{{.PGBINNEW}}" \
           --old-datadir="{{.PGDATAOLD}}" \
           --new-datadir="{{.PGDATANEW}}" \
-          --link \
           --check
 
         # Perform the actual upgrade
         echo "Performing upgrade..."
+        echo "Running: {{.PGBINNEW}}/pg_upgrade --old-bindir={{.PGBINOLD}} --new-bindir={{.PGBINNEW}} --old-datadir={{.PGDATAOLD}} --new-datadir={{.PGDATANEW}}"
         {{.PGBINNEW}}/pg_upgrade \
           --old-bindir="{{.PGBINOLD}}" \
           --new-bindir="{{.PGBINNEW}}" \
           --old-datadir="{{.PGDATAOLD}}" \
-          --new-datadir="{{.PGDATANEW}}" \
-          --link
+          --new-datadir="{{.PGDATANEW}}"
 
         echo "✅ pg_upgrade completed successfully"
 
@@ -281,6 +286,7 @@ tasks:
 
         echo "✅ PostgreSQL {{.TO}} cluster verified at {{.PGDATANEW}}"
 
+        echo "Running: {{.PGBINNEW}}/pg_controldata {{.PGDATANEW}}"
         {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
           echo "ERROR: Cannot read control data from upgraded cluster"
           exit 1
@@ -329,6 +335,7 @@ tasks:
         echo "✅ PostgreSQL {{.FROM}} cluster verified at {{.PGDATAOLD}}"
 
         # Check cluster health
+        echo "Running: {{.PGBINOLD}}/pg_controldata {{.PGDATAOLD}}"
         {{.PGBINOLD}}/pg_controldata "{{.PGDATAOLD}}" | grep -q "Database cluster state.*shut down" || {
           echo "WARNING: Database cluster is not cleanly shut down"
         }
@@ -345,6 +352,7 @@ tasks:
         echo "🔧 Initializing PostgreSQL {{.TO}} cluster..."
         mkdir -p "{{.PGDATANEW}}"
         chown postgres:postgres "{{.PGDATANEW}}"
+        echo "Running: {{.PGBINNEW}}/initdb -D {{.PGDATANEW}}"
         {{.PGBINNEW}}/initdb -D "{{.PGDATANEW}}"
         echo "✅ PostgreSQL {{.TO}} cluster initialized"
 
@@ -361,22 +369,22 @@ tasks:
         chmod 755 /var/run/postgresql
 
         # Run pg_upgrade check first
+        echo "Running: {{.PGBINNEW}}/pg_upgrade --old-bindir={{.PGBINOLD}} --new-bindir={{.PGBINNEW}} --old-datadir={{.PGDATAOLD}} --new-datadir={{.PGDATANEW}} --socketdir=/var/run/postgresql --check"
         {{.PGBINNEW}}/pg_upgrade \
           --old-bindir="{{.PGBINOLD}}" \
           --new-bindir="{{.PGBINNEW}}" \
           --old-datadir="{{.PGDATAOLD}}" \
           --new-datadir="{{.PGDATANEW}}" \
-          --link \
           --socketdir=/var/run/postgresql \
           --check
 
         # If check passes, run the actual upgrade
+        echo "Running: {{.PGBINNEW}}/pg_upgrade --old-bindir={{.PGBINOLD}} --new-bindir={{.PGBINNEW}} --old-datadir={{.PGDATAOLD}} --new-datadir={{.PGDATANEW}} --socketdir=/var/run/postgresql"
         {{.PGBINNEW}}/pg_upgrade \
           --old-bindir="{{.PGBINOLD}}" \
           --new-bindir="{{.PGBINNEW}}" \
           --old-datadir="{{.PGDATAOLD}}" \
           --new-datadir="{{.PGDATANEW}}" \
-          --link \
           --socketdir=/var/run/postgresql
 
         echo "✅ pg_upgrade completed successfully"
@@ -407,6 +415,7 @@ tasks:
         echo "Verifying upgraded cluster data..."
 
         # Check control data
+        echo "Running: {{.PGBINNEW}}/pg_controldata {{.PGDATANEW}}"
         {{.PGBINNEW}}/pg_controldata "{{.PGDATANEW}}" | grep -E "(Database cluster state|pg_control version|Catalog version)" || {
           echo "ERROR: Cannot read control data from upgraded cluster"
           exit 1
