@@ -11,11 +11,59 @@ vars:
   GO_TEST_FLAGS: -v -timeout 30m
 
 tasks:
+  # Database seeding tasks
+  seed-postgres:
+    desc: Initialize and seed PostgreSQL {{.VERSION}} test data
+    vars:
+      VERSION: '{{.VERSION}}'
+      VOLUME_NAME: 'pg{{.VERSION}}-test-data'
+    cmds:
+      - docker volume create {{.VOLUME_NAME}} || true
+      - |
+        docker run --rm \
+          -v {{.VOLUME_NAME}}:/var/lib/postgresql/data \
+          -v ./test/sql/seed-test-data.sql:/docker-entrypoint-initdb.d/01-seed.sql:ro \
+          -e POSTGRES_PASSWORD=testpass \
+          -e POSTGRES_DB=testdb \
+          -e POSTGRES_USER=postgres \
+          postgres:{{.VERSION}}-bookworm
+
+  seed-pg14:
+    desc: Seed PostgreSQL 14 test data
+    cmds:
+      - task: seed-postgres
+        vars: {VERSION: "14"}
+
+  seed-pg15:
+    desc: Seed PostgreSQL 15 test data  
+    cmds:
+      - task: seed-postgres
+        vars: {VERSION: "15"}
+
+  seed-pg16:
+    desc: Seed PostgreSQL 16 test data
+    cmds:
+      - task: seed-postgres
+        vars: {VERSION: "16"}
+
+  seed-pg17:
+    desc: Seed PostgreSQL 17 test data
+    cmds:
+      - task: seed-postgres
+        vars: {VERSION: "17"}
+
+  seed-all:
+    desc: Seed all PostgreSQL versions with test data
+    cmds:
+      - task: seed-pg14
+      - task: seed-pg15
+      - task: seed-pg16
+      - task: seed-pg17
   # Main test tasks using Go tests
   all:
     desc: Run all PostgreSQL upgrade tests
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-all]
     cmds:
       - |
         echo "🧪 Running all PostgreSQL upgrade tests..."
@@ -24,7 +72,7 @@ tasks:
   upgrade-14-to-17:
     desc: Test upgrade from PostgreSQL 14 to 17
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-pg14]
     cmds:
       - |
         echo "🧪 Testing upgrade from PostgreSQL 14 to 17..."
@@ -33,7 +81,7 @@ tasks:
   upgrade-15-to-17:
     desc: Test upgrade from PostgreSQL 15 to 17
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-pg15]
     cmds:
       - |
         echo "🧪 Testing upgrade from PostgreSQL 15 to 17..."
@@ -42,7 +90,7 @@ tasks:
   upgrade-16-to-17:
     desc: Test upgrade from PostgreSQL 16 to 17
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-pg16]
     cmds:
       - |
         echo "🧪 Testing upgrade from PostgreSQL 16 to 17..."
@@ -51,7 +99,7 @@ tasks:
   upgrade-15-to-16:
     desc: Test upgrade from PostgreSQL 15 to 16
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-pg15]
     cmds:
       - |
         echo "🧪 Testing upgrade from PostgreSQL 15 to 16..."
@@ -61,7 +109,7 @@ tasks:
   dev-test-quick:
     desc: Quick development test (14 to 17 upgrade only)
     dir: "{{.TEST_DIR}}"
-    deps: [build]
+    deps: [build, seed-pg14]
     cmds:
       - |
         echo "⚡ Running quick test..."

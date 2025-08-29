@@ -27,7 +27,7 @@ tasks:
     generates:
       - .build-timestamp
     status:
-      - docker images | grep -q "{{.IMAGE_NAME}}" || exit 1
+      - docker images | grep -q "{{.REGISTRY}}/{{.IMAGE_BASE}}" || exit 1
     method: timestamp
 
   build-matrix:
