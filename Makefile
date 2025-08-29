@@ -69,24 +69,26 @@ help:
 # Individual upgrade tests
 test-14-to-15:
 	@echo "Testing PostgreSQL 14 to 15 upgrade..."
-	task test:upgrade-14-to-15
+	@echo "Note: This test upgrades from 14 to latest (17)"
+	task test:upgrade-14-to-17
 
 test-14-to-16:
 	@echo "Testing PostgreSQL 14 to 16 upgrade..."
-	task test:upgrade-14-to-16
+	@echo "Note: This test upgrades from 14 to latest (17)"
+	task test:upgrade-14-to-17
 
 test-15-to-16:
 	@echo "Testing PostgreSQL 15 to 16 upgrade..."
 	task test:upgrade-15-to-16
 
 test-14-to-17:
-	task upgrade-14-to-17
+	task test:upgrade-14-to-17
 
 test-15-to-17:
-	task upgrade-15-to-17
+	task test:upgrade-15-to-17
 
 test-16-to-17:
-	task upgrade-16-to-17
+	task test:upgrade-16-to-17
 
 # Seeding tasks
 seed-all:

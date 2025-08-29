@@ -120,6 +120,16 @@ tasks:
         cat test-results.json | go-junit-report -out junit.xml
         echo "✅ Test results saved to test/junit.xml"
 
+  # Clean task
+  clean:
+    desc: Clean up test resources and Docker volumes
+    cmds:
+      - |
+        echo "🧹 Cleaning up test resources..."
+        docker volume prune -f || true
+        docker system prune -f || true
+        echo "✅ Cleanup completed"
+
   # Help task
   help:
     desc: Show available tasks
