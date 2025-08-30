@@ -13,15 +13,34 @@ get_version_from_image() {
     
     echo "🔧 Detecting PostgreSQL $major_version version from image $image_tag..." >&2
     
-    # Run the built image to get the PostgreSQL version
+    # Try multiple approaches to get the PostgreSQL version
+    version=""
+    
+    # Method 1: Try using dpkg to get the package version
+    echo "  Trying dpkg approach..." >&2
     version=$(docker run --rm --entrypoint="" "$image_tag" \
-        /usr/lib/postgresql/$major_version/bin/postgres --version 2>/dev/null | \
-        grep -oE 'PostgreSQL [0-9]+\.[0-9]+' | \
-        awk '{print $2}' || echo "")
+        sh -c "dpkg -l postgresql-$major_version 2>/dev/null | tail -1 | awk '{print \$3}' | grep -oE '^[0-9]+\.[0-9]+'" 2>/dev/null || echo "")
+    
+    # Method 2: If that fails, try the postgres binary with --version
+    if [ -z "$version" ]; then
+        echo "  Trying postgres --version approach..." >&2
+        version=$(docker run --rm --entrypoint="" "$image_tag" \
+            /usr/lib/postgresql/$major_version/bin/postgres --version 2>/dev/null | \
+            grep -oE 'PostgreSQL [0-9]+\.[0-9]+' | \
+            awk '{print $2}' || echo "")
+    fi
+    
+    # Method 3: If that fails, try initdb --version
+    if [ -z "$version" ]; then
+        echo "  Trying initdb --version approach..." >&2
+        version=$(docker run --rm --entrypoint="" "$image_tag" \
+            /usr/lib/postgresql/$major_version/bin/initdb --version 2>/dev/null | \
+            grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "")
+    fi
     
     if [ -z "$version" ]; then
-        echo "❌ Failed to detect version for PostgreSQL $major_version" >&2
-        exit 1
+        echo "❌ Failed to detect version for PostgreSQL $major_version using all methods" >&2
+        return 1
     fi
     
     echo "✅ Detected PostgreSQL $major_version version: $version" >&2
@@ -34,7 +53,31 @@ get_latest_version() {
     
     # Try to get from built image first
     if docker image inspect "postgres-upgrade:$major_version" >/dev/null 2>&1; then
-        get_version_from_image "$major_version"
+        version=$(get_version_from_image "$major_version" 2>/dev/null)
+        if [ -n "$version" ]; then
+            echo "$version"
+        else
+            echo "⚠️  Failed to detect version from image, using hardcoded version for PostgreSQL $major_version" >&2
+            # Fallback to hardcoded versions
+            case $major_version in
+                14)
+                    echo "14.19"
+                    ;;
+                15)
+                    echo "15.14"
+                    ;;
+                16)
+                    echo "16.10"
+                    ;;
+                17)
+                    echo "17.6"
+                    ;;
+                *)
+                    echo "Unknown version: $major_version" >&2
+                    exit 1
+                    ;;
+            esac
+        fi
     else
         echo "⚠️  Image postgres-upgrade:$major_version not found, using hardcoded version" >&2
         # Fallback to hardcoded versions
