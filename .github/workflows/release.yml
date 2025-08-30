@@ -1,0 +1,255 @@
+name: Release PostgreSQL Upgrade Images
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/postgres
+
+jobs:
+  build-images-for-version-detection:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pg_version: [16, 17]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for version detection
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          build-args: |
+            TARGET_VERSION=${{ matrix.pg_version }}
+          push: false
+          tags: postgres-upgrade:${{ matrix.pg_version }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image as artifact
+        run: |
+          docker save postgres-upgrade:${{ matrix.pg_version }} > postgres-upgrade-${{ matrix.pg_version }}.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-upgrade-${{ matrix.pg_version }}
+          path: postgres-upgrade-${{ matrix.pg_version }}.tar
+          retention-days: 1
+
+  get-postgres-versions:
+    needs: build-images-for-version-detection
+    runs-on: ubuntu-latest
+    outputs:
+      pg16_version: ${{ steps.versions.outputs.pg16_version }}
+      pg17_version: ${{ steps.versions.outputs.pg17_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download PostgreSQL 16 image
+        uses: actions/download-artifact@v4
+        with:
+          name: postgres-upgrade-16
+
+      - name: Download PostgreSQL 17 image
+        uses: actions/download-artifact@v4
+        with:
+          name: postgres-upgrade-17
+
+      - name: Load Docker images
+        run: |
+          docker load < postgres-upgrade-16.tar
+          docker load < postgres-upgrade-17.tar
+
+      - name: Get PostgreSQL versions from built images
+        id: versions
+        run: |
+          chmod +x scripts/get-postgres-versions.sh
+          ./scripts/get-postgres-versions.sh
+
+  build-and-release:
+    needs: [build-images-for-version-detection, get-postgres-versions]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    strategy:
+      matrix:
+        pg_version: [16, 17]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version variables
+        id: versions
+        run: |
+          if [ "${{ matrix.pg_version }}" = "16" ]; then
+            echo "minor_version=${{ needs.get-postgres-versions.outputs.pg16_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "minor_version=${{ needs.get-postgres-versions.outputs.pg17_version }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # Extract git tag (remove 'v' prefix if present)
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == v* ]]; then
+            TAG="${TAG#v}"
+          fi
+          echo "release_tag=$TAG" >> $GITHUB_OUTPUT
+          
+          # Generate SHA short
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata for PostgreSQL ${{ matrix.pg_version }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ matrix.pg_version }}
+            type=raw,value=${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}
+            type=raw,value=${{ steps.versions.outputs.minor_version }}
+            type=raw,value=latest,enable={{is_default_branch}},condition=${{ matrix.pg_version == '17' }}
+
+      - name: Build and push PostgreSQL ${{ matrix.pg_version }} image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            TARGET_VERSION=${{ matrix.pg_version }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create release notes
+        if: matrix.pg_version == '17'  # Only create release once
+        id: release-notes
+        run: |
+          cat > release-notes.md << EOF
+          # PostgreSQL Upgrade Images Release ${{ steps.versions.outputs.release_tag }}
+          
+          ## Available Images
+          
+          ### PostgreSQL 16 (Current: ${{ needs.get-postgres-versions.outputs.pg16_version }})
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:16\` - Latest PostgreSQL 16 major version
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg16_version }}\` - Specific minor version
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg16_version }}-${{ steps.versions.outputs.sha_short }}\` - Version with commit SHA
+          
+          ### PostgreSQL 17 (Current: ${{ needs.get-postgres-versions.outputs.pg17_version }})
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17\` - Latest PostgreSQL 17 major version  
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}\` - Specific minor version
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}-${{ steps.versions.outputs.sha_short }}\` - Version with commit SHA
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` - Points to PostgreSQL 17
+          
+          ## Usage
+          
+          ### Basic Upgrade
+          \`\`\`bash
+          docker run --rm \\
+            -v /path/to/pgdata:/var/lib/postgresql/data \\
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17
+          \`\`\`
+          
+          ### Upgrade and Start PostgreSQL
+          \`\`\`bash
+          docker run -d \\
+            -v /path/to/pgdata:/var/lib/postgresql/data \\
+            -e START_POSTGRES=true \\
+            -p 5432:5432 \\
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17
+          \`\`\`
+          
+          ## Supported Upgrade Paths
+          
+          - PostgreSQL 14 → 15, 16, 17
+          - PostgreSQL 15 → 16, 17  
+          - PostgreSQL 16 → 17
+          
+          Sequential upgrades are performed automatically (e.g., 14→15→16→17).
+          
+          ## Environment Variables
+          
+          - \`PG_VERSION\`: Target PostgreSQL version (16 or 17)
+          - \`START_POSTGRES\`: Start PostgreSQL after upgrade (default: false)
+          - \`AUTO_UPGRADE\`: Enable auto-upgrade (default: true)
+          - \`RESET_PASSWORD\`: Reset password on startup (default: false)
+          - \`POSTGRES_PASSWORD\`: Password for reset (required if RESET_PASSWORD=true)
+          
+          ## Architecture Support
+          
+          All images support both \`linux/amd64\` and \`linux/arm64\` architectures.
+          EOF
+
+      - name: Create GitHub Release
+        if: matrix.pg_version == '17'  # Only create release once
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: PostgreSQL Upgrade Images ${{ steps.versions.outputs.release_tag }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+
+  create-git-tags:
+    needs: [build-images-for-version-detection, get-postgres-versions, build-and-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create version-specific git tags
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create tags for each PostgreSQL version
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          
+          # PostgreSQL 16 tags
+          PG16_TAG="pg16-${{ needs.get-postgres-versions.outputs.pg16_version }}-${SHA_SHORT}"
+          git tag -a "$PG16_TAG" -m "PostgreSQL 16.${{ needs.get-postgres-versions.outputs.pg16_version }} release"
+          
+          # PostgreSQL 17 tags  
+          PG17_TAG="pg17-${{ needs.get-postgres-versions.outputs.pg17_version }}-${SHA_SHORT}"
+          git tag -a "$PG17_TAG" -m "PostgreSQL 17.${{ needs.get-postgres-versions.outputs.pg17_version }} release"
+          
+          # Push tags
+          git push origin "$PG16_TAG"
+          git push origin "$PG17_TAG"
+          
+          echo "Created tags: $PG16_TAG, $PG17_TAG"
