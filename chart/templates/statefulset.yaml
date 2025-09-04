@@ -95,9 +95,110 @@ spec:
                 secretKeyRef:
                   name: {{ include "postgres-upgrade.secretName" . }}
                   key: postgres-password
-            # Supabase specific environment variables
+            # PostgreSQL configuration
             - name: POSTGRES_HOST_AUTH_METHOD
               value: "md5"
+            - name: PG_VERSION
+              value: {{ .Values.database.version | quote }}
+            {{- if .Values.database.extensions.enabled }}
+            - name: POSTGRES_EXTENSIONS
+              value: {{ .Values.database.extensions.list | join "," | quote }}
+            {{- end }}
+            {{- if .Values.pgbouncer.enabled }}
+            - name: PGBOUNCER_ENABLED
+              value: "true"
+            - name: PGBOUNCER_PORT
+              value: {{ .Values.pgbouncer.port | quote }}
+            - name: PGBOUNCER_POOL_MODE
+              value: {{ .Values.pgbouncer.poolMode | quote }}
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: {{ .Values.pgbouncer.maxClientConn | quote }}
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: {{ .Values.pgbouncer.defaultPoolSize | quote }}
+            - name: PGBOUNCER_SERVER_LIFETIME
+              value: {{ .Values.pgbouncer.serverLifetime | quote }}
+            - name: PGBOUNCER_SERVER_IDLE_TIMEOUT
+              value: {{ .Values.pgbouncer.serverIdleTimeout | quote }}
+            - name: PGBOUNCER_AUTH_TYPE
+              value: {{ .Values.pgbouncer.authType | quote }}
+            {{- end }}
+            {{- if .Values.postgrest.enabled }}
+            - name: POSTGREST_ENABLED
+              value: "true"
+            - name: POSTGREST_SERVER_PORT
+              value: {{ .Values.postgrest.port | quote }}
+            - name: POSTGREST_DB_SCHEMAS
+              value: {{ .Values.postgrest.dbSchemas | quote }}
+            - name: POSTGREST_DB_ANON_ROLE
+              value: {{ .Values.postgrest.dbAnonRole | quote }}
+            - name: POSTGREST_DB_POOL
+              value: {{ .Values.postgrest.dbPool | quote }}
+            - name: POSTGREST_DB_POOL_TIMEOUT
+              value: {{ .Values.postgrest.dbPoolTimeout | quote }}
+            - name: POSTGREST_LOG_LEVEL
+              value: {{ .Values.postgrest.logLevel | quote }}
+            {{- if .Values.postgrest.jwtSecret }}
+            - name: POSTGREST_JWT_SECRET
+              value: {{ .Values.postgrest.jwtSecret | quote }}
+            {{- end }}
+            {{- if .Values.postgrest.jwtAud }}
+            - name: POSTGREST_JWT_AUD
+              value: {{ .Values.postgrest.jwtAud | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.walg.enabled }}
+            - name: WALG_ENABLED
+              value: "true"
+            - name: WALG_BACKUP_SCHEDULE
+              value: {{ .Values.walg.backup.schedule | quote }}
+            - name: WALG_BACKUP_RETAIN_COUNT
+              value: {{ .Values.walg.backup.retainCount | quote }}
+            - name: WALG_BACKUP_COMPRESS
+              value: {{ .Values.walg.backup.compress | quote }}
+            - name: WALG_INITIAL_BACKUP
+              value: {{ .Values.walg.backup.initialBackup | quote }}
+            {{- if .Values.walg.storage.s3.enabled }}
+            - name: WALG_S3_PREFIX
+              value: {{ .Values.walg.storage.s3.prefix | quote }}
+            {{- if .Values.walg.storage.s3.region }}
+            - name: AWS_REGION
+              value: {{ .Values.walg.storage.s3.region | quote }}
+            {{- end }}
+            {{- if .Values.walg.storage.s3.endpoint }}
+            - name: AWS_ENDPOINT
+              value: {{ .Values.walg.storage.s3.endpoint | quote }}
+            {{- end }}
+            {{- if .Values.walg.storage.s3.accessKey }}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.walg.storage.s3.accessKey | quote }}
+            {{- end }}
+            {{- if .Values.walg.storage.s3.secretKey }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.walg.storage.s3.secretKey | quote }}
+            {{- end }}
+            {{- else if .Values.walg.storage.gcs.enabled }}
+            - name: WALG_GS_PREFIX
+              value: {{ .Values.walg.storage.gcs.prefix | quote }}
+            {{- if .Values.walg.storage.gcs.credentials }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: {{ .Values.walg.storage.gcs.credentials | quote }}
+            {{- end }}
+            {{- else if .Values.walg.storage.azure.enabled }}
+            - name: WALG_AZ_PREFIX
+              value: {{ .Values.walg.storage.azure.prefix | quote }}
+            {{- if .Values.walg.storage.azure.accountName }}
+            - name: AZURE_STORAGE_ACCOUNT
+              value: {{ .Values.walg.storage.azure.accountName | quote }}
+            {{- end }}
+            {{- if .Values.walg.storage.azure.accountKey }}
+            - name: AZURE_STORAGE_KEY
+              value: {{ .Values.walg.storage.azure.accountKey | quote }}
+            {{- end }}
+            {{- else if .Values.walg.storage.file.enabled }}
+            - name: WALG_FILE_PREFIX
+              value: {{ .Values.walg.storage.file.prefix | quote }}
+            {{- end }}
+            {{- end }}
             {{- range .Values.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}

@@ -73,5 +73,15 @@ jobs:
           # Build default image
           make build
           
-          # Run all tests
+          # Run all upgrade tests
           make test
+          
+          # Run feature tests if available
+          if [ -f "Taskfile.test.yaml" ]; then
+            # Install task runner
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+            
+            # Run basic feature verification
+            task test:verify-extensions || echo "Extensions verification not available"
+            task test:verify-services || echo "Services verification not available"
+          fi

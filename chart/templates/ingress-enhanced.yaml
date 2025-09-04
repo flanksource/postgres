@@ -1,0 +1,143 @@
+{{/*
+Enhanced Ingress for PostgREST API (typically only PostgREST should be exposed)
+*/}}
+{{- if and .Values.ingress.enabled .Values.postgrest.enabled .Values.ingress.postgrest.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-postgrest
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgrest
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.postgrest.tls }}
+  tls:
+    {{- range .Values.ingress.postgrest.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.postgrest.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "postgres-upgrade.fullname" $ }}-postgrest
+                port:
+                  number: {{ $.Values.services.postgrest.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+
+{{/*
+WARNING: PostgreSQL and PgBouncer ingresses are typically NOT recommended
+for security reasons, but included for completeness
+*/}}
+{{- if and .Values.ingress.enabled .Values.ingress.postgresql.enabled }}
+---
+# WARNING: Exposing PostgreSQL directly is NOT recommended for production
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-postgresql
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Add warning annotation
+    warning: "Exposing PostgreSQL directly is not recommended for production"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.postgresql.tls }}
+  tls:
+    {{- range .Values.ingress.postgresql.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.postgresql.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "postgres-upgrade.fullname" $ }}-postgresql
+                port:
+                  number: {{ $.Values.services.postgresql.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.pgbouncer.enabled .Values.ingress.pgbouncer.enabled }}
+---
+# WARNING: Exposing PgBouncer directly is NOT recommended for production
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-pgbouncer
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    # Add warning annotation
+    warning: "Exposing PgBouncer directly is not recommended for production"
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.pgbouncer.tls }}
+  tls:
+    {{- range .Values.ingress.pgbouncer.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.pgbouncer.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "postgres-upgrade.fullname" $ }}-pgbouncer
+                port:
+                  number: {{ $.Values.services.pgbouncer.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

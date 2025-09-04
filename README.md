@@ -1,13 +1,33 @@
-# PostgreSQL Upgrade Docker Images
+# Enhanced PostgreSQL Distribution with Extensions
 
-This repository provides Docker images that automatically upgrade PostgreSQL data directories to newer versions. The images support upgrading from PostgreSQL 14, 15, or 16 to versions 15, 16, or 17.
+This repository provides a comprehensive PostgreSQL distribution with automatic upgrade capabilities and popular extensions. Based on Supabase's enhanced PostgreSQL, it includes pgvector, pgsodium, PostgREST, PgBouncer, WAL-G backup, and many other extensions commonly used in modern applications.
+
+## Features
+
+- **Automatic PostgreSQL upgrades** from versions 14, 15, or 16 to 17
+- **16 pre-compiled PostgreSQL extensions** including pgvector, pgsodium, pgjwt, and more
+- **Connection pooling** with PgBouncer
+- **REST API** generation with PostgREST
+- **Backup and restore** with WAL-G
+- **Process supervision** with s6-overlay
+- **Kubernetes-ready** with Helm charts
 
 ## Available Images
 
-The images are published to GitHub Container Registry with the following tags:
+The images are published to GitHub Container Registry with version-specific tags:
 
+### Enhanced PostgreSQL with Extensions
+- `ghcr.io/flanksource/postgres:17-latest` - Enhanced PostgreSQL 17 with all extensions
+- `ghcr.io/flanksource/postgres:16-latest` - Enhanced PostgreSQL 16 with all extensions
+- `ghcr.io/flanksource/postgres:latest` - Points to enhanced PostgreSQL 17
+
+### Standard PostgreSQL (Upgrade Only)
+- `ghcr.io/flanksource/postgres:16` - Standard PostgreSQL 16 for upgrade testing
+- `ghcr.io/flanksource/postgres:17` - Standard PostgreSQL 17 for upgrade testing
+
+### Legacy Tags (Still Supported)
 - `ghcr.io/flanksource/postgres-upgrade:to-15` - Upgrades to PostgreSQL 15
-- `ghcr.io/flanksource/postgres-upgrade:to-16` - Upgrades to PostgreSQL 16
+- `ghcr.io/flanksource/postgres-upgrade:to-16` - Upgrades to PostgreSQL 16  
 - `ghcr.io/flanksource/postgres-upgrade:to-17` - Upgrades to PostgreSQL 17
 
 ## How It Works
@@ -81,6 +101,210 @@ spec:
 | PostgreSQL 14 | ✅ | ✅ | ✅ |
 | PostgreSQL 15 | - | ✅ | ✅ |
 | PostgreSQL 16 | - | - | ✅ |
+
+## PostgreSQL Extensions
+
+The enhanced images include 16 pre-compiled PostgreSQL extensions commonly used in modern applications:
+
+### Available Extensions
+
+| Extension | Description | Use Case |
+|-----------|-------------|----------|
+| **pgvector** | Vector similarity search | AI/ML, embeddings, semantic search |
+| **pgsodium** | Modern cryptography | Encryption, key management |
+| **pgjwt** | JSON Web Token support | Authentication, API security |
+| **pgaudit** | Audit logging | Compliance, security monitoring |
+| **pg_tle** | Trusted Language Extensions | Safe extension development |
+| **pg_stat_monitor** | Query performance monitoring | Performance optimization |
+| **pg_repack** | Online table reorganization | Maintenance, space reclamation |
+| **pg_plan_filter** | Query plan filtering | Query optimization |
+| **pg_net** | Async HTTP requests | Webhooks, API integration |
+| **pg_jsonschema** | JSON schema validation | Data validation |
+| **pg_hashids** | Short unique ID generation | URL shortening, obfuscation |
+| **pg_cron** | Job scheduler | Background tasks, maintenance |
+| **pg-safeupdate** | Require WHERE in DELETE/UPDATE | Data safety |
+| **index_advisor** | Index recommendations | Performance tuning |
+| **wal2json** | WAL to JSON converter | Change data capture, replication |
+
+### Using Extensions
+
+#### Environment Variable Configuration
+
+Enable extensions using a comma-separated list:
+
+```bash
+docker run -d \
+  -e POSTGRES_EXTENSIONS="pgvector,pgaudit,pg_cron" \
+  -e POSTGRES_PASSWORD=mypassword \
+  ghcr.io/flanksource/postgres:17-latest
+```
+
+#### Helm Chart Configuration
+
+```yaml
+extensions:
+  enabled: "pgvector,pgsodium,pgjwt,pgaudit,pg_cron"
+  
+  # Extension-specific configuration
+  pgaudit:
+    enabled: true
+    log: "all"
+    log_level: "notice"
+  
+  pg_cron:
+    enabled: true
+    database_name: "postgres"
+```
+
+#### Manual Installation
+
+```bash
+# List available extensions
+task extensions-list
+
+# Install extensions in running container
+task extensions-install EXTENSIONS=pgvector,pgaudit,pg_cron
+
+# Check extension health
+/scripts/extension-health.sh
+```
+
+### Extension Examples
+
+#### pgvector (Vector Similarity Search)
+
+```sql
+-- Create a table with vector column
+CREATE TABLE items (id SERIAL PRIMARY KEY, embedding VECTOR(3));
+
+-- Insert vectors
+INSERT INTO items (embedding) VALUES ('[1,2,3]'), ('[4,5,6]');
+
+-- Find similar vectors
+SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
+```
+
+#### pg_cron (Job Scheduler)
+
+```sql
+-- Schedule a job to run every minute
+SELECT cron.schedule('my-job', '* * * * *', 'DELETE FROM logs WHERE created_at < NOW() - INTERVAL ''1 day'';');
+
+-- List scheduled jobs
+SELECT * FROM cron.job;
+
+-- Unschedule a job
+SELECT cron.unschedule('my-job');
+```
+
+#### pgsodium (Encryption)
+
+```sql
+-- Generate a key pair
+SELECT * FROM pgsodium.crypto_box_keypair();
+
+-- Encrypt data
+SELECT pgsodium.crypto_secretbox('Hello, World!', 'my-secret-key');
+```
+
+## Additional Services
+
+### PgBouncer (Connection Pooling)
+
+Enable PgBouncer for connection pooling:
+
+```bash
+docker run -d \
+  -e PGBOUNCER_ENABLED=true \
+  -e PGBOUNCER_POOL_MODE=transaction \
+  -e PGBOUNCER_MAX_CLIENT_CONN=100 \
+  -p 6432:6432 \
+  ghcr.io/flanksource/postgres:17-latest
+```
+
+Connect through PgBouncer:
+```bash
+psql -h localhost -p 6432 -U postgres
+```
+
+### PostgREST (REST API)
+
+Enable automatic REST API generation:
+
+```bash
+docker run -d \
+  -e POSTGREST_ENABLED=true \
+  -e POSTGREST_DB_SCHEMAS=public \
+  -p 3000:3000 \
+  ghcr.io/flanksource/postgres:17-latest
+```
+
+Access your database via REST API:
+```bash
+# GET all records from a table
+curl http://localhost:3000/users
+
+# POST new record
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John", "email": "john@example.com"}'
+```
+
+### WAL-G (Backup & Recovery)
+
+Enable continuous backup with WAL-G:
+
+```bash
+docker run -d \
+  -e WALG_ENABLED=true \
+  -e WALG_S3_PREFIX=s3://my-bucket/postgres-backups \
+  -e AWS_ACCESS_KEY_ID=your-access-key \
+  -e AWS_SECRET_ACCESS_KEY=your-secret-key \
+  ghcr.io/flanksource/postgres:17-latest
+```
+
+Backup operations:
+```bash
+# Create backup
+task backup-create
+
+# List backups
+task backup-list
+
+# Restore from backup
+task backup-restore BACKUP_NAME=backup-20231201T120000Z
+```
+
+## Service Management
+
+### Health Checks
+
+Check the health of all services:
+
+```bash
+# Overall service health
+/scripts/service-health.sh
+
+# Extension health
+/scripts/extension-health.sh
+
+# Task-based health checks
+task check-service-health
+```
+
+### Service Status
+
+Monitor s6-overlay services:
+
+```bash
+# Show service status
+task services-status
+
+# View service logs
+task services-logs SERVICE=postgresql
+task services-logs SERVICE=pgbouncer
+task services-logs SERVICE=postgrest
+```
 
 ## Building Custom Images
 

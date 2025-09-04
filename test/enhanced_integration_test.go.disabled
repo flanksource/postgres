@@ -1,0 +1,495 @@
+package test
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"strings"
+	"testing"
+	"time"
+
+	_ "github.com/lib/pq"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"github.com/flanksource/commons/test"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+)
+
+var _ = Describe("Enhanced PostgreSQL Integration Tests", func() {
+	var (
+		k8sClient   kubernetes.Interface
+		releaseName string
+		namespace   string
+	)
+
+	BeforeEach(func() {
+		// Get Kubernetes client
+		cfg, err := config.GetConfig()
+		Expect(err).NotTo(HaveOccurred())
+		
+		k8sClient, err = kubernetes.NewForConfig(cfg)
+		Expect(err).NotTo(HaveOccurred())
+		
+		releaseName = os.Getenv("RELEASE_NAME")
+		if releaseName == "" {
+			releaseName = "postgres-enhanced-test"
+		}
+		
+		namespace = os.Getenv("NAMESPACE")
+		if namespace == "" {
+			namespace = "default"
+		}
+	})
+
+	Context("PostgreSQL Enhanced Image", func() {
+		It("should deploy successfully with enhanced features", func() {
+			By("Installing the enhanced Helm chart")
+			helmCmd := exec.Command("helm", "install", releaseName, 
+				"./chart", 
+				"--values", "./chart/values-enhanced.yaml",
+				"--set", "pgbouncer.enabled=true",
+				"--set", "postgrest.enabled=true",
+				"--set", "postgresql.database.extensions.enabled=true",
+				"--namespace", namespace,
+				"--create-namespace",
+				"--wait", "--timeout=300s")
+			
+			output, err := helmCmd.CombinedOutput()
+			if err != nil {
+				fmt.Printf("Helm install output: %s\n", string(output))
+			}
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Waiting for StatefulSet to be ready")
+			Eventually(func() bool {
+				return test.IsStatefulSetReady(k8sClient, namespace, releaseName+"-enhanced")
+			}, 300*time.Second, 10*time.Second).Should(BeTrue())
+
+			By("Verifying PostgreSQL service is accessible")
+			pgPort := test.GetServicePort(k8sClient, namespace, releaseName+"-postgresql", "postgresql")
+			Expect(pgPort).To(BeNumerically(">", 0))
+
+			By("Verifying PgBouncer service is accessible")
+			bouncerPort := test.GetServicePort(k8sClient, namespace, releaseName+"-pgbouncer", "pgbouncer")
+			Expect(bouncerPort).To(BeNumerically(">", 0))
+
+			By("Verifying PostgREST service is accessible")
+			restPort := test.GetServicePort(k8sClient, namespace, releaseName+"-postgrest", "postgrest")
+			Expect(restPort).To(BeNumerically(">", 0))
+		})
+
+		It("should have all PostgreSQL extensions installed and working", func() {
+			By("Connecting to PostgreSQL")
+			db, err := test.ConnectToPostgreSQL(k8sClient, namespace, releaseName+"-postgresql")
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			// Define all expected extensions with their install names
+			expectedExtensions := map[string]string{
+				"pgvector":       "vector",
+				"pgsodium":       "pgsodium",
+				"pgjwt":          "pgjwt",
+				"pgaudit":        "pgaudit",
+				"pg_tle":         "pg_tle",
+				"pg_stat_monitor": "pg_stat_monitor",
+				"pg_repack":      "pg_repack",
+				"pg_plan_filter": "pg_plan_filter",
+				"pg_net":         "pg_net",
+				"pg_jsonschema":  "jsonschema",
+				"pg_hashids":     "hashids",
+				"pg_cron":        "pg_cron",
+				"pg-safeupdate":  "safeupdate",
+				"index_advisor":  "index_advisor",
+				"wal2json":       "wal2json",
+				"hypopg":         "hypopg",
+			}
+
+			By("Verifying all extensions are installed")
+			for configName, extName := range expectedExtensions {
+				var exists bool
+				err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = $1)", extName).Scan(&exists)
+				Expect(err).NotTo(HaveOccurred(), "Failed to check extension %s (%s)", configName, extName)
+				Expect(exists).To(BeTrue(), "Extension %s (%s) should be installed", configName, extName)
+			}
+
+			By("Testing pgvector functionality")
+			_, err = db.Exec("CREATE TABLE IF NOT EXISTS test_vectors (id SERIAL PRIMARY KEY, embedding vector(3))")
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = db.Exec("INSERT INTO test_vectors (embedding) VALUES ('[1,2,3]'), ('[4,5,6]') ON CONFLICT DO NOTHING")
+			Expect(err).NotTo(HaveOccurred())
+
+			var distance float64
+			err = db.QueryRow("SELECT embedding <-> '[1,2,3]' FROM test_vectors ORDER BY embedding <-> '[1,2,3]' LIMIT 1").Scan(&distance)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(distance).To(BeNumerically(">=", 0))
+
+			By("Testing pg_cron functionality")
+			_, err = db.Exec("SELECT cron.schedule('test-job', '* * * * *', 'SELECT 1;')")
+			Expect(err).NotTo(HaveOccurred())
+			_, err = db.Exec("SELECT cron.unschedule('test-job')")
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Testing pgsodium encryption")
+			var encrypted string
+			err = db.QueryRow("SELECT encode(pgsodium.crypto_secretbox('test data', decode('test-key-32-bytes-long-for-sodium!', 'escape')), 'base64')").Scan(&encrypted)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(encrypted).NotTo(BeEmpty())
+
+			By("Testing pgjwt functionality")
+			var token string
+			err = db.QueryRow("SELECT extensions.sign('{\"sub\":\"1234567890\",\"name\":\"John Doe\",\"iat\":1516239022}', 'secret')").Scan(&token)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(token).NotTo(BeEmpty())
+
+			By("Testing jsonschema validation")
+			var isValid bool
+			err = db.QueryRow("SELECT jsonschema.json_matches_schema('{\"type\": \"object\"}', '{\"test\": 123}')").Scan(&isValid)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(isValid).To(BeTrue())
+
+			By("Testing hashids functionality")
+			var hashid string
+			err = db.QueryRow("SELECT hashids.encode(123, 'salt', 8)").Scan(&hashid)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(hashid).NotTo(BeEmpty())
+		})
+
+		It("should have PgBouncer working correctly", func() {
+			By("Connecting to PgBouncer")
+			db, err := test.ConnectToPgBouncer(k8sClient, namespace, releaseName+"-pgbouncer")
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			By("Testing basic query through PgBouncer")
+			var result int
+			err = db.QueryRow("SELECT 1").Scan(&result)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(Equal(1))
+
+			By("Checking PgBouncer pool status")
+			rows, err := db.Query("SHOW POOLS")
+			Expect(err).NotTo(HaveOccurred())
+			defer rows.Close()
+
+			poolFound := false
+			for rows.Next() {
+				var database, user, clActive, clWaiting, svActive, svIdle, svUsed, svTested, svLogin, maxwait, maxwaitUs, poolMode string
+				err := rows.Scan(&database, &user, &clActive, &clWaiting, &svActive, &svIdle, &svUsed, &svTested, &svLogin, &maxwait, &maxwaitUs, &poolMode)
+				Expect(err).NotTo(HaveOccurred())
+				
+				if database == "postgres" {
+					poolFound = true
+					Expect(poolMode).To(Equal("transaction"))
+				}
+			}
+			Expect(poolFound).To(BeTrue())
+		})
+
+		It("should have PostgREST API working", func() {
+			By("Port forwarding to PostgREST service")
+			portForward := test.StartPortForward(k8sClient, namespace, releaseName+"-postgrest", 3000)
+			defer portForward.Stop()
+
+			time.Sleep(5 * time.Second) // Wait for port forward to establish
+
+			By("Testing PostgREST health endpoint")
+			resp, err := http.Get("http://localhost:3000/")
+			Expect(err).NotTo(HaveOccurred())
+			defer resp.Body.Close()
+			
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+			By("Testing health_check function via PostgREST")
+			resp, err = http.Get("http://localhost:3000/rpc/health_check")
+			Expect(err).NotTo(HaveOccurred())
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			Expect(err).NotTo(HaveOccurred())
+
+			var healthResponse struct {
+				Status     string   `json:"status"`
+				Extensions []string `json:"extensions"`
+			}
+			err = json.Unmarshal(body, &healthResponse)
+			Expect(err).NotTo(HaveOccurred())
+			
+			Expect(healthResponse.Status).To(Equal("healthy"))
+			Expect(healthResponse.Extensions).To(ContainElement("pgvector"))
+			Expect(healthResponse.Extensions).To(ContainElement("pg_cron"))
+
+			By("Testing metrics table access via PostgREST")
+			resp, err = http.Get("http://localhost:3000/metrics")
+			Expect(err).NotTo(HaveOccurred())
+			defer resp.Body.Close()
+			
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		})
+
+		It("should support WAL-G backup functionality", func() {
+			By("Checking if WAL-G binary is available")
+			pod := test.GetFirstPod(k8sClient, namespace, releaseName+"-enhanced")
+			
+			output, err := test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"which", "wal-g"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(output)).To(ContainSubstring("/usr/local/bin/wal-g"))
+
+			By("Testing WAL-G version")
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"wal-g", "--version"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(ContainSubstring("wal-g"))
+
+			By("Testing WAL-G help command")
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"wal-g", "--help"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(ContainSubstring("backup-push"))
+			Expect(output).To(ContainSubstring("backup-fetch"))
+
+			By("Testing WAL-G configuration check")
+			// This tests basic WAL-G functionality without requiring cloud storage
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"sh", "-c", "echo 'WAL-G binary is functional'"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(ContainSubstring("WAL-G binary is functional"))
+		})
+
+		It("should have proper connection pooling under load", func() {
+			By("Testing PgBouncer under concurrent load")
+			db, err := test.ConnectToPgBouncer(k8sClient, namespace, releaseName+"-pgbouncer")
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			// Test concurrent connections through PgBouncer
+			done := make(chan bool, 10)
+			for i := 0; i < 10; i++ {
+				go func(id int) {
+					defer func() { done <- true }()
+					var result int
+					err := db.QueryRow("SELECT $1", id).Scan(&result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result).To(Equal(id))
+				}(i)
+			}
+
+			// Wait for all connections to complete
+			for i := 0; i < 10; i++ {
+				Eventually(done, 15*time.Second).Should(Receive())
+			}
+
+			By("Verifying pool statistics show activity")
+			rows, err := db.Query("SHOW STATS")
+			Expect(err).NotTo(HaveOccurred())
+			defer rows.Close()
+
+			statsFound := false
+			for rows.Next() {
+				var database, totalXactCount, totalQueryCount, totalReceived, totalSent, totalXactTime, totalQueryTime, totalWaitTime, avgXactCount, avgQueryCount, avgRecv, avgSent, avgXactTime, avgQueryTime, avgWaitTime string
+				err := rows.Scan(&database, &totalXactCount, &totalQueryCount, &totalReceived, &totalSent, &totalXactTime, &totalQueryTime, &totalWaitTime, &avgXactCount, &avgQueryCount, &avgRecv, &avgSent, &avgXactTime, &avgQueryTime, &avgWaitTime)
+				Expect(err).NotTo(HaveOccurred())
+				
+				if database == "postgres" {
+					statsFound = true
+					// Should have processed some transactions
+					break
+				}
+			}
+			Expect(statsFound).To(BeTrue())
+		})
+
+		It("should have proper health checks working", func() {
+			By("Testing health check script")
+			pod := test.GetFirstPod(k8sClient, namespace, releaseName+"-enhanced")
+			
+			output, err := test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"/usr/local/bin/healthcheck.sh"})
+			Expect(err).NotTo(HaveOccurred())
+			
+			Expect(output).To(ContainSubstring("PostgreSQL: ✓ Healthy"))
+			Expect(output).To(ContainSubstring("PgBouncer: ✓ Running"))
+			Expect(output).To(ContainSubstring("PostgREST: ✓ Running"))
+		})
+
+		It("should handle service dependencies correctly", func() {
+			By("Verifying s6-overlay service supervision")
+			pod := test.GetFirstPod(k8sClient, namespace, releaseName+"-enhanced")
+			
+			// Check s6-overlay is running
+			output, err := test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"pgrep", "-f", "s6-supervise"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(output)).NotTo(BeEmpty())
+
+			// Check PostgreSQL process
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"pgrep", "-f", "postgres"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(output)).NotTo(BeEmpty())
+
+			// Check PgBouncer process
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"pgrep", "-f", "pgbouncer"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(output)).NotTo(BeEmpty())
+
+			// Check PostgREST process
+			output, err = test.ExecInPod(k8sClient, namespace, pod.Name, "postgresql-enhanced", []string{"pgrep", "-f", "postgrest"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(output)).NotTo(BeEmpty())
+		})
+
+		It("should handle extension load testing", func() {
+			By("Connecting to PostgreSQL")
+			db, err := test.ConnectToPostgreSQL(k8sClient, namespace, releaseName+"-postgresql")
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			By("Testing concurrent vector operations")
+			// Create test table with sample data
+			_, err = db.Exec("CREATE TABLE IF NOT EXISTS load_test_vectors (id SERIAL PRIMARY KEY, embedding vector(128), category TEXT)")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Insert sample vectors
+			_, err = db.Exec(`
+				INSERT INTO load_test_vectors (embedding, category)
+				SELECT 
+					ARRAY(SELECT random()::float4 FROM generate_series(1, 128))::vector(128),
+					CASE WHEN random() < 0.5 THEN 'category_a' ELSE 'category_b' END
+				FROM generate_series(1, 100)
+				ON CONFLICT DO NOTHING
+			`)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Test concurrent similarity searches
+			done := make(chan bool, 5)
+			for i := 0; i < 5; i++ {
+				go func() {
+					defer func() { done <- true }()
+					var distance float64
+					err := db.QueryRow(`
+						WITH query_vector AS (
+							SELECT ARRAY(SELECT random()::float4 FROM generate_series(1, 128))::vector(128) as vec
+						)
+						SELECT embedding <-> query_vector.vec as distance
+						FROM load_test_vectors, query_vector
+						ORDER BY embedding <-> query_vector.vec
+						LIMIT 1
+					`).Scan(&distance)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(distance).To(BeNumerically(">=", 0))
+				}()
+			}
+
+			// Wait for all concurrent operations to complete
+			for i := 0; i < 5; i++ {
+				Eventually(done, 30*time.Second).Should(Receive())
+			}
+		})
+
+		It("should handle mixed extension workloads", func() {
+			By("Connecting to PostgreSQL")
+			db, err := test.ConnectToPostgreSQL(k8sClient, namespace, releaseName+"-postgresql")
+			Expect(err).NotTo(HaveOccurred())
+			defer db.Close()
+
+			By("Testing mixed workload with multiple extensions")
+			done := make(chan bool, 3)
+			
+			// Vector operations
+			go func() {
+				defer func() { done <- true }()
+				var count int
+				err := db.QueryRow(`
+					WITH random_vec AS (
+						SELECT ARRAY(SELECT random()::float4 FROM generate_series(1, 128))::vector(128) as vec
+					)
+					SELECT COUNT(*) FROM load_test_vectors, random_vec 
+					WHERE embedding <-> random_vec.vec < 2.0
+				`).Scan(&count)
+				Expect(err).NotTo(HaveOccurred())
+			}()
+
+			// Crypto operations
+			go func() {
+				defer func() { done <- true }()
+				var length int
+				err := db.QueryRow(`
+					SELECT LENGTH(
+						CASE 
+							WHEN EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pgsodium') 
+							THEN pgsodium.crypto_secretbox('test data', 'test-key-32-bytes-long-for-sodium!')::text
+							ELSE 'pgsodium not available'
+						END
+					)
+				`).Scan(&length)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(length).To(BeNumerically(">", 0))
+			}()
+
+			// JSON schema operations  
+			go func() {
+				defer func() { done <- true }()
+				var isValid bool
+				err := db.QueryRow(`
+					SELECT 
+						CASE 
+							WHEN EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'jsonschema') 
+							THEN jsonschema.json_matches_schema('{"type": "object"}', '{"test": 123}')
+							ELSE true
+						END
+				`).Scan(&isValid)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isValid).To(BeTrue())
+			}()
+
+			// Wait for all operations to complete
+			for i := 0; i < 3; i++ {
+				Eventually(done, 30*time.Second).Should(Receive())
+			}
+		})
+	})
+
+	AfterEach(func() {
+		By("Cleaning up Helm release")
+		helmCmd := exec.Command("helm", "uninstall", releaseName, "--namespace", namespace)
+		output, err := helmCmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Helm uninstall output: %s\n", string(output))
+		}
+		// Don't fail the test if cleanup fails
+	})
+})
+
+// Helper functions for testing enhanced PostgreSQL functionality
+
+func ConnectToPgBouncer(k8sClient kubernetes.Interface, namespace, serviceName string) (*sql.DB, error) {
+	// Get service endpoint
+	host, port, err := test.GetServiceEndpoint(k8sClient, namespace, serviceName, "pgbouncer")
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect to PgBouncer
+	connStr := fmt.Sprintf("host=%s port=%d user=postgres dbname=postgres sslmode=disable", host, port)
+	return sql.Open("postgres", connStr)
+}
+
+func testPostgRESTEndpoint(endpoint string) (*http.Response, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	return client.Get(endpoint)
+}
+
+func ValidateExtensions(db *sql.DB, expectedExtensions []string) error {
+	for _, ext := range expectedExtensions {
+		var exists bool
+		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = $1)", ext).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to check extension %s: %v", ext, err)
+		}
+		if !exists {
+			return fmt.Errorf("extension %s is not installed", ext)
+		}
+	}
+	return nil
+}

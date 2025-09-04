@@ -3,14 +3,14 @@ version: "3"
 # GitHub Actions output grouping
 output:
   group:
-    begin: '::group::{{.TASK}}'
-    end: '::endgroup::'
+    begin: "::group::{{.TASK}}"
+    end: "::endgroup::"
 
 vars:
-  IMAGE_NAME: postgres-upgrade:latest
-  REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
-  IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres-upgrade"}}'
-  IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
+  IMAGE_NAME: postgres:latest
+  REGISTRY: "{{.REGISTRY | default "ghcr.io"}}"
+  IMAGE_BASE: "{{.IMAGE_BASE | default "flanksource/postgres"}}"
+  IMAGE_TAG: "{{.IMAGE_TAG | default "latest"}}"
   TARGET_VERSIONS: [15, 16, 17]
 
 tasks:
@@ -44,7 +44,7 @@ tasks:
     desc: Build image that upgrades to PostgreSQL {{.VERSION}}
     internal: true
     vars:
-      VERSION: '{{.VERSION}}'
+      VERSION: "{{.VERSION}}"
     cmds:
       - docker build --build-arg TARGET_VERSION={{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}-{{.IMAGE_TAG}} .
     sources:
@@ -84,7 +84,7 @@ tasks:
     desc: Push PostgreSQL {{.VERSION}} upgrade image
     internal: true
     vars:
-      VERSION: '{{.VERSION}}'
+      VERSION: "{{.VERSION}}"
     deps:
       - task: build-version
         vars: { VERSION: "{{.VERSION}}" }

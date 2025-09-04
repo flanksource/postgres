@@ -111,8 +111,14 @@ tasks:
             task run:reset-password
           fi
 
-          echo "Starting PostgreSQL $CURRENT_VERSION in normal mode..."
-          exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
+          # Start PostgreSQL if requested
+          if [ "$START_POSTGRES" = "true" ]; then
+            echo "🚀 Starting PostgreSQL $CURRENT_VERSION..."
+            exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
+          else
+            echo "✅ Upgrade verification complete. Set START_POSTGRES=true to start PostgreSQL."
+            exit 0
+          fi
         fi
 
         # Validate versions
@@ -126,8 +132,14 @@ tasks:
 
         # Check if auto-upgrade is disabled
         if [ "$AUTO_UPGRADE" = "false" ]; then
-          echo "Auto-upgrade disabled. Starting PostgreSQL $CURRENT_VERSION without upgrade."
-          exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
+          echo "⚠️  Auto-upgrade disabled."
+          if [ "$START_POSTGRES" = "true" ]; then
+            echo "🚀 Starting PostgreSQL $CURRENT_VERSION without upgrade..."
+            exec /usr/lib/postgresql/$CURRENT_VERSION/bin/postgres -D /var/lib/postgresql/data
+          else
+            echo "✅ Ready to start PostgreSQL $CURRENT_VERSION. Set START_POSTGRES=true to start."
+            exit 0
+          fi
         fi
 
         # Setup working directory for upgrade - pg_upgrade needs specific structure
@@ -208,6 +220,22 @@ tasks:
 
         echo "🎉 All upgrades completed successfully!"
         echo "Final version: PostgreSQL $TARGET_VERSION"
+
+        # Handle password reset after upgrade
+        if [ "$RESET_PASSWORD" = "true" ]; then
+          CURRENT_VERSION=$TARGET_VERSION task run:reset-password
+        fi
+
+        # Start PostgreSQL if requested
+        if [ "$START_POSTGRES" = "true" ]; then
+          echo "🚀 Starting PostgreSQL $TARGET_VERSION..."
+          echo "📋 Logs will be directed to stderr for container visibility"
+          exec /usr/lib/postgresql/$TARGET_VERSION/bin/postgres -D /var/lib/postgresql/data
+        else
+          echo "✅ Upgrade complete. Set START_POSTGRES=true to start PostgreSQL $TARGET_VERSION."
+          echo "💡 To manually start: /usr/lib/postgresql/$TARGET_VERSION/bin/postgres -D /var/lib/postgresql/data"
+          exit 0
+        fi
 
   sequential-upgrade:
     desc: Perform sequential upgrades from FROM to TO version
@@ -530,3 +558,69 @@ tasks:
         echo "  - vacuumdb -a -z"
 
         echo "✅ Post-upgrade checks completed for PostgreSQL {{.TO}}"
+
+  # Extension management tasks for container runtime
+  init-extensions:
+    desc: Initialize PostgreSQL extensions from POSTGRES_EXTENSIONS environment variable
+    silent: false
+    cmds:
+      - |
+        if [ -z "$POSTGRES_EXTENSIONS" ]; then
+          echo "No extensions specified in POSTGRES_EXTENSIONS environment variable"
+          exit 0
+        fi
+        
+        echo "Initializing PostgreSQL extensions: $POSTGRES_EXTENSIONS"
+        
+        # Create extension marker file
+        echo "$POSTGRES_EXTENSIONS" > /var/lib/postgresql/.extensions_to_install
+        
+        echo "Extensions marked for installation. They will be installed when PostgreSQL starts."
+
+  # Service management tasks
+  start-s6-services:
+    desc: Start all s6-overlay services
+    silent: false
+    cmds:
+      - |
+        if [ ! -d "/var/run/s6" ]; then
+          echo "s6-overlay not detected, starting PostgreSQL directly"
+          exec postgres -D /var/lib/postgresql/data/pgdata
+        else
+          echo "Starting s6-overlay services..."
+          exec /init
+        fi
+
+  check-service-health:
+    desc: Check health of PostgreSQL and optional services
+    silent: false
+    cmds:
+      - |
+        echo "Checking PostgreSQL health..."
+        pg_isready -h localhost -p 5432 -U ${POSTGRES_USER:-postgres} || {
+          echo "PostgreSQL is not ready"
+          exit 1
+        }
+        echo "✅ PostgreSQL is healthy"
+        
+        # Check PgBouncer if enabled
+        if [ "${PGBOUNCER_ENABLED:-false}" = "true" ]; then
+          echo "Checking PgBouncer health..."
+          nc -z localhost ${PGBOUNCER_PORT:-6432} || {
+            echo "❌ PgBouncer is not responding"
+            exit 1
+          }
+          echo "✅ PgBouncer is healthy"
+        fi
+        
+        # Check PostgREST if enabled
+        if [ "${POSTGREST_ENABLED:-false}" = "true" ]; then
+          echo "Checking PostgREST health..."
+          curl -f -s http://localhost:${POSTGREST_SERVER_PORT:-3000}/ >/dev/null || {
+            echo "❌ PostgREST is not responding"
+            exit 1
+          }
+          echo "✅ PostgREST is healthy"
+        fi
+        
+        echo "✅ All enabled services are healthy"

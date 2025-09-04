@@ -15,5 +15,17 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
       name: postgresql
+    {{- if .Values.pgbouncer.enabled }}
+    - port: {{ .Values.pgbouncer.port }}
+      targetPort: {{ .Values.pgbouncer.port }}
+      protocol: TCP
+      name: pgbouncer
+    {{- end }}
+    {{- if .Values.postgrest.enabled }}
+    - port: {{ .Values.postgrest.port }}
+      targetPort: {{ .Values.postgrest.port }}
+      protocol: TCP
+      name: postgrest
+    {{- end }}
   selector:
     {{- include "postgres-upgrade.selectorLabels" . | nindent 4 }}

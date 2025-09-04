@@ -3,7 +3,9 @@ package test
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -491,4 +493,62 @@ func ListVolumes() ([]*Volume, error) {
 	}
 	
 	return volumes, nil
+}
+
+// GetRandomPort finds and returns a random available port
+func GetRandomPort() (int, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, fmt.Errorf("failed to find available port: %w", err)
+	}
+	defer listener.Close()
+	
+	addr := listener.Addr().(*net.TCPAddr)
+	return addr.Port, nil
+}
+
+// GetRandomPorts finds and returns multiple random available ports
+func GetRandomPorts(count int) ([]int, error) {
+	var ports []int
+	var listeners []net.Listener
+	
+	// Create all listeners first to reserve ports
+	for i := 0; i < count; i++ {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			// Close any previously opened listeners
+			for _, l := range listeners {
+				l.Close()
+			}
+			return nil, fmt.Errorf("failed to find available port %d: %w", i+1, err)
+		}
+		listeners = append(listeners, listener)
+		
+		addr := listener.Addr().(*net.TCPAddr)
+		ports = append(ports, addr.Port)
+	}
+	
+	// Close all listeners
+	for _, listener := range listeners {
+		listener.Close()
+	}
+	
+	return ports, nil
+}
+
+// WaitForPort waits for a port to become available on the given host
+func WaitForPort(host string, port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	address := net.JoinHostPort(host, strconv.Itoa(port))
+	
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", address, time.Second)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	
+	return fmt.Errorf("port %d on %s did not become available within %v", port, host, timeout)
 }

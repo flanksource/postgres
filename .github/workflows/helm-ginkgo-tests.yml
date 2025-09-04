@@ -35,6 +35,13 @@ jobs:
           - "High Availability and Production Settings"
           - "Monitoring and Health Checks"
           - "Edge Cases and Error Handling"
+          - "PostgreSQL Extensions"
+          - "PgBouncer Integration"
+          - "PostgREST API"
+          - "WAL-G Backup"
+          - "Service Dependencies"
+          - "Extension Load Testing"
+          - "Mixed Extension Workloads"
     
     name: Test - ${{ matrix.test-suite }}
     

@@ -18,6 +18,7 @@ type PostgresUpgradeConfig struct {
 	TestUser       string
 	TestPassword   string
 	TestDatabase   string
+	Extensions     []string // Extensions to test with upgrade
 }
 
 // PostgresUpgradeTest manages PostgreSQL upgrade testing
@@ -46,6 +47,7 @@ func TestPostgresUpgrade(t *testing.T) {
 		TestUser:       "testuser",
 		TestPassword:   "testpass",
 		TestDatabase:   "testdb",
+		Extensions:     []string{"pgvector", "pgaudit", "pg_cron"}, // Test key extensions with upgrades
 	}
 
 	upgradeTest := NewPostgresUpgradeTest(config)
@@ -75,6 +77,13 @@ func TestPostgresUpgrade(t *testing.T) {
 			}
 		})
 	}
+
+	// Test upgrade with extensions
+	t.Run("Upgrade_14_to_17_with_extensions", func(t *testing.T) {
+		if err := upgradeTest.testUpgradeWithExtensions("14", "17"); err != nil {
+			t.Errorf("Upgrade from 14 to 17 with extensions failed: %v", err)
+		}
+	})
 
 	// Cleanup test volumes
 	t.Cleanup(func() {
@@ -501,5 +510,253 @@ func TestShowUpgradeStatus(t *testing.T) {
 		} else {
 			client.runner.Printf(colorGray, "", "  No related containers running")
 		}
+	}
+}
+
+// testUpgradeWithExtensions tests PostgreSQL upgrade with extensions
+func (put *PostgresUpgradeTest) testUpgradeWithExtensions(fromVersion, toVersion string) error {
+	put.client.runner.Printf(colorBlue, colorBold, "Testing upgrade from PostgreSQL %s to %s with extensions", fromVersion, toVersion)
+
+	// Create enhanced test volume with extensions
+	sourceVolumeName := fmt.Sprintf("pg%s-enhanced-test-data", fromVersion)
+	
+	// Create and populate test volume with extensions
+	if err := put.createTestVolumeWithExtensions(sourceVolumeName, fromVersion); err != nil {
+		return fmt.Errorf("failed to create test volume with extensions: %w", err)
+	}
+	defer put.removeTestVolume(sourceVolumeName)
+	
+	// Create a copy for testing
+	testVolumeName := fmt.Sprintf("pg%s-to-%s-extensions-test-%d", fromVersion, toVersion, time.Now().Unix())
+	testVolume, err := put.copyVolume(sourceVolumeName, testVolumeName, fromVersion)
+	if err != nil {
+		return fmt.Errorf("failed to copy test volume: %w", err)
+	}
+
+	// Run the upgrade with enhanced image
+	if err := put.runUpgradeWithExtensions(testVolume, fromVersion, toVersion); err != nil {
+		put.client.runner.Errorf("❌ Upgrade with extensions failed, preserving volume %s for debugging", testVolume.Name)
+		return fmt.Errorf("upgrade with extensions failed: %w", err)
+	}
+
+	// Verify the upgrade and extensions
+	if err := put.verifyUpgradeWithExtensions(testVolume, fromVersion, toVersion); err != nil {
+		put.client.runner.Errorf("❌ Extensions verification failed, preserving volume %s for debugging", testVolume.Name)
+		return fmt.Errorf("extensions verification failed: %w", err)
+	}
+
+	// Clean up on success
+	put.client.runner.Infof("✅ Upgrade from %s to %s with extensions successful", fromVersion, toVersion)
+	testVolume.Delete()
+	return nil
+}
+
+// createTestVolumeWithExtensions creates a test volume with extensions pre-installed
+func (put *PostgresUpgradeTest) createTestVolumeWithExtensions(volumeName, version string) error {
+	put.client.runner.Printf(colorGray, "", "📋 Creating test volume %s with extensions for PostgreSQL %s...", volumeName, version)
+
+	// Create volume
+	volume, err := CreateVolume(VolumeOptions{
+		Name: volumeName,
+		Labels: map[string]string{
+			"postgres.version": version,
+			"test":             "true",
+			"extensions":       "true",
+			"created":          time.Now().Format(time.RFC3339),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	// Use enhanced image to initialize with extensions
+	containerName := fmt.Sprintf("seed-extensions-%s-%d", version, time.Now().Unix())
+	
+	args := []string{
+		"run", "--rm",
+		"--name", containerName,
+		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volumeName),
+		"-e", fmt.Sprintf("POSTGRES_PASSWORD=%s", put.config.TestPassword),
+		"-e", fmt.Sprintf("POSTGRES_DB=%s", put.config.TestDatabase),
+		"-e", fmt.Sprintf("POSTGRES_USER=%s", put.config.TestUser),
+		"-e", fmt.Sprintf("POSTGRES_EXTENSIONS=%s", strings.Join(put.config.Extensions, ",")),
+		"ghcr.io/flanksource/postgres:17-latest", // Use enhanced image
+		"bash", "-c", fmt.Sprintf(`
+			# Initialize PostgreSQL with extensions
+			docker-entrypoint.sh postgres &
+			PGPID=$!
+			sleep 15
+			
+			# Create test data
+			psql -U %s -d %s <<EOF
+CREATE TABLE test_upgrade_extensions (
+	id SERIAL PRIMARY KEY,
+	data TEXT,
+	vector_data VECTOR(3),
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO test_upgrade_extensions (data, vector_data) VALUES 
+('Test with extensions 1', '[1,2,3]'),
+('Test with extensions 2', '[4,5,6]'),
+('Test with extensions 3', '[7,8,9]'),
+('Test with extensions 4', '[10,11,12]'),
+('Test with extensions 5', '[13,14,15]');
+
+-- Create an index using extension functionality
+CREATE INDEX ON test_upgrade_extensions USING ivfflat (vector_data vector_cosine_ops) WITH (lists = 1);
+
+-- Create a cron job (will be preserved through upgrade)
+SELECT cron.schedule('cleanup-job', '0 0 * * *', 'DELETE FROM test_upgrade_extensions WHERE created_at < NOW() - INTERVAL ''30 days'';');
+
+CREATE VIEW test_upgrade_extensions_summary AS
+SELECT COUNT(*) as total_records, AVG(vector_data <-> '[0,0,0]') as avg_distance
+FROM test_upgrade_extensions;
+EOF
+			
+			# Stop PostgreSQL gracefully
+			pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+			
+			# Fix permissions
+			chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+		`, put.config.TestUser, put.config.TestDatabase),
+	}
+
+	result := put.client.runner.RunCommand("docker", args...)
+	if result.ExitCode != 0 {
+		volume.Delete()
+		return fmt.Errorf("failed to initialize volume with extensions: %v", result.Err)
+	}
+
+	put.client.runner.Printf(colorGray, "", "✅ Test volume with extensions created successfully")
+	return nil
+}
+
+// runUpgradeWithExtensions runs upgrade using the enhanced image
+func (put *PostgresUpgradeTest) runUpgradeWithExtensions(volume *Volume, fromVersion, toVersion string) error {
+	put.client.runner.Statusf("🚀 Starting upgrade with extensions from PostgreSQL %s to %s...", fromVersion, toVersion)
+
+	containerName := fmt.Sprintf("upgrade-extensions-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
+	
+	// Use enhanced image for upgrade
+	args := []string{
+		"run", "--rm",
+		"--name", containerName,
+		"--user", "postgres",
+		"-e", fmt.Sprintf("PG_VERSION=%s", toVersion),
+		"-e", "AUTO_UPGRADE=true",
+		"-e", fmt.Sprintf("POSTGRES_EXTENSIONS=%s", strings.Join(put.config.Extensions, ",")),
+		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
+		"-w", "/var/lib/postgresql",
+		"ghcr.io/flanksource/postgres:17-latest", // Use enhanced image
+	}
+	
+	result := put.client.runner.RunCommand("docker", args...)
+	
+	if result.ExitCode != 0 {
+		return fmt.Errorf("upgrade with extensions failed with exit code %d: %v", result.ExitCode, result.Stderr)
+	}
+
+	put.client.runner.Infof("✅ Upgrade with extensions completed")
+	return nil
+}
+
+// verifyUpgradeWithExtensions verifies upgrade with extensions
+func (put *PostgresUpgradeTest) verifyUpgradeWithExtensions(volume *Volume, fromVersion, toVersion string) error {
+	put.client.runner.Printf(colorGray, "", "🔍 Verifying upgrade with extensions from PostgreSQL %s to %s...", fromVersion, toVersion)
+
+	containerName := fmt.Sprintf("verify-extensions-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
+
+	result := put.client.runner.RunCommand("docker", "run", "--rm",
+		"--name", containerName,
+		"-u", "postgres", 
+		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
+		fmt.Sprintf("postgres:%s", toVersion),
+		"bash", "-c", fmt.Sprintf(`
+# Start PostgreSQL
+pg_ctl -D /var/lib/postgresql/data start -w || exit 1
+
+# Check PostgreSQL version
+actual_version=$(psql -U postgres -t -c "SHOW server_version;" | sed "s/^ *//" | grep -oE "^[0-9]+" | head -1)
+if [ "$actual_version" != "%s" ]; then
+    echo "ERROR: Version mismatch. Expected %s, got $actual_version"
+    exit 1
+fi
+echo "✅ PostgreSQL version is %s"
+
+# Check extensions are still installed
+for ext in %s; do
+    ext_name="$ext"
+    case "$ext" in
+        "pgvector") ext_name="vector" ;;
+        "pg-safeupdate") ext_name="safeupdate" ;;
+    esac
+    
+    if ! psql -U postgres -d %s -t -c "SELECT 1 FROM pg_extension WHERE extname = '$ext_name';" | grep -q 1; then
+        echo "ERROR: Extension $ext ($ext_name) is not installed after upgrade"
+        exit 1
+    fi
+    echo "✅ Extension $ext is installed"
+done
+
+# Check extension functionality still works
+if ! psql -U postgres -d %s -t -c "SELECT vector_data <-> '[1,1,1]' FROM test_upgrade_extensions LIMIT 1;" | grep -q "[0-9]"; then
+    echo "ERROR: pgvector functionality not working after upgrade"
+    exit 1
+fi
+echo "✅ pgvector functionality verified"
+
+# Check cron jobs survived
+if ! psql -U postgres -d %s -t -c "SELECT jobname FROM cron.job WHERE jobname = 'cleanup-job';" | grep -q "cleanup-job"; then
+    echo "ERROR: pg_cron jobs not preserved after upgrade"
+    exit 1
+fi
+echo "✅ pg_cron jobs preserved"
+
+# Check data integrity
+record_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade_extensions;" | tr -d " ")
+if [ "$record_count" != "5" ]; then
+    echo "ERROR: Data integrity check failed. Expected 5 records, found $record_count"
+    exit 1
+fi
+echo "✅ Data integrity verified (5 records)"
+
+# Check index functionality
+if ! psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade_extensions WHERE vector_data <-> '[1,2,3]' < 1;" | grep -q "[0-9]"; then
+    echo "ERROR: Vector index not working after upgrade"
+    exit 1
+fi
+echo "✅ Vector index functionality verified"
+
+# Check view functionality
+if ! psql -U postgres -d %s -t -c "SELECT total_records FROM test_upgrade_extensions_summary;" | grep -q "5"; then
+    echo "ERROR: View not working after upgrade"
+    exit 1
+fi
+echo "✅ View functionality verified"
+
+# Stop PostgreSQL
+pg_ctl -D /var/lib/postgresql/data stop -w
+`, toVersion, toVersion, toVersion, strings.Join(put.config.Extensions, " "),
+			put.config.TestDatabase, put.config.TestDatabase, put.config.TestDatabase,
+			put.config.TestDatabase, put.config.TestDatabase, put.config.TestDatabase))
+
+	// Clean up container
+	defer put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
+
+	if result.ExitCode != 0 {
+		put.client.runner.Errorf("Extensions verification STDOUT:\n%s", result.Stdout)
+		put.client.runner.Errorf("Extensions verification STDERR:\n%s", result.Stderr)
+		return fmt.Errorf("extensions verification failed with exit code %d", result.ExitCode)
+	}
+
+	put.client.runner.Infof("✅ Upgrade with extensions verification passed!")
+	return nil
+}
+
+// removeTestVolume removes a test volume
+func (put *PostgresUpgradeTest) removeTestVolume(volumeName string) {
+	if volume, err := GetVolume(volumeName); err == nil {
+		volume.Delete()
 	}
 }

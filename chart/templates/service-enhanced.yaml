@@ -1,0 +1,78 @@
+{{/*
+Enhanced services for PostgreSQL, PgBouncer, and PostgREST
+*/}}
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-postgresql
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: TCP
+      name: postgresql
+  selector:
+    {{- include "postgres-upgrade.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+
+{{- if .Values.pgbouncer.enabled }}
+---
+# PgBouncer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-pgbouncer
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pgbouncer
+  {{- with .Values.services.pgbouncer.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.services.pgbouncer.type }}
+  ports:
+    - port: {{ .Values.services.pgbouncer.port }}
+      targetPort: {{ .Values.services.pgbouncer.targetPort }}
+      protocol: TCP
+      name: pgbouncer
+  selector:
+    {{- include "postgres-upgrade.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+{{- end }}
+
+{{- if .Values.postgrest.enabled }}
+---
+# PostgREST Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-upgrade.fullname" . }}-postgrest
+  labels:
+    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgrest
+  {{- with .Values.services.postgrest.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.services.postgrest.type }}
+  ports:
+    - port: {{ .Values.services.postgrest.port }}
+      targetPort: {{ .Values.services.postgrest.targetPort }}
+      protocol: TCP
+      name: postgrest
+  selector:
+    {{- include "postgres-upgrade.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+{{- end }}

@@ -1,11 +1,11 @@
 # Default values for postgres-upgrade chart
 
-# Main PostgreSQL container (Standard PostgreSQL for testing)
+# Main PostgreSQL container (Enhanced PostgreSQL with extensions)
 postgresql:
   image:
-    registry: docker.io
-    repository: postgres
-    tag: "15-bookworm"
+    registry: ghcr.io
+    repository: flanksource/postgres
+    tag: "17-latest"
     pullPolicy: IfNotPresent
 
 # PostgreSQL upgrade init container
@@ -59,6 +59,97 @@ database:
 
     # Custom configuration (key-value pairs)
     custom: {}
+
+  # PostgreSQL Extensions Configuration
+  extensions:
+    enabled: true
+    # List of extensions to enable
+    # Available: pgvector, pgsodium, pgjwt, pgaudit, pg_tle, pg_stat_monitor, 
+    #           pg_repack, pg_plan_filter, pg_net, pg_jsonschema, pg_hashids, 
+    #           pg_cron, pg-safeupdate, index_advisor, wal2json
+    list: ["pgvector", "pgaudit", "pg_cron"]
+  
+    # Extension-specific configuration
+    pgvector:
+      # Enable pgvector for vector similarity search
+      enabled: true
+    
+    pgaudit:
+      # Audit logging configuration
+      enabled: true
+      log: "all"
+      log_level: "notice"
+    
+    pg_cron:
+      # Cron job scheduler configuration
+      enabled: true
+      database_name: "postgres"
+
+# PgBouncer connection pooling configuration
+pgbouncer:
+  enabled: false
+  port: 6432
+  poolMode: transaction
+  maxClientConn: 100
+  defaultPoolSize: 25
+  serverLifetime: 3600
+  serverIdleTimeout: 600
+  authType: md5
+
+# PostgREST API configuration
+postgrest:
+  enabled: false
+  port: 3000
+  dbSchemas: "public"
+  dbAnonRole: "postgres"
+  dbPool: 10
+  dbPoolTimeout: 10
+  jwtSecret: ""
+  jwtAud: ""
+  logLevel: "error"
+
+# Backup configuration
+backup:
+  enabled: false
+
+# WAL-G backup configuration
+walg:
+  enabled: false
+  # Storage configuration (choose one)
+  storage:
+    # S3 configuration
+    s3:
+      enabled: false
+      prefix: ""
+      region: ""
+      endpoint: ""
+      accessKey: ""
+      secretKey: ""
+    
+    # Google Cloud Storage configuration
+    gcs:
+      enabled: false
+      prefix: ""
+      credentials: ""
+    
+    # Azure Blob Storage configuration
+    azure:
+      enabled: false
+      prefix: ""
+      accountName: ""
+      accountKey: ""
+    
+    # File system storage configuration
+    file:
+      enabled: false
+      prefix: "/backup"
+  
+  # Backup scheduling
+  backup:
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retainCount: 7
+    compress: "lz4"
+    initialBackup: false
 
 # Resource configuration
 resources:

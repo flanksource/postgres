@@ -59,15 +59,83 @@ tasks:
       - task: seed-pg15
       - task: seed-pg16
       - task: seed-pg17
+
+  # Docker image testing tasks
+  test-image:
+    desc: Build Docker image and run integration tests
+    deps: [build]
+    dir: "{{.TEST_DIR}}"
+    cmds:
+      - |
+        echo "🧪 Running Docker image integration tests..."
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresIntegration
+
+  # Integration testing tasks
+  test-integration:
+    desc: Run comprehensive integration tests
+    dir: "{{.TEST_DIR}}"
+    deps: [build]
+    cmds:
+      - |
+        echo "🧪 Running comprehensive integration tests..."
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresIntegration
+
+
+  test-extensions:
+    desc: Test all PostgreSQL extensions functionality
+    dir: "{{.TEST_DIR}}"
+    deps: [build]
+    cmds:
+      - |
+        echo "🧩 Testing PostgreSQL extensions..."
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresIntegration.*extension"
+
+  test-services:
+    desc: Test all integrated services (PgBouncer, PostgREST, WAL-G)
+    dir: "{{.TEST_DIR}}"
+    deps: [build]
+    cmds:
+      - |
+        echo "⚙️ Testing integrated services..."
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresIntegration.*(PgBouncer|PostgREST|WAL)"
+
+
+  test-enhanced:
+    desc: Run enhanced integration tests (Kubernetes-based)
+    dir: "{{.TEST_DIR}}"
+    deps: [build]
+    cmds:
+      - |
+        echo "🚀 Running enhanced integration tests..."
+        go test {{.GO_TEST_FLAGS}} -run TestEnhanced
+
   # Main test tasks using Go tests
   all:
-    desc: Run all PostgreSQL upgrade tests
+    desc: Run all PostgreSQL tests (upgrades, integration, extensions)
+    dir: "{{.TEST_DIR}}"
+    deps: [build, seed-all]
+    cmds:
+      - |
+        echo "🧪 Running all PostgreSQL tests..."
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgrade
+        go test {{.GO_TEST_FLAGS}} -run TestPostgresIntegration
+        go test {{.GO_TEST_FLAGS}} -run TestEnhanced
+
+  all-upgrades:
+    desc: Run all PostgreSQL upgrade tests only
     dir: "{{.TEST_DIR}}"
     deps: [build, seed-all]
     cmds:
       - |
         echo "🧪 Running all PostgreSQL upgrade tests..."
         go test {{.GO_TEST_FLAGS}} -run TestPostgresUpgrade
+
+  all-features:
+    desc: Run all feature tests (extensions, services, integrations)
+    deps: [test-integration, test-extensions, test-services, test-enhanced]
+    cmds:
+      - echo "✅ All feature tests completed"
+
 
   upgrade-14-to-17:
     desc: Test upgrade from PostgreSQL 14 to 17
@@ -169,17 +237,32 @@ tasks:
         echo "✅ Test results saved to test/junit.xml"
 
   # Clean task
+  # Utility and maintenance tasks
+
+
+
   clean:
     desc: Clean up test resources and Docker volumes
     cmds:
       - |
         echo "🧹 Cleaning up test resources..."
-        docker volume prune -f || true
+        docker stop postgres-integration-test postgres-upgrade-test || true
+        docker rm postgres-integration-test postgres-upgrade-test || true
+        docker volume prune -f --filter label=cleanup=test || true
         docker system prune -f || true
         echo "✅ Cleanup completed"
 
   # Help task
   help:
-    desc: Show available tasks
+    desc: Show available tasks and usage examples
     cmds:
       - task --list
+      - |
+        echo ""
+        echo "📚 Usage Examples:"
+        echo "  task test:all                    # Run all tests (upgrades + features)"
+        echo "  task test:test-image             # Build and test Docker image"
+        echo "  task test:test-integration       # Run integration tests"
+        echo "  task test:test-extensions        # Test PostgreSQL extensions"
+        echo "  task test:test-services          # Test integrated services"
+        echo "  task test:clean                  # Clean up test resources"
