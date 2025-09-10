@@ -8,9 +8,9 @@ output:
 
 vars:
   IMAGE_NAME: postgres:latest
-  REGISTRY: "{{.REGISTRY | default "ghcr.io"}}"
-  IMAGE_BASE: "{{.IMAGE_BASE | default "flanksource/postgres"}}"
-  IMAGE_TAG: "{{.IMAGE_TAG | default "latest"}}"
+  REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
+  IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres"}}'
+  IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
   TARGET_VERSIONS: [15, 16, 17]
 
 tasks:

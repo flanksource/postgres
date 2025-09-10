@@ -1,7 +1,21 @@
 # PostgreSQL Docker Image with Extensions and Services
-# PostgreSQL via apt + Extensions + Services via eget
+# PostgreSQL via apt + Extensions + Services via eget + pgconfig
 # Supports both AMD64 and ARM64 architectures
 
+# Build stage for pgconfig binary
+FROM golang:1.24-bookworm AS pgconfig-builder
+
+# Copy source code
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Build pgconfig binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o pgconfig ./cmd/pgconfig
+
+# Main stage
 FROM postgres:17-bookworm
 
 # Get architecture information
@@ -36,6 +50,8 @@ RUN set -eux; \
 # Install basic packages, PostgreSQL tools, and supervisord using --no-cache approach
 RUN apt-get update --allow-insecure-repositories && \
 	apt-get install  -y --no-install-recommends --allow-unauthenticated \
+		libicu72 \
+		libicu-dev \
 		libsodium23 \
 		netcat-openbsd \
         build-essential \
@@ -85,6 +101,10 @@ RUN  cd /tmp && \
     task --taskfile=Taskfile.binaries.yaml install-postgrest && \
     task --taskfile=Taskfile.binaries.yaml install-walg && \
     rm -f /tmp/eget
+
+# Copy pgconfig binary from builder stage
+COPY --from=pgconfig-builder /src/pgconfig /usr/local/bin/pgconfig
+RUN chmod +x /usr/local/bin/pgconfig
 
 # Copy Taskfile for extension installation
 COPY Taskfile.extensions.yaml /tmp/Taskfile.extensions.yaml
@@ -153,6 +173,7 @@ ENV POSTGRES_EXTENSIONS="pgvector,pgsodium,pgjwt,pgaudit,pg_stat_monitor,pg_repa
 ENV PGBOUNCER_ENABLED=true
 ENV POSTGREST_ENABLED=true
 ENV WALG_ENABLED=false
+ENV PGCONFIG_ENABLED=true
 ENV HEALTH_SERVICE_ENABLED=false
 
 # Enhanced logging configuration
@@ -187,24 +208,31 @@ ENV WALG_COMPRESSION_METHOD=lz4
 ENV WALG_S3_PREFIX=""
 ENV PGHOST=/var/run/postgresql
 
+# PgConfig service configuration
+ENV PGCONFIG_PORT=8081
+ENV PGCONFIG_HOST=0.0.0.0
+ENV PGCONFIG_CONFIG_DIR=/var/lib/postgresql/config
+ENV PGCONFIG_MAX_CONNECTIONS=100
+ENV PGCONFIG_DB_TYPE=web
+
 # Ensure postgres user can access mounted volumes (common UID in GitHub Actions)
 RUN set -eux; \
 	usermod -u 1001 postgres; \
 	groupmod -g 1001 postgres
 
 # Expose ports
-EXPOSE 5432 6432 3000 8080
+EXPOSE 5432 6432 3000 8080 8081
 
 WORKDIR /var/lib/postgresql
 
 # Copy supervisord configuration and service scripts
 COPY supervisord.conf /etc/supervisord.conf
-COPY postgresql-service.sh pgbouncer-service.sh postgrest-service.sh walg-service.sh health-service.sh /usr/local/bin/
+COPY postgresql-service.sh pgbouncer-service.sh postgrest-service.sh walg-service.sh health-service.sh pgconfig-service.sh /usr/local/bin/
 COPY scripts/service-logging.sh scripts/health-server.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/postgresql-service.sh /usr/local/bin/pgbouncer-service.sh \
                /usr/local/bin/postgrest-service.sh /usr/local/bin/walg-service.sh \
-               /usr/local/bin/health-service.sh /usr/local/bin/service-logging.sh \
-               /usr/local/bin/health-server.sh
+               /usr/local/bin/health-service.sh /usr/local/bin/pgconfig-service.sh \
+               /usr/local/bin/service-logging.sh /usr/local/bin/health-server.sh
 
 # Copy Taskfiles and scripts
 COPY Taskfile.yml Taskfile.*.yaml /var/lib/postgresql/

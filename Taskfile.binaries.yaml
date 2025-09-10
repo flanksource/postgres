@@ -9,6 +9,7 @@ vars:
   TASK_VERSION: 3.44.1
   POSTGREST_VERSION: 12.2.3
   WALG_VERSION: 3.0.5
+  TARGET_BIN: /usr/local/bin
 
   # Architecture detection
   ARCH:
@@ -22,38 +23,38 @@ tasks:
       - |
         EGET_URL="https://github.com/zyedidia/eget/releases/download/v{{.EGET_VERSION}}/eget-{{.EGET_VERSION}}-linux_{{.ARCH}}.tar.gz"
         curl -fsSL "${EGET_URL}" | tar -xzC /tmp
-        install /tmp/eget /usr/local/bin/eget
+        install /tmp/eget {{.TARGET_BIN}}/eget
         rm -f /tmp/eget
     status:
-      - test -x /usr/local/bin/eget
+      - test -x {{.TARGET_BIN}}/eget
 
   # Install Task using eget
   install-task:
     desc: Install Task using eget
     deps: [install-eget]
     cmds:
-      - eget go-task/task --tag v{{.TASK_VERSION}} --asset "*.tar.gz" --to /usr/local/bin
+      - eget go-task/task --tag v{{.TASK_VERSION}} --asset "*.tar.gz" --to {{.TARGET_BIN}}
     status:
-      - test -x /usr/local/bin/task
+      - test -x {{.TARGET_BIN}}/task
 
   # Install PostgREST using eget
   install-postgrest:
     desc: Install PostgREST using eget
     deps: [install-eget]
     cmds:
-      - eget PostgREST/postgrest --tag v{{.POSTGREST_VERSION}} --to /usr/local/bin
-      - chmod +x /usr/local/bin/postgrest
+      - eget PostgREST/postgrest --tag v{{.POSTGREST_VERSION}} --to {{.TARGET_BIN}}
+      - chmod +x {{.TARGET_BIN}}/postgrest
     status:
-      - test -x /usr/local/bin/postgrest
+      - test -x {{.TARGET_BIN}}/postgrest
 
   # Install WAL-G using eget
   install-walg:
     desc: Install WAL-G using eget
     deps: [install-eget]
     cmds:
-      - eget wal-g/wal-g --tag v{{.WALG_VERSION}} --asset "wal-g-pg-ubuntu-20.04" --asset '{{.ARCH | replace "arm64" "aarch64" }}' --asset "tar.gz" --to /usr/local/bin/wal-g
+      - eget wal-g/wal-g --tag v{{.WALG_VERSION}} --asset "wal-g-pg-ubuntu-20.04" --asset '{{.ARCH | replace "arm64" "aarch64" }}' --asset "tar.gz" --to {{.TARGET_BIN}}/wal-g
     status:
-      - test -x /usr/local/bin/wal-g
+      - test -x {{.TARGET_BIN}}/wal-g
 
   # Install all binaries
   install-all:

@@ -1,0 +1,75 @@
+{
+  "additionalProperties": false,
+  "description": "PostgreSQL host-based authentication configuration",
+  "properties": {
+    "rules": {
+      "description": "List of host-based authentication rules",
+      "items": {
+        "properties": {
+          "address": {
+            "description": "Client IP address, hostname, or CIDR range",
+            "type": "string"
+          },
+          "database": {
+            "default": "all",
+            "description": "Database name or 'all'",
+            "type": "string"
+          },
+          "method": {
+            "description": "Authentication method",
+            "enum": [
+              "trust",
+              "reject",
+              "md5",
+              "password",
+              "scram-sha-256",
+              "gss",
+              "sspi",
+              "ident",
+              "peer",
+              "ldap",
+              "radius",
+              "cert",
+              "pam",
+              "bsd"
+            ],
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Additional authentication options",
+            "type": "object"
+          },
+          "type": {
+            "description": "Connection type",
+            "enum": [
+              "local",
+              "host",
+              "hostssl",
+              "hostnossl",
+              "hostgssenc",
+              "hostnogssenc"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "default": "all",
+            "description": "Username or 'all'",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "database",
+          "user",
+          "method"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

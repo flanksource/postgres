@@ -1,0 +1,122 @@
+{
+  "additionalProperties": false,
+  "description": "PgBouncer connection pooler configuration",
+  "properties": {
+    "admin_password": {
+      "description": "Administrative password for PgBouncer",
+      "type": "string",
+      "x-sensitive": true
+    },
+    "admin_user": {
+      "description": "Administrative user for PgBouncer",
+      "type": "string"
+    },
+    "auth_file": {
+      "default": "userlist.txt",
+      "description": "Path to authentication file",
+      "type": "string"
+    },
+    "auth_query": {
+      "default": "SELECT usename, passwd FROM pg_shadow WHERE usename=$1",
+      "description": "Query to authenticate users",
+      "type": "string"
+    },
+    "auth_type": {
+      "default": "md5",
+      "description": "Authentication type for PgBouncer",
+      "enum": [
+        "any",
+        "trust",
+        "plain",
+        "md5",
+        "scram-sha-256",
+        "cert",
+        "hba",
+        "pam"
+      ],
+      "type": "string"
+    },
+    "client_idle_timeout": {
+      "default": "0",
+      "description": "Maximum idle time for client connections",
+      "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+      "type": "string"
+    },
+    "databases": {
+      "additionalProperties": {
+        "$ref": "#/definitions/DatabaseConfig"
+      },
+      "description": "Database connection configurations",
+      "type": "object"
+    },
+    "default_pool_size": {
+      "default": 25,
+      "description": "Default pool size for databases",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "listen_address": {
+      "default": "0.0.0.0",
+      "description": "Specifies the address to listen on",
+      "type": "string"
+    },
+    "listen_port": {
+      "default": 6432,
+      "description": "Specifies the port to listen on",
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_client_conn": {
+      "default": 100,
+      "description": "Maximum number of client connections allowed",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_pool_size": {
+      "default": 0,
+      "description": "Minimum pool size",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "pool_mode": {
+      "default": "transaction",
+      "description": "Pooling mode to use",
+      "enum": [
+        "session",
+        "transaction",
+        "statement"
+      ],
+      "type": "string"
+    },
+    "query_timeout": {
+      "default": "0",
+      "description": "Query timeout",
+      "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+      "type": "string"
+    },
+    "reserve_pool_size": {
+      "description": "Reserved pool size",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "server_idle_timeout": {
+      "default": "600s",
+      "description": "Maximum idle time for server connections",
+      "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+      "type": "string"
+    },
+    "server_lifetime": {
+      "default": "3600s",
+      "description": "Maximum lifetime of a server connection",
+      "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+      "type": "string"
+    },
+    "server_reset_query": {
+      "default": "DISCARD ALL",
+      "description": "Query to run on server connection before returning to pool",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

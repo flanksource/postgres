@@ -10,6 +10,7 @@ includes:
   build: ./Taskfile.build.yaml
   test: ./Taskfile.test.yaml
   run: ./Taskfile.run.yaml
+  pgconfig: ./Taskfile.pgconfig.yaml
 
 # Default tasks that delegate to included files
 tasks:
@@ -157,6 +158,27 @@ tasks:
         fi
         docker exec postgres-container wal-g backup-fetch /var/lib/postgresql/data/pgdata {{.BACKUP_NAME}}
 
+  # Configuration tasks shortcuts
+  generate-structs:
+    desc: Generate Go structs from JSON schema
+    cmds:
+      - task: pgconfig:generate-structs
+
+  validate-schema:
+    desc: Validate the JSON schema file
+    cmds:
+      - task: pgconfig:validate-schema
+
+  build-pgconfig:
+    desc: Build the pgconfig CLI tool
+    cmds:
+      - task: pgconfig:build-pgconfig
+
+  test-config:
+    desc: Run configuration tests
+    cmds:
+      - task: pgconfig:test-all
+
   # Help task
   help:
     desc: Show detailed help for all tasks
@@ -203,6 +225,12 @@ tasks:
       - echo "  task backup-create      - Create a new backup"
       - echo "  task backup-list        - List available backups"
       - echo "  task backup-restore     - Restore from backup (BACKUP_NAME=name)"
+      - 'echo ""'
+      - echo "Configuration Tasks:"
+      - echo "  task generate-structs   - Generate Go structs from JSON schema"
+      - echo "  task validate-schema    - Validate the JSON schema file"
+      - echo "  task build-pgconfig     - Build the pgconfig CLI tool"
+      - echo "  task test-config        - Run all configuration tests"
       - 'echo ""'
       - echo "Utility Tasks:"
       - echo "  task clean              - Clean up volumes and images"
