@@ -145,13 +145,13 @@ func (p *Postgres) Health() error {
 
 	// Use pg_isready to check if server is accepting connections
 	host := "localhost"
-	if p.Config != nil && p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" {
-		host = p.Config.ListenAddresses
+	if p.Config != nil && p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" {
+		host = *p.Config.ListenAddresses
 	}
 
 	port := 5432
-	if p.Config != nil && p.Config.Port != 0 {
-		port = p.Config.Port
+	if p.Config != nil && p.Config.Port != nil && *p.Config.Port != 0 {
+		port = *p.Config.Port
 	}
 
 	cmd := exec.Command(
@@ -261,15 +261,13 @@ func (p *Postgres) SQL(sqlQuery string) ([]map[string]interface{}, error) {
 
 	// Use config values if available
 	if p.Config != nil {
-		if p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" {
-			host = p.Config.ListenAddresses
+		if p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" {
+			host = *p.Config.ListenAddresses
 		}
-		if p.Config.Port != 0 {
-			port = p.Config.Port
+		if p.Config.Port != nil && *p.Config.Port != 0 {
+			port = *p.Config.Port
 		}
-		if p.Config.SuperuserPassword != nil && *p.Config.SuperuserPassword != "" {
-			password = utils.SensitiveString(*p.Config.SuperuserPassword)
-		}
+		// No SuperuserPassword field available in PostgresConf
 	}
 
 	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
@@ -341,11 +339,11 @@ func (p *Postgres) Backup() error {
 
 	// Use config values if available
 	if p.Config != nil {
-		if p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" && p.Config.ListenAddresses != "localhost" {
-			host = p.Config.ListenAddresses
+		if p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" && *p.Config.ListenAddresses != "localhost" {
+			host = *p.Config.ListenAddresses
 		}
-		if p.Config.Port != 0 {
-			port = p.Config.Port
+		if p.Config.Port != nil && *p.Config.Port != 0 {
+			port = *p.Config.Port
 		}
 	}
 
@@ -364,9 +362,7 @@ func (p *Postgres) Backup() error {
 	cmd := exec.Command(filepath.Join(p.BinDir, "pg_dump"), args...)
 
 	// Only set password for non-localhost connections or if explicitly provided
-	if p.Config != nil && p.Config.SuperuserPassword != nil && *p.Config.SuperuserPassword != "" && (host != "localhost" && host != "127.0.0.1") {
-		cmd.Env = append(os.Environ(), "PGPASSWORD="+*p.Config.SuperuserPassword)
-	}
+	// No SuperuserPassword field available in PostgresConf
 
 	output, err := cmd.CombinedOutput()
 	p.lastStdout = string(output)
@@ -406,10 +402,8 @@ func (p *Postgres) InitDB() error {
 
 	cmd := exec.Command(filepath.Join(p.BinDir, "initdb"), args...)
 
-	// Generally no password needed for initdb with trust auth, but set if explicitly provided
-	if p.Config != nil && p.Config.SuperuserPassword != nil && *p.Config.SuperuserPassword != "" {
-		cmd.Env = append(os.Environ(), "PGPASSWORD="+*p.Config.SuperuserPassword)
-	}
+	// Generally no password needed for initdb with trust auth
+	// No SuperuserPassword field available in PostgresConf
 
 	output, err := cmd.CombinedOutput()
 	p.lastStdout = string(output)
@@ -995,17 +989,13 @@ func (p *Postgres) installSingleExtension(originalName, extensionName string) er
 	port := 5432
 
 	// Use config values if available
-	if p.Config != nil && p.Config.Port != 0 {
-		port = p.Config.Port
+	if p.Config != nil && p.Config.Port != nil && *p.Config.Port != 0 {
+		port = *p.Config.Port
 	}
 
 	// For localhost, generally no password needed with trust auth
-	var env []string
-	if p.Config != nil && p.Config.SuperuserPassword != nil && *p.Config.SuperuserPassword != "" {
-		env = append(os.Environ(), "PGPASSWORD="+*p.Config.SuperuserPassword)
-	} else {
-		env = os.Environ()
-	}
+	// No SuperuserPassword field available in PostgresConf
+	env := os.Environ()
 
 	switch originalName {
 	case "pg_cron":

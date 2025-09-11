@@ -13,11 +13,12 @@ vars:
 
 tasks:
   generate-schema:
+    desc: Generate JSON schema from PostgreSQL describe-config output
     generates:
       - "{{.SCHEMA_FILE}}"
     cmds:
-      - echo "Generating JSON schema..."
-      - go run hack/generate-schema.go
+      - echo "Generating JSON schema from PostgreSQL configuration..."
+      - go run cmd/schema/main.go
       - "echo ✅ Generated JSON schema: {{.SCHEMA_FILE}}"
 
   generate-structs:

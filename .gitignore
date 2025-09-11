@@ -1,3 +1,38 @@
+schema/generate-schema
 .task
 test/reports/
 supabase/
+
+# Generated binaries
+pgconfig
+pgconfig-test
+pgconfig-service.sh
+cmd_schema
+
+# Generated Go source files
+pkg/model_generated.go
+debug_validation.go
+
+# Configuration and test files
+config.txt
+test-extensions.yaml
+test/health_client.go
+test/health_integration_test.go
+test/nil_pointer_test.go
+test/schema_generation_test.go
+
+# Generated directories
+pkg/schemas/
+test/generated-configs/
+
+# Go build artifacts
+*.out
+*.test
+*.log
+vendor/
+dist/
+bin/
+
+# Development/hack directories (if containing temp files)
+hack/temp/
+hack/output/
