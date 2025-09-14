@@ -1,0 +1,31 @@
+# Complete valid PostgreSQL configuration
+postgres:
+  max_connections: 100
+  shared_buffers: 128MB
+  effective_cache_size: 4GB
+  maintenance_work_mem: 64MB
+  work_mem: 4MB
+  wal_buffers: 16MB
+  checkpoint_completion_target: 0.9
+  random_page_cost: 4.0
+  effective_io_concurrency: 1
+  default_statistics_target: 100
+  
+pgbouncer:
+  listen_port: 6432
+  max_client_conn: 1000
+  default_pool_size: 25
+  
+postgrest:
+  db_uri: "postgres://user:pass@localhost/db"
+  db_schemas: "public"
+  db_pool: 10
+  
+walg:
+  enabled: true
+  s3_prefix: "s3://my-backups/path"
+  compression_method: "lz4"
+  
+pgaudit:
+  log: "all"
+  log_level: "info"

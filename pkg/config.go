@@ -6,12 +6,15 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 
+	"github.com/flanksource/postgres/pkg/types"
 	"github.com/flanksource/postgres/pkg/utils"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -39,9 +42,9 @@ func LoadConfig(configFile string) (*PgconfigSchemaJson, error) {
 		}
 	}
 
-	// Unmarshal configuration into generated struct
+	// Unmarshal configuration into generated struct with mapstructure tags
 	var conf PgconfigSchemaJson
-	if err := k.Unmarshal("", &conf); err != nil {
+	if err := k.UnmarshalWithConf("", &conf, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
@@ -55,38 +58,75 @@ func LoadConfig(configFile string) (*PgconfigSchemaJson, error) {
 
 // LoadConfigWithValidation loads configuration and validates it against a specific schema file
 func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJson, error) {
-	// First validate the raw file content against schema (before env var resolution)
+	var hasEnvVars bool
+
+	// First validate the raw YAML file against the schema to catch unknown fields
 	if configFile != "" {
-		if err := validateFileAgainstSchema(configFile, schemaFile); err != nil {
-			return nil, fmt.Errorf("configuration validation failed: %w", err)
+		// Read and parse YAML file
+		yamlData, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file %s: %w", configFile, err)
+		}
+
+		// Parse YAML to check structure (but not env var resolution)
+		parser := yaml.Parser()
+		rawConfig, err := parser.Unmarshal(yamlData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse YAML: %w", err)
+		}
+
+		// Skip schema validation only if the config has environment variable placeholders
+		hasEnvVars = containsEnvVarPlaceholders(rawConfig)
+		if !hasEnvVars {
+			// Validate against schema to catch unknown fields
+			if err := validateFileAgainstSchema(configFile, schemaFile); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	k := koanf.New(".")
 
-	// Load schema-based defaults first
-	if err := loadSchemaDefaults(k); err != nil {
+	// Load from file first if provided
+	if configFile != "" {
+		// If the file contains env var placeholders, we need to expand them
+		if hasEnvVars {
+			// Read the file, expand env vars, then load
+			expandedData, err := expandEnvVarsInYAML(configFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to expand env vars in config: %w", err)
+			}
+			if err := k.Load(rawbytes.Provider(expandedData), yaml.Parser()); err != nil {
+				return nil, fmt.Errorf("failed to load config: %w", err)
+			}
+		} else {
+			if err := k.Load(file.Provider(configFile), yaml.Parser()); err != nil {
+				return nil, fmt.Errorf("failed to load config file %s: %w", configFile, err)
+			}
+		}
+	}
+
+	// Then load schema-based defaults for any missing values
+	if err := loadSchemaDefaultsSelectively(k); err != nil {
 		return nil, fmt.Errorf("failed to load schema defaults: %w", err)
 	}
 
-	// Load environment variables
+	// Finally load environment variables (which override both file and defaults)
 	if err := k.Load(env.Provider("", ".", func(s string) string {
 		return s
 	}), nil); err != nil {
 		return nil, fmt.Errorf("failed to load environment variables: %w", err)
 	}
 
-	// Load from file if provided (this will override defaults and env vars)
-	if configFile != "" {
-		if err := k.Load(file.Provider(configFile), yaml.Parser()); err != nil {
-			return nil, fmt.Errorf("failed to load config file %s: %w", configFile, err)
-		}
+	// Unmarshal configuration into generated struct with mapstructure tags
+	var conf PgconfigSchemaJson
+	if err := k.UnmarshalWithConf("", &conf, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Unmarshal configuration into generated struct
-	var conf PgconfigSchemaJson
-	if err := k.Unmarshal("", &conf); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	// Validate the final configuration after all processing
+	if err := validateConfigurationWithSchema(&conf, schemaFile); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return &conf, nil
@@ -95,7 +135,7 @@ func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJso
 // loadSchemaDefaults loads all schema-defined defaults into koanf
 func loadSchemaDefaults(k *koanf.Koanf) error {
 	defaults := utils.GetSchemaDefaults()
-	
+
 	for key, defaultValue := range defaults {
 		// Resolve environment variables in the default value
 		resolvedValue := utils.ResolveDefault(defaultValue)
@@ -105,8 +145,53 @@ func loadSchemaDefaults(k *koanf.Koanf) error {
 			}
 		}
 	}
-	
+
 	return nil
+}
+
+// loadSchemaDefaultsSelectively loads schema-defined defaults only for missing keys
+func loadSchemaDefaultsSelectively(k *koanf.Koanf) error {
+	defaults := utils.GetSchemaDefaults()
+
+	for key, defaultValue := range defaults {
+		// Only set defaults for keys that don't already exist
+		if !k.Exists(key) {
+			// Resolve environment variables in the default value
+			resolvedValue := utils.ResolveDefault(defaultValue)
+			if resolvedValue != "" {
+				// Skip memory parameters if they resolve to invalid formats
+				if isMemoryParameter(key) && !isValidMemoryFormat(resolvedValue) {
+					continue
+				}
+
+				if err := k.Set(key, resolvedValue); err != nil {
+					return fmt.Errorf("failed to set default for %s: %w", key, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// isMemoryParameter checks if a parameter is a memory-related parameter
+func isMemoryParameter(key string) bool {
+	memoryParams := []string{
+		"postgres.shared_buffers",
+		"postgres.work_mem",
+		"postgres.maintenance_work_mem",
+		"postgres.effective_cache_size",
+		"postgres.wal_buffers",
+		"postgres.temp_buffers",
+		"pgaudit.log_parameter_max_size",
+	}
+
+	for _, param := range memoryParams {
+		if key == param {
+			return true
+		}
+	}
+	return false
 }
 
 // validateConfiguration validates the configuration against the JSON schema
@@ -120,22 +205,22 @@ func validateConfiguration(conf *PgconfigSchemaJson) error {
 
 	// Create schema loader
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-	
+
 	// Convert configuration to JSON for validation
 	configData, err := json.Marshal(conf)
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration: %w", err)
 	}
-	
+
 	// Create config loader
 	configLoader := gojsonschema.NewBytesLoader(configData)
-	
+
 	// Validate
 	result, err := gojsonschema.Validate(schemaLoader, configLoader)
 	if err != nil {
 		return fmt.Errorf("failed to validate configuration: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		var errMsg string
 		for _, desc := range result.Errors() {
@@ -143,7 +228,7 @@ func validateConfiguration(conf *PgconfigSchemaJson) error {
 		}
 		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
 	}
-	
+
 	return nil
 }
 
@@ -154,25 +239,25 @@ func validateConfigurationWithSchema(conf *PgconfigSchemaJson, schemaFile string
 	if err != nil {
 		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
 	}
-	
+
 	// Create schema loader
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-	
+
 	// Convert configuration to JSON for validation
 	configData, err := json.Marshal(conf)
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration: %w", err)
 	}
-	
+
 	// Create config loader
 	configLoader := gojsonschema.NewBytesLoader(configData)
-	
+
 	// Validate
 	result, err := gojsonschema.Validate(schemaLoader, configLoader)
 	if err != nil {
 		return fmt.Errorf("failed to validate configuration: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		var errMsg string
 		for _, desc := range result.Errors() {
@@ -180,7 +265,7 @@ func validateConfigurationWithSchema(conf *PgconfigSchemaJson, schemaFile string
 		}
 		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
 	}
-	
+
 	return nil
 }
 
@@ -191,28 +276,28 @@ func validateRawConfigurationWithSchema(k *koanf.Koanf, schemaFile string) error
 	if err != nil {
 		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
 	}
-	
+
 	// Create schema loader
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-	
+
 	// Get all config as a map for validation
 	configData := k.All()
-	
+
 	// Convert to JSON for validation
 	configJSON, err := json.Marshal(configData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration: %w", err)
 	}
-	
+
 	// Create config loader
 	configLoader := gojsonschema.NewBytesLoader(configJSON)
-	
+
 	// Validate
 	result, err := gojsonschema.Validate(schemaLoader, configLoader)
 	if err != nil {
 		return fmt.Errorf("failed to validate configuration: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		var errMsg string
 		for _, desc := range result.Errors() {
@@ -220,7 +305,7 @@ func validateRawConfigurationWithSchema(k *koanf.Koanf, schemaFile string) error
 		}
 		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
 	}
-	
+
 	return nil
 }
 
@@ -231,36 +316,36 @@ func validateFileAgainstSchema(configFile, schemaFile string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
 	}
-	
+
 	// Load and parse the YAML file
 	configData, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return fmt.Errorf("failed to read config file %s: %w", configFile, err)
 	}
-	
+
 	// Parse YAML to interface{} first
 	parser := yaml.Parser()
 	yamlData, err := parser.Unmarshal(configData)
 	if err != nil {
 		return fmt.Errorf("failed to parse YAML: %w", err)
 	}
-	
+
 	// Convert to JSON for validation
 	configJSON, err := json.Marshal(yamlData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal configuration: %w", err)
 	}
-	
+
 	// Create loaders
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
 	configLoader := gojsonschema.NewBytesLoader(configJSON)
-	
+
 	// Validate
 	result, err := gojsonschema.Validate(schemaLoader, configLoader)
 	if err != nil {
 		return fmt.Errorf("failed to validate configuration: %w", err)
 	}
-	
+
 	if !result.Valid() {
 		var errMsg string
 		for _, desc := range result.Errors() {
@@ -268,7 +353,7 @@ func validateFileAgainstSchema(configFile, schemaFile string) error {
 		}
 		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
 	}
-	
+
 	return nil
 }
 
@@ -365,7 +450,7 @@ func GetAllDefaults() map[string]string {
 func extractDefaults(typ reflect.Type, prefix string, defaults map[string]string) {
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		
+
 		// Skip unexported fields
 		if field.PkgPath != "" {
 			continue
@@ -419,7 +504,7 @@ func GetAllFieldInfo() []FieldInfo {
 func extractFieldInfo(typ reflect.Type, prefix string, fields *[]FieldInfo) {
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
-		
+
 		// Skip unexported fields
 		if field.PkgPath != "" {
 			continue
@@ -449,11 +534,11 @@ func extractFieldInfo(typ reflect.Type, prefix string, fields *[]FieldInfo) {
 
 		// Extract field information
 		fieldInfo := FieldInfo{
-			Name:        field.Name,
-			KoanfPath:   fieldName,
-			EnvVar:      field.Tag.Get("env"),
-			Default:     field.Tag.Get("default"),
-			Type:        field.Type.String(),
+			Name:      field.Name,
+			KoanfPath: fieldName,
+			EnvVar:    field.Tag.Get("env"),
+			Default:   field.Tag.Get("default"),
+			Type:      field.Type.String(),
 		}
 
 		// Extract description from comment (would need to be manually maintained)
@@ -495,5 +580,96 @@ func makeDescription(fieldName, koanfPath string) string {
 	}
 }
 
-// Backward compatibility alias - the old Conf type now maps to the schema-generated PgconfigSchemaJson
+// Backward compatibility aliases - the old types now map to the schema-generated types
 type Conf = PgconfigSchemaJson
+type PostgreSQLConfiguration = PgconfigSchemaJson
+type PgBouncerIni = PgBouncerConf
+type PostgrestHBA = PgHBAConfRulesElem
+type PostgrestHBAType = PgHBAConfRulesElemType
+type PostgrestHBAMethod = PgHBAConfRulesElemMethod
+
+// Extension configuration
+type ExtensionConfig struct {
+	Enabled    bool    `json:"enabled"`
+	Version    *string `json:"version,omitempty"`
+	Name       string  `json:"name"`
+	ConfigFile *string `json:"config_file,omitempty"`
+}
+type Duration = types.Duration
+
+// containsEnvVarPlaceholders recursively checks if a config contains environment variable placeholders
+func containsEnvVarPlaceholders(data interface{}) bool {
+	switch v := data.(type) {
+	case string:
+		// Check if string contains ${...} pattern
+		return regexp.MustCompile(`\$\{[^}]+\}`).MatchString(v)
+	case map[string]interface{}:
+		for _, value := range v {
+			if containsEnvVarPlaceholders(value) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, item := range v {
+			if containsEnvVarPlaceholders(item) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// expandEnvVarsInYAML reads a YAML file and expands environment variable placeholders
+func expandEnvVarsInYAML(configFile string) ([]byte, error) {
+	data, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Expand ${VAR} and ${VAR:-default} patterns
+	expanded := regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)(:-([^}]+))?\}`).ReplaceAllFunc(data, func(match []byte) []byte {
+		s := string(match)
+		// Extract variable name and default
+		re := regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)(:-([^}]+))?\}`)
+		parts := re.FindStringSubmatch(s)
+		if len(parts) < 2 {
+			return match
+		}
+
+		defaultVal := ""
+		if len(parts) >= 4 {
+			defaultVal = parts[3]
+		}
+
+		// Get env var or use default
+		if val := utils.ResolveDefault(s); val != "" {
+			return []byte(val)
+		}
+		return []byte(defaultVal)
+	})
+
+	return expanded, nil
+}
+
+// isValidMemoryFormat checks if a memory value matches the expected pattern
+func isValidMemoryFormat(value string) bool {
+	pattern := `^[0-9]+[kMGT]?B?$`
+	matched, _ := regexp.MatchString(pattern, value)
+	return matched
+}
+
+// normalizeMemoryValue ensures memory values have proper format
+func normalizeMemoryValue(value string) string {
+	// If it already matches the pattern, return as-is
+	if isValidMemoryFormat(value) {
+		return value
+	}
+
+	// If it's just a number, assume it's in bytes and add B suffix
+	if matched, _ := regexp.MatchString(`^[0-9]+$`, value); matched {
+		return value + "B"
+	}
+
+	// Return as-is if we can't normalize it
+	return value
+}

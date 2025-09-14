@@ -549,11 +549,8 @@ func saveSpecificConfigFiles(configType, outputDir string, sysInfo *sysinfo.Syst
 	restGenerator := generators.NewPostgRESTConfigGenerator(sysInfo, params)
 	hbaGenerator := generators.NewPgHBAConfigGenerator(sysInfo)
 
-	// Configure extensions and PGAudit if loaded configuration is available
+	// Configure PGAudit if loaded configuration is available
 	if loadedConf != nil {
-		if loadedConf.Extensions != nil {
-			pgGenerator.SetExtensions(loadedConf.Extensions)
-		}
 		pgGenerator.SetPGAuditConf(loadedConf.Pgaudit)
 	}
 
@@ -1192,7 +1189,7 @@ func handleInstallFromConfig(configFile, targetDir string) {
 	skipped := []string{}
 
 	// Install PostgREST if configured and enabled
-	if config.Postgrest != nil && config.Postgrest.DbUri != "" {
+	if config.Postgrest != nil && config.Postgrest.DbUri != nil && *config.Postgrest.DbUri != "" {
 		version := inst.GetDefaultVersion("postgrest")
 
 		fmt.Printf("Installing PostgREST version %s...\n", version)

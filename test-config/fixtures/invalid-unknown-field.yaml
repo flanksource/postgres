@@ -1,0 +1,6 @@
+# Configuration with unknown field
+postgres:
+  max_connections: 100
+  unknown_field: "should not exist"
+  invalid_setting: true
+  nonexistent_option: 42

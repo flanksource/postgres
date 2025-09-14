@@ -1,0 +1,75 @@
+{
+  "$id": "https://github.com/flanksource/postgres/schema/auto_explain-schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "auto_explain extension configuration parameters",
+  "properties": {
+    "auto_explain.log_min_duration": {
+      "type": "string",
+      "description": "Minimum execution time above which plans will be logged",
+      "default": "-1",
+      "pattern": "^-?[0-9]+(ms|s|min|h|d)?$",
+      "x-type": "Duration"
+    },
+    "auto_explain.log_analyze": {
+      "type": "boolean",
+      "description": "Use EXPLAIN ANALYZE for plan logging",
+      "default": false
+    },
+    "auto_explain.log_buffers": {
+      "type": "boolean",
+      "description": "Log buffer usage statistics",
+      "default": false
+    },
+    "auto_explain.log_wal": {
+      "type": "boolean",
+      "description": "Log WAL usage statistics",
+      "default": false
+    },
+    "auto_explain.log_timing": {
+      "type": "boolean",
+      "description": "Collect timing data, not just row counts",
+      "default": true
+    },
+    "auto_explain.log_triggers": {
+      "type": "boolean",
+      "description": "Include trigger statistics in plans",
+      "default": false
+    },
+    "auto_explain.log_verbose": {
+      "type": "boolean",
+      "description": "Use EXPLAIN VERBOSE for plan logging",
+      "default": false
+    },
+    "auto_explain.log_settings": {
+      "type": "boolean",
+      "description": "Log modified configuration parameters affecting query planning",
+      "default": false
+    },
+    "auto_explain.log_format": {
+      "type": "string",
+      "description": "EXPLAIN format to be used for plan logging",
+      "default": "text",
+      "enum": ["text", "xml", "json", "yaml"]
+    },
+    "auto_explain.log_level": {
+      "type": "string",
+      "description": "Log level for auto_explain plan logging",
+      "default": "LOG",
+      "enum": ["DEBUG5", "DEBUG4", "DEBUG3", "DEBUG2", "DEBUG1", "INFO", "NOTICE", "WARNING", "LOG"]
+    },
+    "auto_explain.log_nested_statements": {
+      "type": "boolean",
+      "description": "Log nested statements",
+      "default": false
+    },
+    "auto_explain.sample_rate": {
+      "type": "number",
+      "description": "Fraction of queries to process",
+      "default": 1.0,
+      "minimum": 0.0,
+      "maximum": 1.0
+    }
+  }
+}

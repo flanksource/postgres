@@ -43,48 +43,30 @@ func (g *PgBouncerConfigGenerator) GenerateConfig() *pkg.PgBouncerIni {
 	defaultPoolSize := calculateDefaultPoolSize(g.TunedParams.MaxConnections)
 	maxClientConn := calculateMaxClientConn(g.TunedParams.MaxConnections)
 
-	// Helper function to create string pointers
-	stringPtr := func(s string) *string { return &s }
-	durationPtr := func(d string) *pkg.Duration { dur := pkg.Duration(d); return &dur }
-
 	reservePoolSize := defaultPoolSize / 4 // 25% of default pool size
-	zeroDB := 0
-	zeroUser := 0
-	loginRetry := 1
 
 	authQuery := "SELECT usename, passwd FROM pg_shadow WHERE usename=$1"
 
 	config := &pkg.PgBouncerIni{
 		// Connection settings
-		ListenAddr:    "0.0.0.0",
+		ListenAddress: "0.0.0.0",
 		ListenPort:    6432,
-		UnixSocketDir: "/tmp",
 
 		// Authentication settings
-		AuthType:    "md5",
-		AuthFile:    "userlist.txt",
-		AuthHbaFile: nil,
-		AuthQuery:   &authQuery,
+		AuthQuery: authQuery,
+		AuthFile:  "userlist.txt",
 
 		// Pool settings
-		PoolMode:           "transaction",
-		DefaultPoolSize:    defaultPoolSize,
-		MinPoolSize:        0,
-		ReservePoolSize:    &reservePoolSize,
-		ReservePoolTimeout: stringPtr("5s"),
-		MaxClientConn:      &maxClientConn,
-		MaxDbConnections:   &zeroDB, // unlimited
-		MaxUserConnections: &zeroUser, // unlimited
+		DefaultPoolSize: defaultPoolSize,
+		MinPoolSize:     0,
+		ReservePoolSize: &reservePoolSize,
+		MaxClientConn:   maxClientConn,
 
-		// Timeout settings
-		ServerLifetime:       durationPtr("3600s"), // 1 hour
-		ServerIdleTimeout:    durationPtr("600s"),  // 10 minutes
-		ServerConnectTimeout: durationPtr("15s"),
-		ServerLoginRetry:     &loginRetry,
-		QueryTimeout:         stringPtr("0"), // disabled
-		QueryWaitTimeout:     durationPtr("120s"),
-		ClientIdleTimeout:    stringPtr("0"), // disabled
-		ClientLoginTimeout:   durationPtr("60s"),
+		// Timeout settings - using string fields that exist
+		ServerLifetime:    "3600s", // 1 hour
+		ServerIdleTimeout: "600s",  // 10 minutes
+		QueryTimeout:      "0",     // disabled
+		ClientIdleTimeout: "0",     // disabled
 
 		// Database configurations
 		Databases: make(map[string]pkg.DatabaseConfig),
@@ -97,19 +79,16 @@ func (g *PgBouncerConfigGenerator) GenerateConfig() *pkg.PgBouncerIni {
 	user := g.DatabaseUser
 	password := ""
 	poolSize := defaultPoolSize
-	minPoolSize := 0
 	connectQuery := ""
 	
 	config.Databases[g.DatabaseName] = pkg.DatabaseConfig{
-		Host:         &host,
-		Port:         &port,
+		Host:         host,
+		Port:         port,
 		Dbname:       &dbname,
 		User:         &user,
 		Password:     &password,
 		PoolSize:     &poolSize,
-		MinPoolSize:  &minPoolSize,
 		ConnectQuery: &connectQuery,
-		PoolMode:     nil, // Use default
 	}
 
 	// Apply database overrides
@@ -185,11 +164,11 @@ func (g *PgBouncerConfigGenerator) generateDatabasesSection() string {
 		port := 5432
 		dbname := name
 		
-		if config.Host != nil {
-			host = *config.Host
+		if config.Host != "" {
+			host = config.Host
 		}
-		if config.Port != nil {
-			port = *config.Port
+		if config.Port != 0 {
+			port = config.Port
 		}
 		if config.Dbname != nil {
 			dbname = *config.Dbname
@@ -225,71 +204,41 @@ func (g *PgBouncerConfigGenerator) generatePgBouncerSection() string {
 
 	// Connection settings
 	sb.WriteString(";; Connection Settings\n")
-	sb.WriteString(fmt.Sprintf("listen_addr = %s\n", g.config.ListenAddr))
+	sb.WriteString(fmt.Sprintf("listen_address = %s\n", g.config.ListenAddress))
 	sb.WriteString(fmt.Sprintf("listen_port = %d\n", g.config.ListenPort))
-	sb.WriteString(fmt.Sprintf("unix_socket_dir = %s\n\n", g.config.UnixSocketDir))
+	sb.WriteString("\n")
 
 	// Pool settings
 	sb.WriteString(";; Pool Settings\n")
-	sb.WriteString(fmt.Sprintf("pool_mode = %s\n", g.config.PoolMode))
 	sb.WriteString(fmt.Sprintf("default_pool_size = %d\n", g.config.DefaultPoolSize))
 	sb.WriteString(fmt.Sprintf("min_pool_size = %d\n", g.config.MinPoolSize))
 	if g.config.ReservePoolSize != nil {
 		sb.WriteString(fmt.Sprintf("reserve_pool_size = %d\n", *g.config.ReservePoolSize))
 	}
-	if g.config.ReservePoolTimeout != nil {
-		sb.WriteString(fmt.Sprintf("reserve_pool_timeout = %s\n", *g.config.ReservePoolTimeout))
-	}
-	if g.config.MaxClientConn != nil {
-		sb.WriteString(fmt.Sprintf("max_client_conn = %d\n", *g.config.MaxClientConn))
-	}
-	if g.config.MaxDbConnections != nil {
-		sb.WriteString(fmt.Sprintf("max_db_connections = %d\n", *g.config.MaxDbConnections))
-	}
-	if g.config.MaxUserConnections != nil {
-		sb.WriteString(fmt.Sprintf("max_user_connections = %d\n", *g.config.MaxUserConnections))
-	}
+	sb.WriteString(fmt.Sprintf("max_client_conn = %d\n", g.config.MaxClientConn))
 	sb.WriteString("\n")
 
 	// Authentication settings
 	sb.WriteString(";; Authentication\n")
-	sb.WriteString(fmt.Sprintf("auth_type = %s\n", g.config.AuthType))
 	sb.WriteString(fmt.Sprintf("auth_file = %s\n", g.config.AuthFile))
-	if g.config.AuthHbaFile != nil && *g.config.AuthHbaFile != "" {
-		sb.WriteString(fmt.Sprintf("auth_hba_file = %s\n", *g.config.AuthHbaFile))
-	} else {
-		sb.WriteString(";auth_hba_file = pg_hba.conf\n")
-	}
-	if g.config.AuthQuery != nil {
-		sb.WriteString(fmt.Sprintf("auth_query = %s\n", *g.config.AuthQuery))
+	if g.config.AuthQuery != "" {
+		sb.WriteString(fmt.Sprintf("auth_query = %s\n", g.config.AuthQuery))
 	}
 	sb.WriteString("\n")
 
-	// Timeout settings (convert from Duration to seconds for ini format)
+	// Timeout settings
 	sb.WriteString(";; Timeouts\n")
-	if g.config.ServerLifetime != nil {
-		sb.WriteString(fmt.Sprintf("server_lifetime = %s\n", g.extractSecondsFromDuration(*g.config.ServerLifetime)))
+	if g.config.ServerLifetime != "" {
+		sb.WriteString(fmt.Sprintf("server_lifetime = %s\n", g.config.ServerLifetime))
 	}
-	if g.config.ServerIdleTimeout != nil {
-		sb.WriteString(fmt.Sprintf("server_idle_timeout = %s\n", g.extractSecondsFromDuration(*g.config.ServerIdleTimeout)))
+	if g.config.ServerIdleTimeout != "" {
+		sb.WriteString(fmt.Sprintf("server_idle_timeout = %s\n", g.config.ServerIdleTimeout))
 	}
-	if g.config.ServerConnectTimeout != nil {
-		sb.WriteString(fmt.Sprintf("server_connect_timeout = %s\n", g.extractSecondsFromDuration(*g.config.ServerConnectTimeout)))
+	if g.config.QueryTimeout != "" {
+		sb.WriteString(fmt.Sprintf("query_timeout = %s\n", g.config.QueryTimeout))
 	}
-	if g.config.ServerLoginRetry != nil {
-		sb.WriteString(fmt.Sprintf("server_login_retry = %d\n", *g.config.ServerLoginRetry))
-	}
-	if g.config.QueryTimeout != nil {
-		sb.WriteString(fmt.Sprintf("query_timeout = %s\n", *g.config.QueryTimeout))
-	}
-	if g.config.QueryWaitTimeout != nil {
-		sb.WriteString(fmt.Sprintf("query_wait_timeout = %s\n", g.extractSecondsFromDuration(*g.config.QueryWaitTimeout)))
-	}
-	if g.config.ClientIdleTimeout != nil {
-		sb.WriteString(fmt.Sprintf("client_idle_timeout = %s\n", *g.config.ClientIdleTimeout))
-	}
-	if g.config.ClientLoginTimeout != nil {
-		sb.WriteString(fmt.Sprintf("client_login_timeout = %s\n", g.extractSecondsFromDuration(*g.config.ClientLoginTimeout)))
+	if g.config.ClientIdleTimeout != "" {
+		sb.WriteString(fmt.Sprintf("client_idle_timeout = %s\n", g.config.ClientIdleTimeout))
 	}
 	sb.WriteString("\n")
 
@@ -321,8 +270,8 @@ func (g *PgBouncerConfigGenerator) SetDatabaseConfig(name, host string, port int
 	}
 
 	g.DatabaseOverrides[name] = pkg.DatabaseConfig{
-		Host:   &host,
-		Port:   &port,
+		Host:   host,
+		Port:   port,
 		Dbname: &dbname,
 		User:   &user,
 	}
@@ -397,5 +346,5 @@ func (g *PgBouncerConfigGenerator) extractSeconds(duration string) string {
 
 // Helper function to extract seconds from pkg.Duration type
 func (g *PgBouncerConfigGenerator) extractSecondsFromDuration(duration pkg.Duration) string {
-	return g.extractSeconds(string(duration))
+	return g.extractSeconds(duration.String())
 }

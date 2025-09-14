@@ -4,3 +4,6 @@
 [submodule "supabase-postgres"]
 	path = supabase-postgres
 	url = https://github.com/supabase/postgres.git
+[submodule "pgconfig-validator"]
+	path = pgconfig-validator
+	url = https://gitlab.com/ongresinc/pgconfig-validator.git

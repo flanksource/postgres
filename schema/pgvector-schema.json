@@ -1,0 +1,30 @@
+{
+  "$id": "https://github.com/flanksource/postgres/schema/pgvector-schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "pgvector extension configuration parameters",
+  "properties": {
+    "vector.max_dim": {
+      "type": "integer",
+      "description": "Maximum vector dimensions",
+      "default": 16000,
+      "minimum": 1,
+      "maximum": 65000
+    },
+    "ivfflat.probes": {
+      "type": "integer",
+      "description": "Number of lists to scan for IVFFlat index searches",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "hnsw.ef_search": {
+      "type": "integer",
+      "description": "Size of the dynamic candidate list for HNSW index searches",
+      "default": 40,
+      "minimum": 1,
+      "maximum": 1000000
+    }
+  }
+}

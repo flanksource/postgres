@@ -11,43 +11,68 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
 		fmt.Println("Usage: schema [postgres-version]")
-		fmt.Println("Generate JSON schema from PostgreSQL describe-config output")
-		fmt.Println("  postgres-version: PostgreSQL version to use (default: 17.6.0)")
+		fmt.Println("Generate JSON schema from PostgreSQL CSV parameter files")
+		fmt.Println("  postgres-version: PostgreSQL version to use (default: 17)")
 		os.Exit(0)
 	}
 
-	version := "17.6.0"
+	version := "17"
 	if len(os.Args) > 1 {
 		version = os.Args[1]
 	}
 
-	fmt.Printf("Generating schema from PostgreSQL %s...\n", version)
+	fmt.Printf("Generating schema from PostgreSQL %s CSV files...\n", version)
 
-	// Create embedded PostgreSQL instance
-	postgres, err := pkg.NewEmbeddedPostgres(version)
+	// Load parameters from CSV files
+	params, err := pkg.LoadParametersForVersion(version)
 	if err != nil {
-		fmt.Printf("Error creating embedded postgres: %v\n", err)
+		fmt.Printf("Error loading parameters from CSV: %v\n", err)
 		os.Exit(1)
 	}
-	
-	// Start PostgreSQL
-	if err := postgres.Start(); err != nil {
-		fmt.Printf("Error starting postgres: %v\n", err)
-		os.Exit(1)
+
+	fmt.Printf("Loaded %d parameters from CSV files\n", len(params))
+
+	// Add critical configuration parameters that must be included
+	// These are often missing from the CSV files but are essential
+	criticalParams := []pkg.Param{
+		{
+			Name:      "listen_addresses",
+			Context:   "postmaster",
+			Category:  "Connections and Authentication / Connection Settings",
+			VarType:   "string",
+			BootVal:   "localhost",
+			MinVal:    0,
+			MaxVal:    0,
+			ShortDesc: "Sets the host name or IP address(es) to listen to.",
+			ExtraDesc: "",
+			VarClass:  "configuration",
+		},
+		{
+			Name:      "port",
+			Context:   "postmaster",
+			Category:  "Connections and Authentication / Connection Settings",
+			VarType:   "integer",
+			BootVal:   "5432",
+			MinVal:    1,
+			MaxVal:    65535,
+			ShortDesc: "Sets the server's port number.",
+			ExtraDesc: "",
+			VarClass:  "configuration",
+		},
 	}
-	defer func() {
-		if err := postgres.Stop(); err != nil {
-			fmt.Printf("Warning: Error stopping postgres: %v\n", err)
+
+	// Check if these parameters are already present
+	paramNames := make(map[string]bool)
+	for _, param := range params {
+		paramNames[param.Name] = true
+	}
+
+	// Add missing critical parameters
+	for _, criticalParam := range criticalParams {
+		if !paramNames[criticalParam.Name] {
+			params = append(params, criticalParam)
+			fmt.Printf("Added missing parameter: %s\n", criticalParam.Name)
 		}
-	}()
-
-	fmt.Println("PostgreSQL started, getting configuration parameters...")
-
-	// Get describe-config output
-	params, err := postgres.DescribeConfig()
-	if err != nil {
-		fmt.Printf("Error getting describe-config: %v\n", err)
-		os.Exit(1)
 	}
 
 	// Convert params to string format for the schema generator
@@ -73,17 +98,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Regenerate Go models from the new schema
-	fmt.Println("Regenerating Go models from schema...")
-	cmd = exec.Command("go-jsonschema", "-p", "pkg", "--tag", "yaml", "--tag", "mapstructure", "-o", "pkg/model_generated.go", "schema/pgconfig-schema.json")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("Warning: Error regenerating Go models (you may need to install go-jsonschema): %v\n", err)
-		fmt.Println("To install: go install github.com/atombender/go-jsonschema/cmd/go-jsonschema@latest")
-	}
-
-	fmt.Println("✅ Schema generation complete!")
+	fmt.Println("✅ Schema and Go struct generation complete!")
 }
 
 // formatDescribeOutput formats the parameter list as pipe-separated values

@@ -6,9 +6,16 @@ import (
 	"testing"
 
 	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/types"
 	"github.com/flanksource/postgres/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
+
+// Test helper functions
+func intPtr(i int) *int { return &i }
+func sizePtr(bytes uint64) *types.Size { val := types.Size(bytes); return &val }
+func float64Ptr(f float64) *float64 { return &f }
+func stringPtr(s string) *string { return &s }
 
 func TestConfigGenerator_GenerateFullYAML(t *testing.T) {
 	tests := []struct {
@@ -53,24 +60,24 @@ func TestConfigGenerator_GenerateFullYAML(t *testing.T) {
 			name: "formats_different_field_types",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:                       5432,
-					MaxConnections:             200,
-					SharedBuffers:              "256MB",
-					EffectiveCacheSize:         "1GB",
-					MaintenanceWorkMem:         "64MB",
-					CheckpointCompletionTarget: 0.9,
-					WalBuffers:                 "16MB",
-					RandomPageCost:             4.0,
-					EffectiveIoConcurrency:     1,
-					WorkMem:                    "4MB",
+					Port:                       intPtr(5432),
+					MaxConnections:             intPtr(200),
+					SharedBuffers:              sizePtr(262144),
+					EffectiveCacheSize:         sizePtr(131072),
+					MaintenanceWorkMem:         sizePtr(65536),
+					CheckpointCompletionTarget: float64Ptr(0.9),
+					WalBuffers:                 sizePtr(2048),
+					RandomPageCost:             float64Ptr(4.0),
+					EffectiveIoConcurrency:     intPtr(1),
+					WorkMem:                    sizePtr(4096),
 				},
 			},
 			contains: []string{
 				`port: 5432`,
 				`max_connections: 200`,
-				`shared_buffers: "256MB"`,
-				`checkpoint_completion_target: 0.90`,
-				`random_page_cost: 4.00`,
+				`shared_buffers: 262144`,
+				`checkpoint_completion_target: 0.9`,
+				`random_page_cost: 4`,
 			},
 		},
 	}
@@ -124,9 +131,9 @@ func TestConfigGenerator_GenerateMinimalYAML(t *testing.T) {
 			name: "non_default_postgres_values_included",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           9999,
-					MaxConnections: 500,
-					SharedBuffers:  "512MB",
+					Port:           intPtr(9999),
+					MaxConnections: intPtr(500),
+					SharedBuffers:  sizePtr(524288), // 512MB in 8KB pages
 				},
 			},
 			contains: []string{
@@ -162,17 +169,17 @@ func TestConfigGenerator_GenerateMinimalYAML(t *testing.T) {
 			name: "mixed_sections_only_non_defaults_shown",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port: 5433,
+					Port: intPtr(5433),
 				},
 				Walg: &pkg.WalgConf{
-					S3Bucket: "my-backup-bucket",
+					S3Prefix: stringPtr("s3://my-backup-bucket"),
 				},
 			},
 			contains: []string{
 				"postgres:",
 				"port: 5433",
 				"walg:",
-				`s3_bucket: "my-backup-bucket"`,
+				`s3_prefix: "s3://my-backup-bucket"`,
 			},
 			excludes: []string{
 				"pgbouncer:",
@@ -307,16 +314,21 @@ func TestConfigGenerator_GetFieldDescription(t *testing.T) {
 }
 
 func TestConfigGenerator_SensitiveFieldHandling(t *testing.T) {
+	// Convert SensitiveString to *string
+	adminPassword := string(utils.SensitiveString("auth_user"))
+	s3AccessKey := string(utils.SensitiveString("access_key"))
+	s3SecretKey := string(utils.SensitiveString("secret_key"))
+	
 	conf := &pkg.PostgreSQLConfiguration{
 		Postgres: &pkg.PostgresConf{
-			SuperuserPassword: utils.SensitiveString("secret_password"),
+			// SuperuserPassword field doesn't exist in generated struct
 		},
 		Pgbouncer: &pkg.PgBouncerConf{
-			AdminPassword: utils.SensitiveString("auth_user"),
+			AdminPassword: &adminPassword,
 		},
 		Walg: &pkg.WalgConf{
-			S3AccessKey: utils.SensitiveString("access_key"),
-			S3SecretKey: utils.SensitiveString("secret_key"),
+			S3AccessKey: &s3AccessKey,
+			S3SecretKey: &s3SecretKey,
 		},
 	}
 
@@ -370,9 +382,9 @@ func TestConfigGenerator_YAMLValidation(t *testing.T) {
 			name: "complex_config",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           5432,
-					MaxConnections: 100,
-					SharedBuffers:  "128MB",
+					Port:           intPtr(5432),
+					MaxConnections: intPtr(100),
+					SharedBuffers:  sizePtr(131072), // 128MB in 8KB pages
 				},
 				Pgbouncer: &pkg.PgBouncerConf{
 					ListenPort:      6432,
@@ -380,7 +392,7 @@ func TestConfigGenerator_YAMLValidation(t *testing.T) {
 					DefaultPoolSize: 20,
 				},
 				Walg: &pkg.WalgConf{
-					S3Bucket: "test-bucket",
+					S3Prefix: stringPtr("s3://test-bucket"),
 					S3Region: "us-east-1",
 				},
 			},
@@ -446,9 +458,9 @@ func TestHasNonDefaults(t *testing.T) {
 			name: "all_defaults_returns_false",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           5432,
-					MaxConnections: 100,
-					SharedBuffers:  "128MB",
+					Port:           intPtr(5432),
+					MaxConnections: intPtr(100),
+					SharedBuffers:  sizePtr(128 * 1024 * 1024), // 128MB in bytes
 				},
 			},
 			prefix:   "postgres",
@@ -458,9 +470,9 @@ func TestHasNonDefaults(t *testing.T) {
 			name: "non_default_port_returns_true",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           9999,
-					MaxConnections: 100,
-					SharedBuffers:  "128MB",
+					Port:           intPtr(9999),
+					MaxConnections: intPtr(100),
+					SharedBuffers:  sizePtr(128 * 1024 * 1024), // 128MB in bytes
 				},
 			},
 			prefix:   "postgres",
@@ -470,7 +482,7 @@ func TestHasNonDefaults(t *testing.T) {
 			name: "non_default_string_returns_true",
 			conf: &pkg.PostgreSQLConfiguration{
 				Walg: &pkg.WalgConf{
-					S3Bucket: "my-bucket",
+					S3Region: "my-region",
 				},
 			},
 			prefix:   "walg",

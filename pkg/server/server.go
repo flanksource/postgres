@@ -894,8 +894,8 @@ func (s *HealthServer) initializeHealthChecker() {
 	backupLocation := ""
 	if s.WalgConfig != nil {
 		// Use local file prefix as backup location for health checks
-		if s.WalgConfig.FilePrefix != "" {
-			backupLocation = strings.TrimPrefix(s.WalgConfig.FilePrefix, "file://")
+		if s.WalgConfig.FilePrefix != nil && *s.WalgConfig.FilePrefix != "" {
+			backupLocation = strings.TrimPrefix(*s.WalgConfig.FilePrefix, "file://")
 		}
 	}
 
@@ -939,20 +939,23 @@ func (s *HealthServer) initializeHealthChecker() {
 // LoadServiceConfigs loads and hydrates service configurations with defaults
 func (s *HealthServer) LoadServiceConfigs() {
 	// PostgreSQL configuration - always present
+	listenAddr := "localhost"
+	port := 5432
 	s.PostgresConfig = &pkg.PostgresConf{
-		ListenAddresses: "localhost",
-		Port:           5432,
-		MaxConnections: s.MaxConn,
+		ListenAddresses: &listenAddr,
+		Port:           &port,
+		MaxConnections: &s.MaxConn,
 		// Other defaults will be set by struct tags
 	}
 
 	// PgBouncer configuration - load if enabled
 	pgbouncerEnabled := os.Getenv("PGBOUNCER_ENABLED") == "true"
 	if pgbouncerEnabled {
+		adminUser := "postgres"
 		s.PgBouncerConfig = &pkg.PgBouncerConf{
 			ListenAddress: "127.0.0.1",
 			ListenPort:    6432,
-			AdminUser:     "postgres",
+			AdminUser:     &adminUser,
 			// Other defaults from env vars/struct tags
 		}
 	}
@@ -960,10 +963,11 @@ func (s *HealthServer) LoadServiceConfigs() {
 	// PostgREST configuration - load if enabled  
 	postgrestEnabled := os.Getenv("POSTGREST_ENABLED") == "true"
 	if postgrestEnabled {
+		dbUri := "postgresql://postgres@localhost:5432/postgres"
 		s.PostgRESTConfig = &pkg.PostgrestConf{
-			DbUri:         "postgresql://postgres@localhost:5432/postgres",
+			DbUri:         &dbUri,
 			DbSchemas:     "public",
-			ServerHost:    "!4",
+			ServerHost:    "0.0.0.0",
 			ServerPort:    3000,
 			AdminRole:     "postgres",
 			AnonymousRole: "postgres",
@@ -974,14 +978,28 @@ func (s *HealthServer) LoadServiceConfigs() {
 	// WAL-G configuration - load if enabled
 	walgEnabled := os.Getenv("WALG_ENABLED") == "true"
 	if walgEnabled {
+		dataDir := os.Getenv("PGDATA")
+		if dataDir == "" {
+			dataDir = "/var/lib/postgresql/data"
+		}
+		
 		s.WalgConfig = &pkg.WalgConf{
 			Enabled:           true,
-			PostgresqlDataDir: os.Getenv("PGDATA"),
-			// Storage prefixes from env vars
-			S3Prefix:   os.Getenv("WALG_S3_PREFIX"),
-			GsPrefix:   os.Getenv("WALG_GS_PREFIX"),
-			AzPrefix:   os.Getenv("WALG_AZ_PREFIX"),
-			FilePrefix: os.Getenv("WALG_FILE_PREFIX"),
+			PostgresqlDataDir: dataDir,
+		}
+		
+		// Set storage prefixes from env vars if they exist
+		if s3Prefix := os.Getenv("WALG_S3_PREFIX"); s3Prefix != "" {
+			s.WalgConfig.S3Prefix = &s3Prefix
+		}
+		if gsPrefix := os.Getenv("WALG_GS_PREFIX"); gsPrefix != "" {
+			s.WalgConfig.GsPrefix = &gsPrefix
+		}
+		if azPrefix := os.Getenv("WALG_AZ_PREFIX"); azPrefix != "" {
+			s.WalgConfig.AzPrefix = &azPrefix
+		}
+		if filePrefix := os.Getenv("WALG_FILE_PREFIX"); filePrefix != "" {
+			s.WalgConfig.FilePrefix = &filePrefix
 		}
 	}
 }

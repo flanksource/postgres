@@ -1,4 +1,4 @@
-.PHONY: build build-15 build-16 build-17 build-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all clean help status
+.PHONY: build build-15 build-16 build-17 build-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all clean help status generate-structs validate-schema build-pgconfig test-config test-config-integration pgconfig-ci pgconfig pgconfig-test pgconfig-all
 
 # Docker registry and image configuration
 REGISTRY ?= ghcr.io
@@ -102,3 +102,29 @@ seed-15:
 
 seed-16:
 	task seed-pg16
+
+# PGConfig targets
+generate-structs:
+	task generate-structs
+
+validate-schema:
+	task validate-schema
+
+build-pgconfig:
+	task build-pgconfig
+
+test-config:
+	task test-config
+
+test-config-integration:
+	task pgconfig:test-config-integration
+
+pgconfig-ci:
+	task pgconfig:ci
+
+# PGConfig shortcuts
+pgconfig: build-pgconfig
+
+pgconfig-test: test-config
+
+pgconfig-all: generate-structs validate-schema build-pgconfig test-config

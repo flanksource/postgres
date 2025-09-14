@@ -1,0 +1,6 @@
+# Configuration with invalid enum values
+postgres:
+  log_level: "INVALID_LEVEL"
+  
+pgaudit:
+  log_level: "INVALID"

@@ -64,7 +64,8 @@ func (s Size) PostgreSQLMB() string {
 
 // MarshalJSON implements json.Marshaler interface
 func (s Size) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	// Use PostgreSQL-compatible format for JSON to avoid decimals
+	return json.Marshal(s.PostgreSQLString())
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface

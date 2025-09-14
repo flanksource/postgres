@@ -7,7 +7,7 @@ import (
 )
 
 func TestDetectXType_SizeParameters(t *testing.T) {
-	generator := &SchemaGenerator{version: "16.1.0"}
+	generator := &SchemaGenerator{version: "17.6.0"}
 
 	sizeTestCases := []struct {
 		name     string
@@ -442,20 +442,20 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "autovacuum_work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt
-				MinVal:  "-1",
-				MaxVal:  "2147483647",
+				MinVal:  -1,
+				MaxVal:  2147483647,
 			},
 			expected: "Size",
 		},
 		// From config.txt line 16: autovacuum_vacuum_cost_delay
 		{
-			name: "autovacuum_vacuum_cost_delay", 
+			name: "autovacuum_vacuum_cost_delay",
 			param: pkg.Param{
 				Name:    "autovacuum_vacuum_cost_delay",
 				VarType: "real",
 				Unit:    "", // No unit in config.txt
-				MinVal:  "-1",
-				MaxVal:  "100",
+				MinVal:  -1,
+				MaxVal:  100,
 			},
 			expected: "Duration",
 		},
@@ -466,8 +466,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "checkpoint_timeout",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt
-				MinVal:  "30",
-				MaxVal:  "86400",
+				MinVal:  30,
+				MaxVal:  86400,
 			},
 			expected: "Duration",
 		},
@@ -478,8 +478,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "effective_cache_size",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but represents 8kB pages
-				MinVal:  "1", 
-				MaxVal:  "2147483647",
+				MinVal:  1,
+				MaxVal:  2147483647,
 			},
 			expected: "Size",
 		},
@@ -490,8 +490,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "maintenance_work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is kB
-				MinVal:  "64",
-				MaxVal:  "2147483647",
+				MinVal:  64,
+				MaxVal:  2147483647,
 			},
 			expected: "Size",
 		},
@@ -502,8 +502,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "shared_buffers",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is 8kB blocks
-				MinVal:  "16",
-				MaxVal:  "1073741823",
+				MinVal:  16,
+				MaxVal:  1073741823,
 			},
 			expected: "Size",
 		},
@@ -514,8 +514,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is kB
-				MinVal:  "64",
-				MaxVal:  "2147483647",
+				MinVal:  64,
+				MaxVal:  2147483647,
 			},
 			expected: "Size",
 		},
@@ -526,8 +526,8 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 				Name:    "wal_buffers",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is 8kB blocks
-				MinVal:  "-1",
-				MaxVal:  "262143",
+				MinVal:  -1,
+				MaxVal:  262143,
 			},
 			expected: "Size",
 		},
@@ -652,10 +652,10 @@ func TestParameterTypeOverrides(t *testing.T) {
 	generator := &SchemaGenerator{version: "16.1.0"}
 
 	testCases := []struct {
-		name           string
-		param          pkg.Param
-		expectedType   string
-		expectedXType  string
+		name          string
+		param         pkg.Param
+		expectedType  string
+		expectedXType string
 	}{
 		{
 			name: "lock_timeout should be string with Duration x-type",
@@ -791,26 +791,5 @@ func TestParameterTypeOverrides(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// Benchmark the detectXType function to ensure performance is acceptable
-func BenchmarkDetectXType(b *testing.B) {
-	generator := &SchemaGenerator{version: "16.1.0"}
-	
-	testParams := []pkg.Param{
-		{Name: "shared_buffers", VarType: "integer", Unit: "8kB"},
-		{Name: "statement_timeout", VarType: "integer", Unit: "ms"},
-		{Name: "max_connections", VarType: "integer"},
-		{Name: "effective_cache_size", VarType: "integer"},
-		{Name: "log_min_duration_statement", VarType: "integer"},
-		{Name: "unknown_parameter", VarType: "integer"},
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for _, param := range testParams {
-			generator.detectXType(param)
-		}
 	}
 }

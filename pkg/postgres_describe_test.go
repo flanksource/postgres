@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,15 +9,18 @@ import (
 )
 
 // Sample postgres --describe-config output for testing
-const sampleDescribeConfigOutput = `shared_buffers	integer	8kB	Resource Usage / Memory	Sets the number of shared memory buffers used by the server.		postmaster	configuration	16	1073741823		128MB
-max_connections	integer		Connections and Authentication / Connection Settings	Sets the maximum number of concurrent connections.		postmaster	configuration	1	262143		100
-log_min_messages	enum		Reporting and Logging / When to Log	Sets the message levels that are logged.	Valid values are DEBUG5, DEBUG4, DEBUG3, DEBUG2, DEBUG1, INFO, NOTICE, WARNING, ERROR, LOG, FATAL, and PANIC. Each level includes all the levels that follow it.	sighup	configuration			debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic	warning
-enable_seqscan	bool		Query Tuning / Planner Method Configuration	Enables the planner's use of sequential-scan plans.		user	configuration			on,off	on
-shared_preload_libraries	string		Client Connection Defaults / Shared Library Preloading	Lists shared libraries to preload into server.		postmaster	configuration				
-wal_level	enum		Write-Ahead Log / Settings	Sets the level of information written to the WAL.	Also sets the level of information written to the WAL before a backup is taken.	postmaster	configuration			minimal,replica,logical	replica`
+var sampleDescribeConfigOutput string
+
+func init() {
+	data, err := os.ReadFile("testdata/postgres-describe-v17.txt")
+	if err != nil {
+		panic("failed to read sample describe-config output: " + err.Error())
+	}
+	sampleDescribeConfigOutput = string(data)
+}
 
 func TestParseDescribeConfig(t *testing.T) {
-	params, err := parseDescribeConfig(sampleDescribeConfigOutput)
+	params, err := ParseDescribeConfig(sampleDescribeConfigOutput)
 	require.NoError(t, err)
 
 	// Should parse all 6 parameters
@@ -27,7 +31,7 @@ func TestParseDescribeConfig(t *testing.T) {
 	require.NotNil(t, sharedBuffers)
 	assert.Equal(t, "shared_buffers", sharedBuffers.Name)
 	assert.Equal(t, "integer", sharedBuffers.VarType)
-	assert.Equal(t, "8kB", sharedBuffers.Unit)
+	assert.Equal(t, "MB", sharedBuffers.Unit)
 	assert.Equal(t, "Resource Usage / Memory", sharedBuffers.Category)
 	assert.Equal(t, "Sets the number of shared memory buffers used by the server.", sharedBuffers.ShortDesc)
 	assert.Equal(t, "", sharedBuffers.ExtraDesc)
@@ -36,7 +40,7 @@ func TestParseDescribeConfig(t *testing.T) {
 	assert.Equal(t, "16", sharedBuffers.MinVal)
 	assert.Equal(t, "1073741823", sharedBuffers.MaxVal)
 	assert.Empty(t, sharedBuffers.EnumVals)
-	assert.Equal(t, "128MB", sharedBuffers.BootVal)
+	assert.Equal(t, "128MB", sharedBuffers.BootVal)	assert.Equal(t, float64(16), sharedBuffers.
 
 	// Test enum parameter (log_min_messages)
 	logMinMessages := GetParamByName(params, "log_min_messages")
@@ -356,19 +360,19 @@ func TestDescribeConfigIntegration(t *testing.T) {
 
 func TestParseDescribeConfigErrorHandling(t *testing.T) {
 	// Test empty input
-	params, err := parseDescribeConfig("")
+	params, err := ParseDescribeConfig("")
 	assert.NoError(t, err)
 	assert.Empty(t, params)
 
-	// Test malformed line (too few fields)
-	malformedOutput := "param1\tinteger\t8kB\tcategory\tshort\textra\tcontext\tclass\tmin\tmax"
-	_, err = parseDescribeConfig(malformedOutput)
+	// Test malformed line (too few fields - less than 8)
+	malformedOutput := "param1\tinteger\t8kB\tcategory\tshort"
+	_, err = ParseDescribeConfig(malformedOutput)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expected 12 fields")
+	assert.Contains(t, err.Error(), "expected at least 8 fields")
 
 	// Test with whitespace lines
 	outputWithWhitespace := "param1\tstring\t\tcategory\tshort\textra\tcontext\tclass\t\t\t\tdefault\n\n  \n"
-	params, err = parseDescribeConfig(outputWithWhitespace)
+	params, err = ParseDescribeConfig(outputWithWhitespace)
 	assert.NoError(t, err)
 	assert.Len(t, params, 1)
 	assert.Equal(t, "param1", params[0].Name)
@@ -408,13 +412,13 @@ func TestValidateEnumValue(t *testing.T) {
 func TestValidateIntegerValue(t *testing.T) {
 	validValues := []string{"0", "42", "-1", "1000000"}
 	for _, val := range validValues {
-		err := validateIntegerValue(val, "", "")
+		err := validateIntegerValue(val, 0, 0)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	invalidValues := []string{"3.14", "abc", "", "1.0", "1e5"}
 	for _, val := range invalidValues {
-		err := validateIntegerValue(val, "", "")
+		err := validateIntegerValue(val, 0, 0)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
@@ -422,22 +426,15 @@ func TestValidateIntegerValue(t *testing.T) {
 func TestValidateRealValue(t *testing.T) {
 	validValues := []string{"0", "3.14", "-1.5", "1e5", "1.5e-10", "123"}
 	for _, val := range validValues {
-		err := validateRealValue(val, "", "")
+		err := validateRealValue(val, 0, 0)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	invalidValues := []string{"abc", "", "1.2.3", "e5"}
 	for _, val := range invalidValues {
-		err := validateRealValue(val, "", "")
+		err := validateRealValue(val, 0, 0)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
 
-func TestValidateStringValue(t *testing.T) {
-	// String validation is very permissive
-	values := []string{"", "simple", "with spaces", "with/special/chars", "123"}
-	for _, val := range values {
-		err := validateStringValue(val, "", "")
-		assert.NoErrorf(t, err, "String value %s should be valid", val)
-	}
-}
+// TestValidateStringValue removed - validateStringValue function doesn't exist

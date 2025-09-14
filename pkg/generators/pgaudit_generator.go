@@ -139,16 +139,12 @@ func (g *PGAuditConfigGenerator) addLogControlSection(sb *strings.Builder) {
 		sb.WriteString("\n")
 	}
 
-	// pgaudit.log_rows
-	if g.PGAuditConf.LogRows != "" && g.PGAuditConf.LogRows != "off" {
-		sb.WriteString("# Log rows - include row count for DML statements in audit log.\n")
-		sb.WriteString(fmt.Sprintf("pgaudit.log_rows = %s\n", g.PGAuditConf.LogRows))
-		sb.WriteString("\n")
-	}
+	// pgaudit.log_rows - Note: LogRows field not available in current schema
+	// This functionality has been removed or moved to a different configuration option
 }
 
 func (g *PGAuditConfigGenerator) addObjectAuditSection(sb *strings.Builder) {
-	if g.PGAuditConf.Role == "" {
+	if g.PGAuditConf.Role == nil || *g.PGAuditConf.Role == "" {
 		return
 	}
 
@@ -160,7 +156,7 @@ func (g *PGAuditConfigGenerator) addObjectAuditSection(sb *strings.Builder) {
 	sb.WriteString("# Role for object audit logging.\n")
 	sb.WriteString("# When this role or any role that it is a member of is specified in a GRANT\n")
 	sb.WriteString("# statement, the operation will be audit logged.\n")
-	sb.WriteString(fmt.Sprintf("pgaudit.role = '%s'\n", g.PGAuditConf.Role))
+	sb.WriteString(fmt.Sprintf("pgaudit.role = '%s'\n", *g.PGAuditConf.Role))
 	sb.WriteString("\n")
 }
 
@@ -170,8 +166,7 @@ func (g *PGAuditConfigGenerator) IsEnabled() bool {
 	return g.PGAuditConf.Log != "" && g.PGAuditConf.Log != "none" ||
 		g.PGAuditConf.LogCatalog == "on" ||
 		g.PGAuditConf.LogParameter == "on" ||
-		g.PGAuditConf.LogRows == "on" ||
 		g.PGAuditConf.LogRelation == "on" ||
 		g.PGAuditConf.LogClient == "on" ||
-		g.PGAuditConf.Role != ""
+		(g.PGAuditConf.Role != nil && *g.PGAuditConf.Role != "")
 }

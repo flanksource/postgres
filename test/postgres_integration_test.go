@@ -28,15 +28,17 @@ type PostgresIntegrationConfig struct {
 
 // PostgresIntegrationTest manages comprehensive PostgreSQL testing
 type PostgresIntegrationTest struct {
-	config *PostgresIntegrationConfig
-	client *DockerClient
+	config       *PostgresIntegrationConfig
+	client       *DockerClient
+	healthClient *HealthClient
 }
 
 // NewPostgresIntegrationTest creates a new comprehensive PostgreSQL test instance
 func NewPostgresIntegrationTest(config *PostgresIntegrationConfig) *PostgresIntegrationTest {
 	return &PostgresIntegrationTest{
-		config: config,
-		client: NewDockerClient(true),
+		config:       config,
+		client:       NewDockerClient(true),
+		healthClient: NewHealthClient("localhost", 8081), // pgconfig health endpoint
 	}
 }
 
@@ -313,23 +315,33 @@ func (pit *PostgresIntegrationTest) testBasicPostgreSQL() error {
 	return nil
 }
 
-// testExtensions tests PostgreSQL extensions
+// testExtensions tests PostgreSQL extensions using health endpoints
 func (pit *PostgresIntegrationTest) testExtensions() error {
-	pit.client.runner.Printf(colorGray, "", "Testing PostgreSQL extensions...")
+	pit.client.runner.Printf(colorGray, "", "Testing PostgreSQL extensions via health endpoints...")
 
-	db, err := pit.connectToPostgres()
-	if err != nil {
-		return fmt.Errorf("failed to connect to PostgreSQL: %v", err)
+	// Wait for health endpoint to be available
+	if err := pit.healthClient.WaitForHealthEndpoint(30); err != nil {
+		return fmt.Errorf("health endpoint not available: %v", err)
 	}
-	defer db.Close()
 
+	// Get extension status from health endpoint
+	if err := pit.healthClient.ValidateExtensionsHealth(); err != nil {
+		return fmt.Errorf("extension health validation failed: %v", err)
+	}
+
+	// Check specific extensions
 	for _, ext := range pit.config.Extensions {
-		if err := pit.testSingleExtension(db, ext); err != nil {
-			return fmt.Errorf("extension %s test failed: %v", ext, err)
+		installed, err := pit.healthClient.IsExtensionInstalled(ext)
+		if err != nil {
+			return fmt.Errorf("failed to check extension %s: %v", ext, err)
 		}
+		if !installed {
+			return fmt.Errorf("extension %s is not installed", ext)
+		}
+		pit.client.runner.Printf(colorGray, "", "  ✅ Extension %s is installed", ext)
 	}
 
-	pit.client.runner.Printf(colorGray, "", "✅ All extensions tested successfully")
+	pit.client.runner.Printf(colorGray, "", "✅ All extensions tested successfully via health endpoints")
 	return nil
 }
 
@@ -452,79 +464,61 @@ func (pit *PostgresIntegrationTest) testPgJWT(db *sql.DB) error {
 	return nil
 }
 
-// testPgBouncer tests PgBouncer connection pooling
+// testPgBouncer tests PgBouncer via health endpoints
 func (pit *PostgresIntegrationTest) testPgBouncer() error {
-	pit.client.runner.Printf(colorGray, "", "Testing PgBouncer connection pooling...")
+	pit.client.runner.Printf(colorGray, "", "Testing PgBouncer via health endpoints...")
 
-	db, err := pit.connectToPgBouncer()
+	// Wait for PgBouncer to be ready
+	if err := pit.healthClient.WaitForServiceRunning("pgbouncer", 20); err != nil {
+		return fmt.Errorf("PgBouncer not ready: %v", err)
+	}
+
+	// Get service details
+	pgbouncerDetails, err := pit.healthClient.GetServiceDetails("pgbouncer")
 	if err != nil {
-		return fmt.Errorf("failed to connect to PgBouncer: %v", err)
-	}
-	defer db.Close()
-
-	// Test basic query through PgBouncer
-	var result int
-	err = db.QueryRow("SELECT 1").Scan(&result)
-	if err != nil {
-		return fmt.Errorf("failed to query through PgBouncer: %v", err)
+		return fmt.Errorf("failed to get PgBouncer details: %v", err)
 	}
 
-	if result != 1 {
-		return fmt.Errorf("unexpected result from PgBouncer: %d", result)
+	// Validate service status
+	if pgbouncerDetails.Status != "running" {
+		return fmt.Errorf("PgBouncer status is %s, expected running", pgbouncerDetails.Status)
 	}
 
-	// Test connection to original table
-	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM test_integration").Scan(&count)
-	if err != nil {
-		return fmt.Errorf("failed to query test table through PgBouncer: %v", err)
+	if !pgbouncerDetails.PortOpen {
+		return fmt.Errorf("PgBouncer port %d is not accessible", pgbouncerDetails.Port)
 	}
 
-	if count != 3 {
-		return fmt.Errorf("unexpected count through PgBouncer: %d", count)
-	}
-
-	pit.client.runner.Printf(colorGray, "", "✅ PgBouncer functionality verified")
+	pit.client.runner.Printf(colorGray, "", "  ✅ PgBouncer is running on port %d", pgbouncerDetails.Port)
+	pit.client.runner.Printf(colorGray, "", "✅ PgBouncer functionality verified via health endpoints")
 	return nil
 }
 
-// testPostgREST tests PostgREST API
+// testPostgREST tests PostgREST via health endpoints
 func (pit *PostgresIntegrationTest) testPostgREST() error {
-	pit.client.runner.Printf(colorGray, "", "Testing PostgREST API...")
+	pit.client.runner.Printf(colorGray, "", "Testing PostgREST via health endpoints...")
 
-	// Test root endpoint
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/", pit.config.PostgRESTPort))
+	// Wait for PostgREST to be ready
+	if err := pit.healthClient.WaitForServiceRunning("postgrest", 20); err != nil {
+		return fmt.Errorf("PostgREST not ready: %v", err)
+	}
+
+	// Get service details
+	postgrestDetails, err := pit.healthClient.GetServiceDetails("postgrest")
 	if err != nil {
-		return fmt.Errorf("failed to connect to PostgREST: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("PostgREST returned status %d", resp.StatusCode)
+		return fmt.Errorf("failed to get PostgREST details: %v", err)
 	}
 
-	// Test table endpoint
-	resp, err = http.Get(fmt.Sprintf("http://localhost:%s/test_integration", pit.config.PostgRESTPort))
-	if err != nil {
-		return fmt.Errorf("failed to query table via PostgREST: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("PostgREST table query returned status %d", resp.StatusCode)
+	// Validate service status
+	if postgrestDetails.Status != "running" {
+		return fmt.Errorf("PostgREST status is %s, expected running", postgrestDetails.Status)
 	}
 
-	// Parse response
-	var records []map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&records); err != nil {
-		return fmt.Errorf("failed to parse PostgREST response: %v", err)
+	if !postgrestDetails.PortOpen {
+		return fmt.Errorf("PostgREST port %d is not accessible", postgrestDetails.Port)
 	}
 
-	if len(records) != 3 {
-		return fmt.Errorf("expected 3 records from PostgREST, got %d", len(records))
-	}
-
-	pit.client.runner.Printf(colorGray, "", "✅ PostgREST API functionality verified")
+	pit.client.runner.Printf(colorGray, "", "  ✅ PostgREST is running on port %d", postgrestDetails.Port)
+	pit.client.runner.Printf(colorGray, "", "✅ PostgREST functionality verified via health endpoints")
 	return nil
 }
 

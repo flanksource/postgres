@@ -1,0 +1,8 @@
+# Configuration with wrong data types
+postgres:
+  max_connections: "not a number"
+  shared_buffers: true
+  checkpoint_completion_target: "should be float"
+  
+pgbouncer:
+  listen_port: "not a port number"

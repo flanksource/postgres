@@ -40,13 +40,13 @@ func (p *Postgres) DescribeConfig() ([]Param, error) {
 		return nil, fmt.Errorf("failed to run postgres --describe-config: %w", err)
 	}
 
-	return parseDescribeConfig(string(output))
+	return ParseDescribeConfig(string(output))
 }
 
-// parseDescribeConfig parses the output of `postgres --describe-config`
+// ParseDescribeConfig parses the output of `postgres --describe-config`
 // The output is tab-separated values with the following fields (PostgreSQL 17+):
 // name, context, category, vartype, boot_val, min_val, max_val, short_desc, extra_desc
-func parseDescribeConfig(output string) ([]Param, error) {
+func ParseDescribeConfig(output string) ([]Param, error) {
 	var params []Param
 	lines := strings.Split(output, "\n")
 

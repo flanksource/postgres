@@ -166,9 +166,13 @@ func ApplyPostProcessors(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 // tuningPostProcessor is the default tuning post-processor
 func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) error {
 	// Create tuning config from the PostgresConf and system info
+	maxConn := 100 // default value
+	if pgConf.MaxConnections != nil {
+		maxConn = *pgConf.MaxConnections
+	}
 	config := &TuningConfig{
 		SystemInfo:     sysInfo,
-		MaxConnections: pgConf.MaxConnections,
+		MaxConnections: maxConn,
 		DBType:         sysinfo.DBTypeMixed, // Default to mixed workload
 		DiskType:       nil, // Use detected disk type
 	}
@@ -180,8 +184,9 @@ func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 	}
 
 	// Update the PostgresConf model with the calculated values
-	pgConf.MaxConnections = params.MaxConnections
-	pgConf.SharedBuffers = types.Size(utils.KBToBytes(params.SharedBuffers))
+	pgConf.MaxConnections = &params.MaxConnections
+	sharedBuffersSize := types.Size(utils.KBToBytes(params.SharedBuffers))
+	pgConf.SharedBuffers = &sharedBuffersSize
 	
 	// Only set fields that exist in the new PostgresConf struct
 	// The rest will be handled by the generators when creating config files

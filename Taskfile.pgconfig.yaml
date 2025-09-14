@@ -9,30 +9,17 @@ output:
 vars:
   SCHEMA_FILE: "schema/pgconfig-schema.json"
   GENERATED_FILE: "pkg/model_generated.go"
-  GENERATOR_SCRIPT: "hack/generate-structs.go"
 
 tasks:
   generate-schema:
-    desc: Generate JSON schema from PostgreSQL describe-config output
+    desc: Generate JSON schema and Go structs from PostgreSQL describe-config output
     generates:
       - "{{.SCHEMA_FILE}}"
-    cmds:
-      - echo "Generating JSON schema from PostgreSQL configuration..."
-      - go run cmd/schema/main.go
-      - "echo ✅ Generated JSON schema: {{.SCHEMA_FILE}}"
-
-  generate-structs:
-    desc: Generate Go structs from JSON schema with custom type processing
-    sources:
-      - "{{.SCHEMA_FILE}}"
-      - "hack/generate-structs.go"
-      - "pkg/generators/schema_generator.go"
-    generates:
       - "{{.GENERATED_FILE}}"
     cmds:
-      - echo "Generating Go structs from JSON schema with type detection..."
-      - go run hack/generate-structs.go
-      - "echo ✅ Generated structs with custom types: {{.GENERATED_FILE}}"
+      - echo "Generating JSON schema and Go structs from PostgreSQL configuration..."
+      - go run cmd/schema/main.go
+      - "echo ✅ Generated schema and structs with custom pointer types"
 
   validate-schema:
     desc: Validate the JSON schema file
@@ -56,7 +43,7 @@ tasks:
   build-pgconfig:
     desc: Build the pgconfig CLI tool
     deps:
-      - generate-structs
+      - generate-schema
     sources:
       - "cmd/pgconfig/**/*.go"
       - "pkg/**/*.go"
@@ -71,7 +58,7 @@ tasks:
   test-config:
     desc: Run configuration tests
     deps:
-      - generate-structs
+      - generate-schema
     cmds:
       - echo "Running configuration tests..."
       - go test ./pkg -v -run "TestConfig|TestLoad|TestGenerate|TestSchema|TestValidation"
@@ -90,7 +77,7 @@ tasks:
     desc: Run all configuration-related tests
     deps:
       - validate-schema
-      - generate-structs
+      - generate-schema
     cmds:
       - task: test-config
       - task: test-config-integration
@@ -135,7 +122,7 @@ tasks:
   benchmark-config:
     desc: Run configuration loading benchmarks
     deps:
-      - generate-structs
+      - generate-schema
     cmds:
       - echo "Running configuration loading benchmarks..."
       - go test -bench=BenchmarkConfig -benchmem ./pkg
@@ -165,7 +152,7 @@ tasks:
       - echo "====================="
       - echo ""
       - echo "Generation Tasks:"
-      - echo "  generate-structs       - Generate Go structs from JSON schema"
+      - echo "  generate-schema        - Generate JSON schema and Go structs"
       - echo "  validate-schema        - Validate the JSON schema file"
       - echo "  build-pgconfig         - Build the pgconfig CLI tool"
       - echo ""
@@ -191,7 +178,7 @@ tasks:
     cmds:
       - task: check-dependencies
       - task: validate-schema
-      - task: generate-structs
+      - task: generate-schema
       - task: lint-config
       - task: test-all
       - task: validate-generated-configs

@@ -16,22 +16,22 @@ func TestSizeParsing(t *testing.T) {
 		{"1GB", 1024 * 1024 * 1024},
 		{"512kB", 512 * 1024},
 		{"4TB", 4 * 1024 * 1024 * 1024 * 1024},
-		
+
 		// PostgreSQL defaults from config.txt
-		{"64MB", 64 * 1024 * 1024}, // maintenance_work_mem default
-		{"4MB", 4 * 1024 * 1024},   // work_mem default
-		{"16MB", 16 * 1024 * 1024}, // wal_buffers default
+		{"64MB", 64 * 1024 * 1024},      // maintenance_work_mem default
+		{"4MB", 4 * 1024 * 1024},        // work_mem default
+		{"16MB", 16 * 1024 * 1024},      // wal_buffers default
 		{"4GB", 4 * 1024 * 1024 * 1024}, // effective_cache_size default
-		
+
 		// Edge cases
 		{"0", 0},
 		{"1024", 1024}, // plain number assumed to be bytes
 		{"1kB", 1024},
 		{"1MB", 1024 * 1024},
 		{"100GB", 100 * 1024 * 1024 * 1024},
-		
+
 		// PostgreSQL block sizes (8kB units)
-		{"1024", 1024}, // shared_buffers in pages -> bytes
+		{"1024", 1024},   // shared_buffers in pages -> bytes
 		{"16384", 16384}, // temp_buffers in pages -> bytes
 	}
 
@@ -58,7 +58,7 @@ func TestSizeJSONMarshaling(t *testing.T) {
 	}
 
 	// Should be a string representation
-	expected := `"128.0MB"`
+	expected := `"128MB"`
 	if string(jsonData) != expected {
 		t.Errorf("Expected JSON %s, got %s", expected, string(jsonData))
 	}
@@ -105,28 +105,28 @@ func TestDurationParsing(t *testing.T) {
 		{"30s", 30 * time.Second},
 		{"1h", 1 * time.Hour},
 		{"1d", 24 * time.Hour},
-		
+
 		// PostgreSQL defaults from config.txt
-		{"60s", 60 * time.Second},   // authentication_timeout default
-		{"30s", 30 * time.Second},   // checkpoint_timeout minimum
-		{"5min", 5 * time.Minute},   // checkpoint_timeout typical
-		{"1s", 1 * time.Second},     // deadlock_timeout minimum
+		{"60s", 60 * time.Second},         // authentication_timeout default
+		{"30s", 30 * time.Second},         // checkpoint_timeout minimum
+		{"5min", 5 * time.Minute},         // checkpoint_timeout typical
+		{"1s", 1 * time.Second},           // deadlock_timeout minimum
 		{"200ms", 200 * time.Millisecond}, // bgwriter_delay typical
-		
+
 		// Microseconds (PostgreSQL supports)
 		{"500us", 500 * time.Microsecond},
 		{"1ms", 1 * time.Millisecond},
-		
+
 		// Edge cases
 		{"0", 0},
 		{"1000", 1000 * time.Millisecond}, // plain number assumed to be milliseconds
-		{"86400s", 86400 * time.Second}, // 1 day in seconds
-		{"1440min", 1440 * time.Minute}, // 1 day in minutes
-		{"24h", 24 * time.Hour}, // 1 day in hours
-		
+		{"86400s", 86400 * time.Second},   // 1 day in seconds
+		{"1440min", 1440 * time.Minute},   // 1 day in minutes
+		{"24h", 24 * time.Hour},           // 1 day in hours
+
 		// PostgreSQL vacuum and autovacuum delays
 		{"20ms", 20 * time.Millisecond}, // vacuum_cost_delay default
-		{"0ms", 0}, // disabled delay
+		{"0ms", 0},                      // disabled delay
 	}
 
 	for _, test := range tests {
@@ -263,7 +263,7 @@ func TestPostgreSQLRealisticValues(t *testing.T) {
 		expected string // PostgreSQL representation
 	}{
 		{"shared_buffers typical", "128MB", "128MB"},
-		{"work_mem typical", "4MB", "4MB"}, 
+		{"work_mem typical", "4MB", "4MB"},
 		{"maintenance_work_mem typical", "64MB", "64MB"},
 		{"effective_cache_size typical", "4GB", "4096MB"}, // Converted to MB
 		{"wal_buffers typical", "16MB", "16MB"},

@@ -54,13 +54,12 @@ func (g *PostgRESTConfigGenerator) GenerateConfig() (*pkg.PostgrestConf, error) 
 
 	config := &pkg.PostgrestConf{
 		// Database connection
-		DbUri:         dbUri,
-		DbSchemas:     "public",
-		DbPool:        dbPool,
-		DbPoolTimeout: 10,
+		DbUri:     &dbUri,
+		DbSchemas: "public",
+		DbPool:    dbPool,
 
 		// JWT authentication
-		JwtSecret:     jwtSecret,
+		JwtSecret: &jwtSecret,
 		JwtAud:        "",
 		AdminRole:     "postgres",
 		AnonymousRole: "anon",
@@ -145,14 +144,22 @@ func (g *PostgRESTConfigGenerator) GenerateEnvFile() (string, error) {
 
 	// Database connection
 	sb.WriteString("# Database Connection\n")
-	sb.WriteString(fmt.Sprintf("DB_URI=\"%s\"\n", g.config.DbUri))
+	dbUri := ""
+	if g.config.DbUri != nil {
+		dbUri = *g.config.DbUri
+	}
+	sb.WriteString(fmt.Sprintf("DB_URI=\"%s\"\n", dbUri))
 	sb.WriteString(fmt.Sprintf("DB_SCHEMAS=\"%s\"\n", g.config.DbSchemas))
 	sb.WriteString(fmt.Sprintf("DB_POOL=%d\n", g.config.DbPool))
 	sb.WriteString(fmt.Sprintf("DB_POOL_TIMEOUT=%d\n\n", g.config.DbPoolTimeout))
 
 	// Authentication
 	sb.WriteString("# JWT Authentication\n")
-	sb.WriteString(fmt.Sprintf("JWT_SECRET=\"%s\"\n", g.config.JwtSecret))
+	jwtSecret := ""
+	if g.config.JwtSecret != nil {
+		jwtSecret = *g.config.JwtSecret
+	}
+	sb.WriteString(fmt.Sprintf("JWT_SECRET=\"%s\"\n", jwtSecret))
 	if g.config.JwtAud != "" {
 		sb.WriteString(fmt.Sprintf("JWT_AUD=\"%s\"\n", g.config.JwtAud))
 	} else {
@@ -213,6 +220,10 @@ func (g *PostgRESTConfigGenerator) generateHeader() string {
 }
 
 func (g *PostgRESTConfigGenerator) generateDatabaseSection() string {
+	dbUri := ""
+	if g.config.DbUri != nil {
+		dbUri = *g.config.DbUri
+	}
 	return fmt.Sprintf(`# Database Connection
 db-uri = "%s"
 db-schemas = "%s"
@@ -220,7 +231,7 @@ db-pool = %d
 db-pool-timeout = %d
 
 `,
-		g.config.DbUri,
+		dbUri,
 		g.config.DbSchemas,
 		g.config.DbPool,
 		g.config.DbPoolTimeout,
@@ -228,8 +239,12 @@ db-pool-timeout = %d
 }
 
 func (g *PostgRESTConfigGenerator) generateAuthSection() string {
+	jwtSecret := ""
+	if g.config.JwtSecret != nil {
+		jwtSecret = *g.config.JwtSecret
+	}
 	authSection := fmt.Sprintf(`# JWT Authentication
-jwt-secret = "%s"`, g.config.JwtSecret)
+jwt-secret = "%s"`, jwtSecret)
 
 	if g.config.JwtAud != "" {
 		authSection += fmt.Sprintf(`

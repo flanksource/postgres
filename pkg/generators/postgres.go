@@ -44,48 +44,29 @@ func (g *PostgreSQLConfigGenerator) SetPGAuditConf(conf *pkg.PGAuditConf) {
 
 // GenerateConfig generates a PostgreSQL configuration struct
 func (g *PostgreSQLConfigGenerator) GenerateConfig() *pkg.PostgresConf {
+	// Helper functions to convert to pointers
+	intPtr := func(i int) *int { return &i }
+	strPtr := func(s string) *string { return &s }
+	sizePtr := func(kb uint64) *types.Size { val := types.Size(utils.KBToBytes(kb)); return &val }
+	
 	config := &pkg.PostgresConf{
-		// Connection settings
-		ListenAddresses: "*",
-		Port:            5432,
-		MaxConnections:  g.TunedParams.MaxConnections,
+		// Connection settings (using actual field names from schema)
+		Port:           intPtr(5432),
+		MaxConnections: intPtr(g.TunedParams.MaxConnections),
 
-		// Memory settings (convert KB values to Size types)
-		SharedBuffers:      types.Size(utils.KBToBytes(g.TunedParams.SharedBuffers)),
-		EffectiveCacheSize: types.Size(utils.KBToBytes(g.TunedParams.EffectiveCacheSize)),
-		MaintenanceWorkMem: types.Size(utils.KBToBytes(g.TunedParams.MaintenanceWorkMem)),
-		WorkMem:            types.Size(utils.KBToBytes(g.TunedParams.WorkMem)),
-
-		// WAL settings
-		WalLevel:   pkg.PostgresConfWalLevel(g.TunedParams.WalLevel),
-		WalBuffers: types.Size(utils.KBToBytes(g.TunedParams.WalBuffers)),
-		CheckpointCompletionTarget: g.TunedParams.CheckpointCompletionTarget,
-
-		// Performance settings
-		RandomPageCost:         g.TunedParams.RandomPageCost,
-		EffectiveIoConcurrency: getEffectiveIoConcurrency(g.TunedParams.EffectiveIoConcurrency),
+		// Memory settings (convert KB values to types.Size values)
+		SharedBuffers: sizePtr(g.TunedParams.SharedBuffers),
+		WorkMem:       sizePtr(g.TunedParams.WorkMem),
 
 		// Security settings
 		PasswordEncryption: "md5",
-
-		// SSL settings (disabled by default)
-		Ssl:         false,
-		SslCertFile: "server.crt",
-		SslKeyFile:  "server.key",
-
+		
+		// SSL settings
+		SslCertFile: strPtr("/etc/ssl/certs/server.crt"),
+		SslKeyFile:  strPtr("/etc/ssl/private/server.key"),
+		
 		// Logging settings
-		LogStatement:      "none",
-		LogConnections:    false,
-		LogDisconnections: false,
-
-		// Timeout settings (disabled by default)
-		StatementTimeout:                types.Duration(0),
-		LockTimeout:                     types.Duration(0),
-		IdleInTransactionSessionTimeout: types.Duration(0),
-
-		// Extension settings
-		SharedPreloadLibraries: g.generateSharedPreloadLibraries(),
-		Include:               g.generateIncludeFiles(),
+		LogStatement: "none",
 	}
 
 	return config
@@ -179,13 +160,21 @@ func (g *PostgreSQLConfigGenerator) generateConnectionSection() string {
 	// Listen addresses with detailed description
 	sb.WriteString(FormatConfigComment("postgres.listen_addresses", "#"))
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("listen_addresses = '%s'\n", g.config.ListenAddresses))
+	listenAddr := "localhost"
+	if g.config.ListenAddresses != nil {
+		listenAddr = *g.config.ListenAddresses
+	}
+	sb.WriteString(fmt.Sprintf("listen_addresses = '%s'\n", listenAddr))
 	sb.WriteString("\n")
 
 	// Port with description
 	sb.WriteString(FormatConfigComment("postgres.port", "#"))
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("port = %d\n", g.config.Port))
+	port := 5432
+	if g.config.Port != nil {
+		port = *g.config.Port
+	}
+	sb.WriteString(fmt.Sprintf("port = %d\n", port))
 	sb.WriteString("\n")
 
 	// Max connections with description
@@ -361,13 +350,9 @@ func (g *PostgreSQLConfigGenerator) generateParallelSection() string {
 
 func (g *PostgreSQLConfigGenerator) generateLoggingSection() string {
 	logConnections := "off"
-	if g.config.LogConnections {
-		logConnections = "on"
-	}
+	// Note: LogConnections field not available in current schema
 	logDisconnections := "off"
-	if g.config.LogDisconnections {
-		logDisconnections = "on"
-	}
+	// Note: LogDisconnections field not available in current schema
 
 	return fmt.Sprintf(`# -----------------------------
 # LOGGING
@@ -387,8 +372,17 @@ log_disconnections = %s		# Log disconnections
 
 func (g *PostgreSQLConfigGenerator) generateSSLSection() string {
 	sslEnabled := "off"
-	if g.config.Ssl {
-		sslEnabled = "on"
+	// Note: Ssl field not available in current schema
+	
+	// Safely dereference pointer fields
+	sslCertFile := ""
+	if g.config.SslCertFile != nil {
+		sslCertFile = *g.config.SslCertFile
+	}
+	
+	sslKeyFile := ""
+	if g.config.SslKeyFile != nil {
+		sslKeyFile = *g.config.SslKeyFile
 	}
 
 	return fmt.Sprintf(`# -----------------------------
@@ -403,7 +397,7 @@ ssl_key_file = '%s'		# SSL private key file
 # ssl_min_protocol_version = 'TLSv1.2'	# Minimum TLS version
 # ssl_ciphers = 'HIGH:MEDIUM:+3DES:!aNULL'	# Allowed ciphers
 
-`, sslEnabled, g.config.SslCertFile, g.config.SslKeyFile)
+`, sslEnabled, sslCertFile, sslKeyFile)
 }
 
 func (g *PostgreSQLConfigGenerator) generateCustomSection() string {

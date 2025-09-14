@@ -51,11 +51,11 @@ postgrest:
 
 	// Test that file values override defaults
 	if conf.Postgres != nil {
-		if conf.Postgres.Port != 9999 {
-			t.Errorf("Expected postgres port 9999, got %d", conf.Postgres.Port)
+		if conf.Postgres.Port == nil || *conf.Postgres.Port != 9999 {
+			t.Errorf("Expected postgres port 9999, got %v", conf.Postgres.Port)
 		}
-		if conf.Postgres.MaxConnections != 50 {
-			t.Errorf("Expected max_connections 50, got %d", conf.Postgres.MaxConnections)
+		if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 50 {
+			t.Errorf("Expected max_connections 50, got %v", conf.Postgres.MaxConnections)
 		}
 	}
 
@@ -106,11 +106,11 @@ func TestLoadConfigWithEnvVars(t *testing.T) {
 
 	// Test that environment variables are applied
 	if conf.Postgres != nil {
-		if conf.Postgres.Port != 8888 {
-			t.Errorf("Expected postgres port from env 8888, got %d", conf.Postgres.Port)
+		if conf.Postgres.Port == nil || *conf.Postgres.Port != 8888 {
+			t.Errorf("Expected postgres port from env 8888, got %v", conf.Postgres.Port)
 		}
-		if conf.Postgres.MaxConnections != 200 {
-			t.Errorf("Expected max_connections from env 200, got %d", conf.Postgres.MaxConnections)
+		if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 200 {
+			t.Errorf("Expected max_connections from env 200, got %v", conf.Postgres.MaxConnections)
 		}
 	}
 
@@ -138,12 +138,12 @@ func TestLoadConfigDefaults(t *testing.T) {
 	// Test that schema defaults are applied
 	if conf.Postgres != nil {
 		// Default port should be 5432
-		if conf.Postgres.Port != 5432 {
-			t.Errorf("Expected default postgres port 5432, got %d", conf.Postgres.Port)
+		if conf.Postgres.Port == nil || *conf.Postgres.Port != 5432 {
+			t.Errorf("Expected default postgres port 5432, got %v", conf.Postgres.Port)
 		}
 		// Default max_connections should be 100
-		if conf.Postgres.MaxConnections != 100 {
-			t.Errorf("Expected default max_connections 100, got %d", conf.Postgres.MaxConnections)
+		if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 100 {
+			t.Errorf("Expected default max_connections 100, got %v", conf.Postgres.MaxConnections)
 		}
 	}
 }

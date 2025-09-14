@@ -1,0 +1,332 @@
+package pkg
+
+import (
+	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// Validator provides Java-compatible PostgreSQL parameter validation
+type Validator struct {
+	params map[string]*Param
+	version PgVersion
+}
+
+// NewValidator creates a new validator for the specified PostgreSQL version
+func NewValidator(version string) (*Validator, error) {
+	pgVersion, err := GetPgVersion(version)
+	if err != nil {
+		return nil, err
+	}
+
+	params, err := LoadParametersForVersion(version)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Validator{
+		params:  GetParameterMap(params),
+		version: pgVersion,
+	}, nil
+}
+
+// ValidateParameter validates a parameter name and value
+func (v *Validator) ValidateParameter(name, value string) (*ValidatedParam, error) {
+	// Check if it's a custom option (has dot notation)
+	if v.isCustomOption(name) {
+		return v.validateCustomOption(name, value)
+	}
+
+	// Look up parameter (case-insensitive)
+	param, exists := v.params[strings.ToLower(name)]
+	if !exists {
+		return nil, fmt.Errorf("unknown parameter: %s", name)
+	}
+
+	// Validate based on type
+	validatedValue, err := v.validateValue(param, value)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ValidatedParam{
+		Name:     param.Name,
+		Value:    validatedValue,
+		Type:     param.VarType,
+		Unit:     param.Unit,
+		Original: value,
+	}, nil
+}
+
+// ValidatedParam represents a validated parameter with normalized value
+type ValidatedParam struct {
+	Name     string
+	Value    string
+	Type     string
+	Unit     string
+	Original string
+}
+
+// isCustomOption checks if a parameter name is a custom option (contains dot)
+func (v *Validator) isCustomOption(name string) bool {
+	if !strings.Contains(name, ".") || strings.HasPrefix(name, ".") {
+		return false
+	}
+
+	// Validate character set (Java identifier parts and dots)
+	for _, ch := range name {
+		if !isJavaIdentifierPart(ch) && ch != '.' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// isJavaIdentifierPart checks if a character is valid in a Java identifier
+func isJavaIdentifierPart(ch rune) bool {
+	return (ch >= 'a' && ch <= 'z') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= '0' && ch <= '9') ||
+		ch == '_' || ch == '$'
+}
+
+// validateCustomOption validates a custom option (extension parameter)
+func (v *Validator) validateCustomOption(name, value string) (*ValidatedParam, error) {
+	// Custom options are generally string type
+	// We accept any value for custom options
+	return &ValidatedParam{
+		Name:     name,
+		Value:    value,
+		Type:     "string",
+		Unit:     "",
+		Original: value,
+	}, nil
+}
+
+// validateValue validates a parameter value based on its type
+func (v *Validator) validateValue(param *Param, value string) (string, error) {
+	switch param.VarType {
+	case "bool", "boolean":
+		return v.validateBoolean(value)
+	case "integer":
+		return v.validateInteger(param, value)
+	case "real":
+		return v.validateReal(param, value)
+	case "enum":
+		return v.validateEnum(param, value)
+	case "string":
+		return value, nil
+	default:
+		return value, nil
+	}
+}
+
+// validateBoolean validates and normalizes boolean values
+// Accepts: on/off, true/false, t/f, yes/no, y/n, 1/0
+// Returns: on/off (normalized form)
+func (v *Validator) validateBoolean(value string) (string, error) {
+	lower := strings.ToLower(value)
+	
+	switch lower {
+	case "on", "true", "t", "yes", "y", "1":
+		return "on", nil
+	case "off", "false", "f", "no", "n", "0":
+		return "off", nil
+	default:
+		return "", fmt.Errorf("invalid boolean value: %s", value)
+	}
+}
+
+// validateInteger validates integer values with support for hex/octal notation
+func (v *Validator) validateInteger(param *Param, value string) (string, error) {
+	// Handle empty value
+	if value == "" {
+		return "", fmt.Errorf("invalid integer value: empty string")
+	}
+
+	// Parse the integer value (supports hex/octal)
+	intVal, err := v.parseInteger(value)
+	if err != nil {
+		return "", fmt.Errorf("invalid integer value: %s", value)
+	}
+
+	// Check range if specified
+	if param.MinVal != 0 || param.MaxVal != 0 {
+		if float64(intVal) < param.MinVal || float64(intVal) > param.MaxVal {
+			return "", fmt.Errorf("value %d out of range [%.0f, %.0f]", intVal, param.MinVal, param.MaxVal)
+		}
+	}
+
+	// Special formatting for file permission parameters
+	if v.isOctalParam(param.Name) {
+		return fmt.Sprintf("%04o", intVal), nil
+	}
+
+	return strconv.FormatInt(intVal, 10), nil
+}
+
+// parseInteger parses integer with support for hex (0x) and octal (0) notation
+func (v *Validator) parseInteger(value string) (int64, error) {
+	// Remove any whitespace
+	value = strings.TrimSpace(value)
+	
+	// Handle negative numbers
+	negative := false
+	if strings.HasPrefix(value, "-") {
+		negative = true
+		value = value[1:]
+	} else if strings.HasPrefix(value, "+") {
+		value = value[1:]
+	}
+
+	var result int64
+	var err error
+
+	// Hexadecimal: 0x or 0X prefix
+	if strings.HasPrefix(strings.ToLower(value), "0x") {
+		result, err = strconv.ParseInt(value[2:], 16, 64)
+	} else if value != "0" && strings.HasPrefix(value, "0") && !strings.Contains(value, ".") {
+		// Octal: starts with 0 (but not just "0")
+		result, err = strconv.ParseInt(value, 8, 64)
+	} else {
+		// Decimal
+		result, err = strconv.ParseInt(value, 10, 64)
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	if negative {
+		result = -result
+	}
+
+	return result, nil
+}
+
+// isOctalParam checks if a parameter should be formatted as octal
+func (v *Validator) isOctalParam(name string) bool {
+	octalParams := []string{"unix_socket_permissions", "log_file_mode"}
+	for _, p := range octalParams {
+		if p == name {
+			return true
+		}
+	}
+	return false
+}
+
+// validateReal validates real/float values
+func (v *Validator) validateReal(param *Param, value string) (string, error) {
+	// Parse the float value
+	floatVal, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		// Try parsing as integer (may have hex/octal notation)
+		if intVal, intErr := v.parseInteger(value); intErr == nil {
+			floatVal = float64(intVal)
+		} else {
+			return "", fmt.Errorf("invalid real value: %s", value)
+		}
+	}
+
+	// Check range if specified
+	if param.MinVal != 0 || param.MaxVal != 0 {
+		if floatVal < param.MinVal || floatVal > param.MaxVal {
+			return "", fmt.Errorf("value %f out of range [%f, %f]", floatVal, param.MinVal, param.MaxVal)
+		}
+	}
+
+	// Format with appropriate precision
+	if floatVal == math.Trunc(floatVal) {
+		return strconv.FormatInt(int64(floatVal), 10), nil
+	}
+	return strconv.FormatFloat(floatVal, 'f', -1, 64), nil
+}
+
+// validateEnum validates enum values (case-insensitive)
+func (v *Validator) validateEnum(param *Param, value string) (string, error) {
+	// Case-insensitive comparison for enum values
+	for _, enumVal := range param.EnumVals {
+		if strings.EqualFold(value, enumVal) {
+			return enumVal, nil // Return the canonical form
+		}
+	}
+
+	return "", fmt.Errorf("invalid enum value '%s' for parameter '%s', valid values: %v", 
+		value, param.Name, param.EnumVals)
+}
+
+// ParseMemoryValue parses memory values with units and normalizes them
+func (v *Validator) ParseMemoryValue(value string) (int64, string, error) {
+	// Regular expression to match number with optional unit
+	re := regexp.MustCompile(`^(\d+(?:\.\d+)?)\s*([kKmMgGtT]?[bB]?)$`)
+	matches := re.FindStringSubmatch(strings.TrimSpace(value))
+	
+	if matches == nil {
+		// Try parsing as plain number
+		if num, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return num, "kB", nil // Default unit for memory is kB
+		}
+		return 0, "", fmt.Errorf("invalid memory value: %s", value)
+	}
+
+	numStr := matches[1]
+	unit := strings.ToUpper(matches[2])
+
+	// Parse the numeric part
+	num, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return 0, "", fmt.Errorf("invalid numeric value: %s", numStr)
+	}
+
+	// Normalize unit
+	if unit == "" || unit == "B" {
+		unit = "B"
+	} else if unit == "K" || unit == "KB" {
+		unit = "KB"
+	} else if unit == "M" || unit == "MB" {
+		unit = "MB"
+	} else if unit == "G" || unit == "GB" {
+		unit = "GB"
+	} else if unit == "T" || unit == "TB" {
+		unit = "TB"
+	}
+
+	// Convert to bytes for normalization
+	var bytes int64
+	switch unit {
+	case "B":
+		bytes = int64(num)
+	case "KB":
+		bytes = int64(num * 1024)
+	case "MB":
+		bytes = int64(num * 1024 * 1024)
+	case "GB":
+		bytes = int64(num * 1024 * 1024 * 1024)
+	case "TB":
+		bytes = int64(num * 1024 * 1024 * 1024 * 1024)
+	}
+
+	// Normalize to the most appropriate unit
+	normalizedValue, normalizedUnit := v.normalizeMemory(bytes)
+	return normalizedValue, normalizedUnit, nil
+}
+
+// normalizeMemory normalizes bytes to the most appropriate unit
+func (v *Validator) normalizeMemory(bytes int64) (int64, string) {
+	if bytes >= 1024*1024*1024*1024 && bytes%(1024*1024*1024*1024) == 0 {
+		return bytes / (1024 * 1024 * 1024 * 1024), "TB"
+	}
+	if bytes >= 1024*1024*1024 && bytes%(1024*1024*1024) == 0 {
+		return bytes / (1024 * 1024 * 1024), "GB"
+	}
+	if bytes >= 1024*1024 && bytes%(1024*1024) == 0 {
+		return bytes / (1024 * 1024), "MB"
+	}
+	if bytes >= 1024 && bytes%1024 == 0 {
+		return bytes / 1024, "KB"
+	}
+	return bytes, "B"
+}

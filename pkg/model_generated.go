@@ -2,7 +2,10 @@
 
 package pkg
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/flanksource/postgres/pkg/types"
+)
 import "fmt"
 import "reflect"
 import "regexp"
@@ -10,25 +13,25 @@ import "regexp"
 // Database connection configuration for PgBouncer
 type DatabaseConfig struct {
 	// Query to run on new connections
-	ConnectQuery *string `yaml:"connect_query,omitempty" mapstructure:"connect_query,omitempty"`
+	ConnectQuery *string `json:"connect_query,omitempty" yaml:"connect_query,omitempty" mapstructure:"connect_query,omitempty"`
 
 	// Database name
-	Dbname *string `yaml:"dbname,omitempty" mapstructure:"dbname,omitempty"`
+	Dbname *string `json:"dbname,omitempty" yaml:"dbname,omitempty" mapstructure:"dbname,omitempty"`
 
 	// Database host
-	Host string `yaml:"host,omitempty" mapstructure:"host,omitempty"`
+	Host string `json:"host,omitempty" yaml:"host,omitempty" mapstructure:"host,omitempty"`
 
 	// Database password
-	Password *string `yaml:"password,omitempty" mapstructure:"password,omitempty"`
+	Password *string `json:"password,omitempty" yaml:"password,omitempty" mapstructure:"password,omitempty"`
 
 	// Pool size for this database
-	PoolSize *int `yaml:"pool_size,omitempty" mapstructure:"pool_size,omitempty"`
+	PoolSize *int `json:"pool_size,omitempty" yaml:"pool_size,omitempty" mapstructure:"pool_size,omitempty"`
 
 	// Database port
-	Port int `yaml:"port,omitempty" mapstructure:"port,omitempty"`
+	Port int `json:"port,omitempty" yaml:"port,omitempty" mapstructure:"port,omitempty"`
 
 	// Database user
-	User *string `yaml:"user,omitempty" mapstructure:"user,omitempty"`
+	User *string `json:"user,omitempty" yaml:"user,omitempty" mapstructure:"user,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -65,57 +68,57 @@ func (j *DatabaseConfig) UnmarshalJSON(value []byte) error {
 type PGAuditConf struct {
 	// Specifies whether audit logging should be filtered using role-based access
 	// control
-	FilterUsingRole PGAuditConfFilterUsingRole `yaml:"filter_using_role,omitempty" mapstructure:"filter_using_role,omitempty"`
+	FilterUsingRole PGAuditConfFilterUsingRole `json:"filter_using_role,omitempty" yaml:"filter_using_role,omitempty" mapstructure:"filter_using_role,omitempty"`
 
 	// Specifies which classes of statements will be logged by session audit logging
-	Log PGAuditConfLog `yaml:"log,omitempty" mapstructure:"log,omitempty"`
+	Log PGAuditConfLog `json:"log,omitempty" yaml:"log,omitempty" mapstructure:"log,omitempty"`
 
 	// Specifies that session logging should be enabled in the case where all
 	// relations in a statement are in pg_catalog
-	LogCatalog PGAuditConfLogCatalog `yaml:"log_catalog,omitempty" mapstructure:"log_catalog,omitempty"`
+	LogCatalog PGAuditConfLogCatalog `json:"log_catalog,omitempty" yaml:"log_catalog,omitempty" mapstructure:"log_catalog,omitempty"`
 
 	// Specifies whether log messages will be visible to a client process
-	LogClient PGAuditConfLogClient `yaml:"log_client,omitempty" mapstructure:"log_client,omitempty"`
+	LogClient PGAuditConfLogClient `json:"log_client,omitempty" yaml:"log_client,omitempty" mapstructure:"log_client,omitempty"`
 
 	// Specifies the log level that will be used for log entries
-	LogLevel PGAuditConfLogLevel `yaml:"log_level,omitempty" mapstructure:"log_level,omitempty"`
+	LogLevel PGAuditConfLogLevel `json:"log_level,omitempty" yaml:"log_level,omitempty" mapstructure:"log_level,omitempty"`
 
 	// Specifies that audit logging should include the parameters that were passed
 	// with the statement
-	LogParameter PGAuditConfLogParameter `yaml:"log_parameter,omitempty" mapstructure:"log_parameter,omitempty"`
+	LogParameter PGAuditConfLogParameter `json:"log_parameter,omitempty" yaml:"log_parameter,omitempty" mapstructure:"log_parameter,omitempty"`
 
 	// Sets the maximum size of a parameter value that will be logged
-	LogParameterMaxSize string `yaml:"log_parameter_max_size,omitempty" mapstructure:"log_parameter_max_size,omitempty"`
+	LogParameterMaxSize string `json:"log_parameter_max_size,omitempty" yaml:"log_parameter_max_size,omitempty" mapstructure:"log_parameter_max_size,omitempty"`
 
 	// Specifies whether session audit logging should create a separate log entry for
 	// each relation referenced in a SELECT or DML statement
-	LogRelation PGAuditConfLogRelation `yaml:"log_relation,omitempty" mapstructure:"log_relation,omitempty"`
+	LogRelation PGAuditConfLogRelation `json:"log_relation,omitempty" yaml:"log_relation,omitempty" mapstructure:"log_relation,omitempty"`
 
 	// Specifies whether logging will include the statement text and parameters (if
 	// enabled)
-	LogStatement PGAuditConfLogStatement `yaml:"log_statement,omitempty" mapstructure:"log_statement,omitempty"`
+	LogStatement PGAuditConfLogStatement `json:"log_statement,omitempty" yaml:"log_statement,omitempty" mapstructure:"log_statement,omitempty"`
 
 	// Specifies whether logging will include the statement text and parameters (if
 	// enabled) with the first log entry for a statement/substatement combination or
 	// with every log entry
-	LogStatementOnce PGAuditConfLogStatementOnce `yaml:"log_statement_once,omitempty" mapstructure:"log_statement_once,omitempty"`
+	LogStatementOnce PGAuditConfLogStatementOnce `json:"log_statement_once,omitempty" yaml:"log_statement_once,omitempty" mapstructure:"log_statement_once,omitempty"`
 
 	// Sets the maximum stack depth for audit logging to prevent infinite recursion
-	MaxStackDepth *string `yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
+	MaxStackDepth *types.Size `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
 
 	// Specifies which classes of statements will be logged by object audit logging
-	ObjectLog PGAuditConfObjectLog `yaml:"object_log,omitempty" mapstructure:"object_log,omitempty"`
+	ObjectLog PGAuditConfObjectLog `json:"object_log,omitempty" yaml:"object_log,omitempty" mapstructure:"object_log,omitempty"`
 
 	// Specifies that object logging should be enabled in the case where all relations
 	// in a statement are in pg_catalog
-	ObjectLogCatalog PGAuditConfObjectLogCatalog `yaml:"object_log_catalog,omitempty" mapstructure:"object_log_catalog,omitempty"`
+	ObjectLogCatalog PGAuditConfObjectLogCatalog `json:"object_log_catalog,omitempty" yaml:"object_log_catalog,omitempty" mapstructure:"object_log_catalog,omitempty"`
 
 	// Specifies the master role to use for object audit logging
-	Role *string `yaml:"role,omitempty" mapstructure:"role,omitempty"`
+	Role *string `json:"role,omitempty" yaml:"role,omitempty" mapstructure:"role,omitempty"`
 
 	// Specifies whether the statement name, if provided, should be included in the
 	// session log
-	SessionLogStatementName PGAuditConfSessionLogStatementName `yaml:"session_log_statement_name,omitempty" mapstructure:"session_log_statement_name,omitempty"`
+	SessionLogStatementName PGAuditConfSessionLogStatementName `json:"session_log_statement_name,omitempty" yaml:"session_log_statement_name,omitempty" mapstructure:"session_log_statement_name,omitempty"`
 }
 
 type PGAuditConfFilterUsingRole string
@@ -571,7 +574,7 @@ func (j *PGAuditConf) UnmarshalJSON(value []byte) error {
 		plain.LogStatementOnce = "off"
 	}
 	if plain.MaxStackDepth != nil {
-		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, string(*plain.MaxStackDepth)); !matched {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MaxStackDepth.String()); !matched {
 			return fmt.Errorf("field %s pattern match: must match %s", "MaxStackDepth", `^[0-9]+[kMGT]?B?$`)
 		}
 	}
@@ -591,58 +594,58 @@ func (j *PGAuditConf) UnmarshalJSON(value []byte) error {
 // PgBouncer connection pooler configuration
 type PgBouncerConf struct {
 	// Administrative password for PgBouncer
-	AdminPassword *string `yaml:"admin_password,omitempty" mapstructure:"admin_password,omitempty"`
+	AdminPassword *string `json:"admin_password,omitempty" yaml:"admin_password,omitempty" mapstructure:"admin_password,omitempty"`
 
 	// Administrative user for PgBouncer
-	AdminUser *string `yaml:"admin_user,omitempty" mapstructure:"admin_user,omitempty"`
+	AdminUser *string `json:"admin_user,omitempty" yaml:"admin_user,omitempty" mapstructure:"admin_user,omitempty"`
 
 	// Path to authentication file
-	AuthFile string `yaml:"auth_file,omitempty" mapstructure:"auth_file,omitempty"`
+	AuthFile string `json:"auth_file,omitempty" yaml:"auth_file,omitempty" mapstructure:"auth_file,omitempty"`
 
 	// Query to authenticate users
-	AuthQuery string `yaml:"auth_query,omitempty" mapstructure:"auth_query,omitempty"`
+	AuthQuery string `json:"auth_query,omitempty" yaml:"auth_query,omitempty" mapstructure:"auth_query,omitempty"`
 
 	// Authentication type for PgBouncer
-	AuthType PgBouncerConfAuthType `yaml:"auth_type,omitempty" mapstructure:"auth_type,omitempty"`
+	AuthType PgBouncerConfAuthType `json:"auth_type,omitempty" yaml:"auth_type,omitempty" mapstructure:"auth_type,omitempty"`
 
 	// Maximum idle time for client connections
-	ClientIdleTimeout string `yaml:"client_idle_timeout,omitempty" mapstructure:"client_idle_timeout,omitempty"`
+	ClientIdleTimeout string `json:"client_idle_timeout,omitempty" yaml:"client_idle_timeout,omitempty" mapstructure:"client_idle_timeout,omitempty"`
 
 	// Database connection configurations
-	Databases map[string]DatabaseConfig `yaml:"databases,omitempty" mapstructure:"databases,omitempty"`
+	Databases map[string]DatabaseConfig `json:"databases,omitempty" yaml:"databases,omitempty" mapstructure:"databases,omitempty"`
 
 	// Default pool size for databases
-	DefaultPoolSize int `yaml:"default_pool_size,omitempty" mapstructure:"default_pool_size,omitempty"`
+	DefaultPoolSize int `json:"default_pool_size,omitempty" yaml:"default_pool_size,omitempty" mapstructure:"default_pool_size,omitempty"`
 
 	// Specifies the address to listen on
-	ListenAddress string `yaml:"listen_address,omitempty" mapstructure:"listen_address,omitempty"`
+	ListenAddress string `json:"listen_address,omitempty" yaml:"listen_address,omitempty" mapstructure:"listen_address,omitempty"`
 
 	// Specifies the port to listen on
-	ListenPort int `yaml:"listen_port,omitempty" mapstructure:"listen_port,omitempty"`
+	ListenPort int `json:"listen_port,omitempty" yaml:"listen_port,omitempty" mapstructure:"listen_port,omitempty"`
 
 	// Maximum number of client connections allowed
-	MaxClientConn int `yaml:"max_client_conn,omitempty" mapstructure:"max_client_conn,omitempty"`
+	MaxClientConn int `json:"max_client_conn,omitempty" yaml:"max_client_conn,omitempty" mapstructure:"max_client_conn,omitempty"`
 
 	// Minimum pool size
-	MinPoolSize int `yaml:"min_pool_size,omitempty" mapstructure:"min_pool_size,omitempty"`
+	MinPoolSize int `json:"min_pool_size,omitempty" yaml:"min_pool_size,omitempty" mapstructure:"min_pool_size,omitempty"`
 
 	// Pooling mode to use
-	PoolMode PgBouncerConfPoolMode `yaml:"pool_mode,omitempty" mapstructure:"pool_mode,omitempty"`
+	PoolMode PgBouncerConfPoolMode `json:"pool_mode,omitempty" yaml:"pool_mode,omitempty" mapstructure:"pool_mode,omitempty"`
 
 	// Query timeout
-	QueryTimeout string `yaml:"query_timeout,omitempty" mapstructure:"query_timeout,omitempty"`
+	QueryTimeout string `json:"query_timeout,omitempty" yaml:"query_timeout,omitempty" mapstructure:"query_timeout,omitempty"`
 
 	// Reserved pool size
-	ReservePoolSize *int `yaml:"reserve_pool_size,omitempty" mapstructure:"reserve_pool_size,omitempty"`
+	ReservePoolSize *int `json:"reserve_pool_size,omitempty" yaml:"reserve_pool_size,omitempty" mapstructure:"reserve_pool_size,omitempty"`
 
 	// Maximum idle time for server connections
-	ServerIdleTimeout string `yaml:"server_idle_timeout,omitempty" mapstructure:"server_idle_timeout,omitempty"`
+	ServerIdleTimeout string `json:"server_idle_timeout,omitempty" yaml:"server_idle_timeout,omitempty" mapstructure:"server_idle_timeout,omitempty"`
 
 	// Maximum lifetime of a server connection
-	ServerLifetime string `yaml:"server_lifetime,omitempty" mapstructure:"server_lifetime,omitempty"`
+	ServerLifetime string `json:"server_lifetime,omitempty" yaml:"server_lifetime,omitempty" mapstructure:"server_lifetime,omitempty"`
 
 	// Query to run on server connection before returning to pool
-	ServerResetQuery string `yaml:"server_reset_query,omitempty" mapstructure:"server_reset_query,omitempty"`
+	ServerResetQuery string `json:"server_reset_query,omitempty" yaml:"server_reset_query,omitempty" mapstructure:"server_reset_query,omitempty"`
 }
 
 type PgBouncerConfAuthType string
@@ -809,27 +812,27 @@ func (j *PgBouncerConf) UnmarshalJSON(value []byte) error {
 // PostgreSQL host-based authentication configuration
 type PgHBAConf struct {
 	// List of host-based authentication rules
-	Rules []PgHBAConfRulesElem `yaml:"rules,omitempty" mapstructure:"rules,omitempty"`
+	Rules []PgHBAConfRulesElem `json:"rules,omitempty" yaml:"rules,omitempty" mapstructure:"rules,omitempty"`
 }
 
 type PgHBAConfRulesElem struct {
 	// Client IP address, hostname, or CIDR range
-	Address *string `yaml:"address,omitempty" mapstructure:"address,omitempty"`
+	Address *string `json:"address,omitempty" yaml:"address,omitempty" mapstructure:"address,omitempty"`
 
 	// Database name or 'all'
-	Database string `yaml:"database" mapstructure:"database"`
+	Database string `json:"database" yaml:"database" mapstructure:"database"`
 
 	// Authentication method
-	Method PgHBAConfRulesElemMethod `yaml:"method" mapstructure:"method"`
+	Method PgHBAConfRulesElemMethod `json:"method" yaml:"method" mapstructure:"method"`
 
 	// Additional authentication options
-	Options map[string]string `yaml:"options,omitempty" mapstructure:"options,omitempty"`
+	Options map[string]string `json:"options,omitempty" yaml:"options,omitempty" mapstructure:"options,omitempty"`
 
 	// Connection type
-	Type PgHBAConfRulesElemType `yaml:"type" mapstructure:"type"`
+	Type PgHBAConfRulesElemType `json:"type" yaml:"type" mapstructure:"type"`
 
 	// Username or 'all'
-	User string `yaml:"user" mapstructure:"user"`
+	User string `json:"user" yaml:"user" mapstructure:"user"`
 }
 
 type PgHBAConfRulesElemMethod string
@@ -953,1152 +956,1096 @@ func (j *PgHBAConfRulesElem) UnmarshalJSON(value []byte) error {
 
 type PgconfigSchemaJson struct {
 	// Pgaudit corresponds to the JSON schema field "pgaudit".
-	Pgaudit *PGAuditConf `yaml:"pgaudit,omitempty" mapstructure:"pgaudit,omitempty"`
+	Pgaudit *PGAuditConf `json:"pgaudit,omitempty" yaml:"pgaudit,omitempty" mapstructure:"pgaudit,omitempty"`
 
 	// Pgbouncer corresponds to the JSON schema field "pgbouncer".
-	Pgbouncer *PgBouncerConf `yaml:"pgbouncer,omitempty" mapstructure:"pgbouncer,omitempty"`
+	Pgbouncer *PgBouncerConf `json:"pgbouncer,omitempty" yaml:"pgbouncer,omitempty" mapstructure:"pgbouncer,omitempty"`
 
 	// Pghba corresponds to the JSON schema field "pghba".
-	Pghba *PgHBAConf `yaml:"pghba,omitempty" mapstructure:"pghba,omitempty"`
+	Pghba *PgHBAConf `json:"pghba,omitempty" yaml:"pghba,omitempty" mapstructure:"pghba,omitempty"`
 
 	// Postgres corresponds to the JSON schema field "postgres".
-	Postgres *PostgresConf `yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
+	Postgres *PostgresConf `json:"postgres,omitempty" yaml:"postgres,omitempty" mapstructure:"postgres,omitempty"`
 
 	// Postgrest corresponds to the JSON schema field "postgrest".
-	Postgrest *PostgrestConf `yaml:"postgrest,omitempty" mapstructure:"postgrest,omitempty"`
+	Postgrest *PostgrestConf `json:"postgrest,omitempty" yaml:"postgrest,omitempty" mapstructure:"postgrest,omitempty"`
 
 	// Walg corresponds to the JSON schema field "walg".
-	Walg *WalgConf `yaml:"walg,omitempty" mapstructure:"walg,omitempty"`
+	Walg *WalgConf `json:"walg,omitempty" yaml:"walg,omitempty" mapstructure:"walg,omitempty"`
 }
 
 // Main PostgreSQL server configuration
 type PostgresConf struct {
-	// Sets the display format for date and time values. Also controls interpretation
-	// of ambiguous date inputs.
-	DateStyle *string `yaml:"DateStyle,omitempty" mapstructure:"DateStyle,omitempty"`
+	// \N
+	DateStyle *string `json:"DateStyle,omitempty" yaml:"DateStyle,omitempty" mapstructure:"DateStyle,omitempty"`
 
-	// Sets the display format for interval values.
-	IntervalStyle *string `yaml:"IntervalStyle,omitempty" mapstructure:"IntervalStyle,omitempty"`
+	// \N
+	IntervalStyle string `json:"IntervalStyle,omitempty" yaml:"IntervalStyle,omitempty" mapstructure:"IntervalStyle,omitempty"`
 
-	// Sets the time zone for displaying and interpreting time stamps.
-	TimeZone *string `yaml:"TimeZone,omitempty" mapstructure:"TimeZone,omitempty"`
+	// \N
+	TimeZone *string `json:"TimeZone,omitempty" yaml:"TimeZone,omitempty" mapstructure:"TimeZone,omitempty"`
 
-	// Allows running the ALTER SYSTEM command. Can be set to off for environments
-	// where global configuration changes should be made using a different method.
-	AllowAlterSystem *string `yaml:"allow_alter_system,omitempty" mapstructure:"allow_alter_system,omitempty"`
+	// \N
+	AllowAlterSystem *bool `json:"allow_alter_system,omitempty" yaml:"allow_alter_system,omitempty" mapstructure:"allow_alter_system,omitempty"`
 
-	// Sets the shell command that will be executed at every restart point.
-	ArchiveCleanupCommand *string `yaml:"archive_cleanup_command,omitempty" mapstructure:"archive_cleanup_command,omitempty"`
+	// \N
+	AllowInPlaceTablespaces *bool `json:"allow_in_place_tablespaces,omitempty" yaml:"allow_in_place_tablespaces,omitempty" mapstructure:"allow_in_place_tablespaces,omitempty"`
 
-	// Sets the shell command that will be called to archive a WAL file. This is used
-	// only if "archive_library" is not set.
-	ArchiveCommand *string `yaml:"archive_command,omitempty" mapstructure:"archive_command,omitempty"`
+	// \N
+	AllowSystemTableMods *bool `json:"allow_system_table_mods,omitempty" yaml:"allow_system_table_mods,omitempty" mapstructure:"allow_system_table_mods,omitempty"`
 
-	// Sets the library that will be called to archive a WAL file. An empty string
-	// indicates that "archive_command" should be used.
-	ArchiveLibrary *string `yaml:"archive_library,omitempty" mapstructure:"archive_library,omitempty"`
+	// \N
+	ApplicationName *string `json:"application_name,omitempty" yaml:"application_name,omitempty" mapstructure:"application_name,omitempty"`
 
-	// Allows archiving of WAL files using "archive_command".
-	ArchiveMode string `yaml:"archive_mode,omitempty" mapstructure:"archive_mode,omitempty"`
+	// \N
+	ArchiveCleanupCommand *string `json:"archive_cleanup_command,omitempty" yaml:"archive_cleanup_command,omitempty" mapstructure:"archive_cleanup_command,omitempty"`
 
-	// Sets the amount of time to wait before forcing a switch to the next WAL file.
-	ArchiveTimeout *int `yaml:"archive_timeout,omitempty" mapstructure:"archive_timeout,omitempty"`
+	// \N
+	ArchiveCommand *string `json:"archive_command,omitempty" yaml:"archive_command,omitempty" mapstructure:"archive_command,omitempty"`
 
-	// Enable input of NULL elements in arrays. When turned on, unquoted NULL in an
-	// array input value means a null value; otherwise it is taken literally.
-	ArrayNulls *string `yaml:"array_nulls,omitempty" mapstructure:"array_nulls,omitempty"`
+	// \N
+	ArchiveLibrary *string `json:"archive_library,omitempty" yaml:"archive_library,omitempty" mapstructure:"archive_library,omitempty"`
 
-	// Sets the maximum allowed time to complete client authentication.
-	AuthenticationTimeout *int `yaml:"authentication_timeout,omitempty" mapstructure:"authentication_timeout,omitempty"`
+	// \N
+	ArchiveMode string `json:"archive_mode,omitempty" yaml:"archive_mode,omitempty" mapstructure:"archive_mode,omitempty"`
 
-	// Starts the autovacuum subprocess.
-	Autovacuum *string `yaml:"autovacuum,omitempty" mapstructure:"autovacuum,omitempty"`
+	// \N
+	ArchiveTimeout *types.Duration `json:"archive_timeout,omitempty" yaml:"archive_timeout,omitempty" mapstructure:"archive_timeout,omitempty"`
 
-	// Number of tuple inserts, updates, or deletes prior to analyze as a fraction of
-	// reltuples.
-	AutovacuumAnalyzeScaleFactor *float64 `yaml:"autovacuum_analyze_scale_factor,omitempty" mapstructure:"autovacuum_analyze_scale_factor,omitempty"`
+	// \N
+	ArrayNulls *bool `json:"array_nulls,omitempty" yaml:"array_nulls,omitempty" mapstructure:"array_nulls,omitempty"`
 
-	// Minimum number of tuple inserts, updates, or deletes prior to analyze.
-	AutovacuumAnalyzeThreshold *int `yaml:"autovacuum_analyze_threshold,omitempty" mapstructure:"autovacuum_analyze_threshold,omitempty"`
+	// \N
+	AuthenticationTimeout *types.Duration `json:"authentication_timeout,omitempty" yaml:"authentication_timeout,omitempty" mapstructure:"authentication_timeout,omitempty"`
 
-	// Age at which to autovacuum a table to prevent transaction ID wraparound.
-	AutovacuumFreezeMaxAge *int `yaml:"autovacuum_freeze_max_age,omitempty" mapstructure:"autovacuum_freeze_max_age,omitempty"`
+	// \N
+	Autovacuum *bool `json:"autovacuum,omitempty" yaml:"autovacuum,omitempty" mapstructure:"autovacuum,omitempty"`
 
-	// Sets the maximum number of simultaneously running autovacuum worker processes.
-	AutovacuumMaxWorkers *int `yaml:"autovacuum_max_workers,omitempty" mapstructure:"autovacuum_max_workers,omitempty"`
+	// \N
+	AutovacuumAnalyzeScaleFactor *float64 `json:"autovacuum_analyze_scale_factor,omitempty" yaml:"autovacuum_analyze_scale_factor,omitempty" mapstructure:"autovacuum_analyze_scale_factor,omitempty"`
 
-	// Multixact age at which to autovacuum a table to prevent multixact wraparound.
-	AutovacuumMultixactFreezeMaxAge *int `yaml:"autovacuum_multixact_freeze_max_age,omitempty" mapstructure:"autovacuum_multixact_freeze_max_age,omitempty"`
+	// \N
+	AutovacuumAnalyzeThreshold *int `json:"autovacuum_analyze_threshold,omitempty" yaml:"autovacuum_analyze_threshold,omitempty" mapstructure:"autovacuum_analyze_threshold,omitempty"`
 
-	// Time to sleep between autovacuum runs.
-	AutovacuumNaptime *int `yaml:"autovacuum_naptime,omitempty" mapstructure:"autovacuum_naptime,omitempty"`
+	// \N
+	AutovacuumFreezeMaxAge *int `json:"autovacuum_freeze_max_age,omitempty" yaml:"autovacuum_freeze_max_age,omitempty" mapstructure:"autovacuum_freeze_max_age,omitempty"`
 
-	// Vacuum cost delay in milliseconds, for autovacuum.
-	AutovacuumVacuumCostDelay *float64 `yaml:"autovacuum_vacuum_cost_delay,omitempty" mapstructure:"autovacuum_vacuum_cost_delay,omitempty"`
+	// \N
+	AutovacuumMaxWorkers *int `json:"autovacuum_max_workers,omitempty" yaml:"autovacuum_max_workers,omitempty" mapstructure:"autovacuum_max_workers,omitempty"`
 
-	// Vacuum cost amount available before napping, for autovacuum.
-	AutovacuumVacuumCostLimit *int `yaml:"autovacuum_vacuum_cost_limit,omitempty" mapstructure:"autovacuum_vacuum_cost_limit,omitempty"`
+	// \N
+	AutovacuumMultixactFreezeMaxAge *int `json:"autovacuum_multixact_freeze_max_age,omitempty" yaml:"autovacuum_multixact_freeze_max_age,omitempty" mapstructure:"autovacuum_multixact_freeze_max_age,omitempty"`
 
-	// Number of tuple inserts prior to vacuum as a fraction of reltuples.
-	AutovacuumVacuumInsertScaleFactor *float64 `yaml:"autovacuum_vacuum_insert_scale_factor,omitempty" mapstructure:"autovacuum_vacuum_insert_scale_factor,omitempty"`
+	// \N
+	AutovacuumNaptime *types.Duration `json:"autovacuum_naptime,omitempty" yaml:"autovacuum_naptime,omitempty" mapstructure:"autovacuum_naptime,omitempty"`
 
-	// Minimum number of tuple inserts prior to vacuum, or -1 to disable insert
-	// vacuums.
-	AutovacuumVacuumInsertThreshold *int `yaml:"autovacuum_vacuum_insert_threshold,omitempty" mapstructure:"autovacuum_vacuum_insert_threshold,omitempty"`
+	// \N
+	AutovacuumVacuumCostDelay *types.Duration `json:"autovacuum_vacuum_cost_delay,omitempty" yaml:"autovacuum_vacuum_cost_delay,omitempty" mapstructure:"autovacuum_vacuum_cost_delay,omitempty"`
 
-	// Number of tuple updates or deletes prior to vacuum as a fraction of reltuples.
-	AutovacuumVacuumScaleFactor *float64 `yaml:"autovacuum_vacuum_scale_factor,omitempty" mapstructure:"autovacuum_vacuum_scale_factor,omitempty"`
+	// \N
+	AutovacuumVacuumCostLimit *int `json:"autovacuum_vacuum_cost_limit,omitempty" yaml:"autovacuum_vacuum_cost_limit,omitempty" mapstructure:"autovacuum_vacuum_cost_limit,omitempty"`
 
-	// Minimum number of tuple updates or deletes prior to vacuum.
-	AutovacuumVacuumThreshold *int `yaml:"autovacuum_vacuum_threshold,omitempty" mapstructure:"autovacuum_vacuum_threshold,omitempty"`
+	// \N
+	AutovacuumVacuumInsertScaleFactor *float64 `json:"autovacuum_vacuum_insert_scale_factor,omitempty" yaml:"autovacuum_vacuum_insert_scale_factor,omitempty" mapstructure:"autovacuum_vacuum_insert_scale_factor,omitempty"`
 
-	// Sets the maximum memory to be used by each autovacuum worker process.
-	AutovacuumWorkMem *int `yaml:"autovacuum_work_mem,omitempty" mapstructure:"autovacuum_work_mem,omitempty"`
+	// \N
+	AutovacuumVacuumInsertThreshold *int `json:"autovacuum_vacuum_insert_threshold,omitempty" yaml:"autovacuum_vacuum_insert_threshold,omitempty" mapstructure:"autovacuum_vacuum_insert_threshold,omitempty"`
 
-	// Number of pages after which previously performed writes are flushed to disk.
-	BackendFlushAfter *int `yaml:"backend_flush_after,omitempty" mapstructure:"backend_flush_after,omitempty"`
+	// \N
+	AutovacuumVacuumScaleFactor *float64 `json:"autovacuum_vacuum_scale_factor,omitempty" yaml:"autovacuum_vacuum_scale_factor,omitempty" mapstructure:"autovacuum_vacuum_scale_factor,omitempty"`
 
-	// Sets whether "\'" is allowed in string literals.
-	BackslashQuote *string `yaml:"backslash_quote,omitempty" mapstructure:"backslash_quote,omitempty"`
+	// \N
+	AutovacuumVacuumThreshold *int `json:"autovacuum_vacuum_threshold,omitempty" yaml:"autovacuum_vacuum_threshold,omitempty" mapstructure:"autovacuum_vacuum_threshold,omitempty"`
 
-	// Background writer sleep time between rounds.
-	BgwriterDelay *int `yaml:"bgwriter_delay,omitempty" mapstructure:"bgwriter_delay,omitempty"`
+	// \N
+	AutovacuumWorkMem *types.Size `json:"autovacuum_work_mem,omitempty" yaml:"autovacuum_work_mem,omitempty" mapstructure:"autovacuum_work_mem,omitempty"`
 
-	// Number of pages after which previously performed writes are flushed to disk.
-	BgwriterFlushAfter *int `yaml:"bgwriter_flush_after,omitempty" mapstructure:"bgwriter_flush_after,omitempty"`
+	// \N
+	BackendFlushAfter *types.Size `json:"backend_flush_after,omitempty" yaml:"backend_flush_after,omitempty" mapstructure:"backend_flush_after,omitempty"`
 
-	// Background writer maximum number of LRU pages to flush per round.
-	BgwriterLruMaxpages *int `yaml:"bgwriter_lru_maxpages,omitempty" mapstructure:"bgwriter_lru_maxpages,omitempty"`
+	// \N
+	BackslashQuote string `json:"backslash_quote,omitempty" yaml:"backslash_quote,omitempty" mapstructure:"backslash_quote,omitempty"`
 
-	// Multiple of the average buffer usage to free per round.
-	BgwriterLruMultiplier *float64 `yaml:"bgwriter_lru_multiplier,omitempty" mapstructure:"bgwriter_lru_multiplier,omitempty"`
+	// \N
+	BacktraceFunctions *string `json:"backtrace_functions,omitempty" yaml:"backtrace_functions,omitempty" mapstructure:"backtrace_functions,omitempty"`
 
-	// Enables advertising the server via Bonjour.
-	Bonjour *string `yaml:"bonjour,omitempty" mapstructure:"bonjour,omitempty"`
+	// \N
+	BgwriterDelay *types.Duration `json:"bgwriter_delay,omitempty" yaml:"bgwriter_delay,omitempty" mapstructure:"bgwriter_delay,omitempty"`
 
-	// Sets the Bonjour service name.
-	BonjourName *string `yaml:"bonjour_name,omitempty" mapstructure:"bonjour_name,omitempty"`
+	// \N
+	BgwriterFlushAfter *types.Size `json:"bgwriter_flush_after,omitempty" yaml:"bgwriter_flush_after,omitempty" mapstructure:"bgwriter_flush_after,omitempty"`
 
-	// Sets the output format for bytea.
-	ByteaOutput *string `yaml:"bytea_output,omitempty" mapstructure:"bytea_output,omitempty"`
+	// \N
+	BgwriterLruMaxpages *int `json:"bgwriter_lru_maxpages,omitempty" yaml:"bgwriter_lru_maxpages,omitempty" mapstructure:"bgwriter_lru_maxpages,omitempty"`
 
-	// Check routine bodies during CREATE FUNCTION and CREATE PROCEDURE.
-	CheckFunctionBodies *string `yaml:"check_function_bodies,omitempty" mapstructure:"check_function_bodies,omitempty"`
+	// \N
+	BgwriterLruMultiplier *float64 `json:"bgwriter_lru_multiplier,omitempty" yaml:"bgwriter_lru_multiplier,omitempty" mapstructure:"bgwriter_lru_multiplier,omitempty"`
 
-	// Time spent flushing dirty buffers during checkpoint, as fraction of checkpoint
-	// interval.
-	CheckpointCompletionTarget *float64 `yaml:"checkpoint_completion_target,omitempty" mapstructure:"checkpoint_completion_target,omitempty"`
+	// \N
+	Bonjour *bool `json:"bonjour,omitempty" yaml:"bonjour,omitempty" mapstructure:"bonjour,omitempty"`
 
-	// Number of pages after which previously performed writes are flushed to disk.
-	CheckpointFlushAfter *int `yaml:"checkpoint_flush_after,omitempty" mapstructure:"checkpoint_flush_after,omitempty"`
+	// \N
+	BonjourName *string `json:"bonjour_name,omitempty" yaml:"bonjour_name,omitempty" mapstructure:"bonjour_name,omitempty"`
 
-	// Sets the maximum time between automatic WAL checkpoints.
-	CheckpointTimeout *int `yaml:"checkpoint_timeout,omitempty" mapstructure:"checkpoint_timeout,omitempty"`
+	// \N
+	ByteaOutput string `json:"bytea_output,omitempty" yaml:"bytea_output,omitempty" mapstructure:"bytea_output,omitempty"`
 
-	// Sets the maximum time before warning if checkpoints triggered by WAL volume
-	// happen too frequently. Write a message to the server log if checkpoints caused
-	// by the filling of WAL segment files happen more frequently than this amount of
-	// time. Zero turns off the warning.
-	CheckpointWarning *int `yaml:"checkpoint_warning,omitempty" mapstructure:"checkpoint_warning,omitempty"`
+	// \N
+	CheckFunctionBodies *bool `json:"check_function_bodies,omitempty" yaml:"check_function_bodies,omitempty" mapstructure:"check_function_bodies,omitempty"`
 
-	// Sets the time interval between checks for disconnection while running queries.
-	ClientConnectionCheckInterval *int `yaml:"client_connection_check_interval,omitempty" mapstructure:"client_connection_check_interval,omitempty"`
+	// \N
+	CheckpointCompletionTarget *float64 `json:"checkpoint_completion_target,omitempty" yaml:"checkpoint_completion_target,omitempty" mapstructure:"checkpoint_completion_target,omitempty"`
 
-	// Sets the client's character set encoding.
-	ClientEncoding *string `yaml:"client_encoding,omitempty" mapstructure:"client_encoding,omitempty"`
+	// \N
+	CheckpointFlushAfter *types.Size `json:"checkpoint_flush_after,omitempty" yaml:"checkpoint_flush_after,omitempty" mapstructure:"checkpoint_flush_after,omitempty"`
 
-	// Sets the message levels that are sent to the client. Each level includes all
-	// the levels that follow it. The later the level, the fewer messages are sent.
-	ClientMinMessages string `yaml:"client_min_messages,omitempty" mapstructure:"client_min_messages,omitempty"`
+	// \N
+	CheckpointTimeout *types.Duration `json:"checkpoint_timeout,omitempty" yaml:"checkpoint_timeout,omitempty" mapstructure:"checkpoint_timeout,omitempty"`
 
-	// Sets the name of the cluster, which is included in the process title.
-	ClusterName *string `yaml:"cluster_name,omitempty" mapstructure:"cluster_name,omitempty"`
+	// \N
+	CheckpointWarning *types.Duration `json:"checkpoint_warning,omitempty" yaml:"checkpoint_warning,omitempty" mapstructure:"checkpoint_warning,omitempty"`
 
-	// Sets the delay in microseconds between transaction commit and flushing WAL to
-	// disk.
-	CommitDelay *int `yaml:"commit_delay,omitempty" mapstructure:"commit_delay,omitempty"`
+	// \N
+	ClientConnectionCheckInterval *types.Duration `json:"client_connection_check_interval,omitempty" yaml:"client_connection_check_interval,omitempty" mapstructure:"client_connection_check_interval,omitempty"`
 
-	// Sets the minimum number of concurrent open transactions required before
-	// performing "commit_delay".
-	CommitSiblings *int `yaml:"commit_siblings,omitempty" mapstructure:"commit_siblings,omitempty"`
+	// \N
+	ClientEncoding *string `json:"client_encoding,omitempty" yaml:"client_encoding,omitempty" mapstructure:"client_encoding,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the commit timestamp cache.
-	// Specify 0 to have this value determined as a fraction of shared_buffers.
-	CommitTimestampBuffers *int `yaml:"commit_timestamp_buffers,omitempty" mapstructure:"commit_timestamp_buffers,omitempty"`
+	// \N
+	ClientMinMessages string `json:"client_min_messages,omitempty" yaml:"client_min_messages,omitempty" mapstructure:"client_min_messages,omitempty"`
 
-	// Enables in-core computation of query identifiers.
-	ComputeQueryId string `yaml:"compute_query_id,omitempty" mapstructure:"compute_query_id,omitempty"`
+	// \N
+	ClusterName *string `json:"cluster_name,omitempty" yaml:"cluster_name,omitempty" mapstructure:"cluster_name,omitempty"`
 
-	// Enables the planner to use constraints to optimize queries. Table scans will be
-	// skipped if their constraints guarantee that no rows match the query.
-	ConstraintExclusion string `yaml:"constraint_exclusion,omitempty" mapstructure:"constraint_exclusion,omitempty"`
+	// \N
+	CommitDelay *int `json:"commit_delay,omitempty" yaml:"commit_delay,omitempty" mapstructure:"commit_delay,omitempty"`
 
-	// Sets the planner's estimate of the cost of processing each index entry during
-	// an index scan.
-	CpuIndexTupleCost *float64 `yaml:"cpu_index_tuple_cost,omitempty" mapstructure:"cpu_index_tuple_cost,omitempty"`
+	// \N
+	CommitSiblings *int `json:"commit_siblings,omitempty" yaml:"commit_siblings,omitempty" mapstructure:"commit_siblings,omitempty"`
 
-	// Sets the planner's estimate of the cost of processing each operator or function
-	// call.
-	CpuOperatorCost *float64 `yaml:"cpu_operator_cost,omitempty" mapstructure:"cpu_operator_cost,omitempty"`
+	// \N
+	CommitTimestampBuffers *types.Size `json:"commit_timestamp_buffers,omitempty" yaml:"commit_timestamp_buffers,omitempty" mapstructure:"commit_timestamp_buffers,omitempty"`
 
-	// Sets the planner's estimate of the cost of processing each tuple (row).
-	CpuTupleCost *float64 `yaml:"cpu_tuple_cost,omitempty" mapstructure:"cpu_tuple_cost,omitempty"`
+	// \N
+	ComputeQueryId string `json:"compute_query_id,omitempty" yaml:"compute_query_id,omitempty" mapstructure:"compute_query_id,omitempty"`
 
-	// Sets whether a CREATEROLE user automatically grants the role to themselves, and
-	// with which options.
-	CreateroleSelfGrant *string `yaml:"createrole_self_grant,omitempty" mapstructure:"createrole_self_grant,omitempty"`
+	// \N
+	ConfigFile *string `json:"config_file,omitempty" yaml:"config_file,omitempty" mapstructure:"config_file,omitempty"`
 
-	// Sets the planner's estimate of the fraction of a cursor's rows that will be
-	// retrieved.
-	CursorTupleFraction *float64 `yaml:"cursor_tuple_fraction,omitempty" mapstructure:"cursor_tuple_fraction,omitempty"`
+	// \N
+	ConstraintExclusion string `json:"constraint_exclusion,omitempty" yaml:"constraint_exclusion,omitempty" mapstructure:"constraint_exclusion,omitempty"`
 
-	// Sets the server's data directory.
-	DataDirectory *string `yaml:"data_directory,omitempty" mapstructure:"data_directory,omitempty"`
+	// \N
+	CpuIndexTupleCost *float64 `json:"cpu_index_tuple_cost,omitempty" yaml:"cpu_index_tuple_cost,omitempty" mapstructure:"cpu_index_tuple_cost,omitempty"`
 
-	// Whether to continue running after a failure to sync data files.
-	DataSyncRetry *string `yaml:"data_sync_retry,omitempty" mapstructure:"data_sync_retry,omitempty"`
+	// \N
+	CpuOperatorCost *float64 `json:"cpu_operator_cost,omitempty" yaml:"cpu_operator_cost,omitempty" mapstructure:"cpu_operator_cost,omitempty"`
 
-	// Sets the time to wait on a lock before checking for deadlock.
-	DeadlockTimeout *int `yaml:"deadlock_timeout,omitempty" mapstructure:"deadlock_timeout,omitempty"`
+	// \N
+	CpuTupleCost *float64 `json:"cpu_tuple_cost,omitempty" yaml:"cpu_tuple_cost,omitempty" mapstructure:"cpu_tuple_cost,omitempty"`
 
-	// Indents parse and plan tree displays.
-	DebugPrettyPrint *string `yaml:"debug_pretty_print,omitempty" mapstructure:"debug_pretty_print,omitempty"`
+	// \N
+	CreateroleSelfGrant *string `json:"createrole_self_grant,omitempty" yaml:"createrole_self_grant,omitempty" mapstructure:"createrole_self_grant,omitempty"`
 
-	// Logs each query's parse tree.
-	DebugPrintParse *string `yaml:"debug_print_parse,omitempty" mapstructure:"debug_print_parse,omitempty"`
+	// \N
+	CursorTupleFraction *float64 `json:"cursor_tuple_fraction,omitempty" yaml:"cursor_tuple_fraction,omitempty" mapstructure:"cursor_tuple_fraction,omitempty"`
 
-	// Logs each query's execution plan.
-	DebugPrintPlan *string `yaml:"debug_print_plan,omitempty" mapstructure:"debug_print_plan,omitempty"`
+	// \N
+	DataDirectory *string `json:"data_directory,omitempty" yaml:"data_directory,omitempty" mapstructure:"data_directory,omitempty"`
 
-	// Logs each query's rewritten parse tree.
-	DebugPrintRewritten *string `yaml:"debug_print_rewritten,omitempty" mapstructure:"debug_print_rewritten,omitempty"`
+	// \N
+	DataSyncRetry *bool `json:"data_sync_retry,omitempty" yaml:"data_sync_retry,omitempty" mapstructure:"data_sync_retry,omitempty"`
 
-	// Sets the default statistics target. This applies to table columns that have not
-	// had a column-specific target set via ALTER TABLE SET STATISTICS.
-	DefaultStatisticsTarget *int `yaml:"default_statistics_target,omitempty" mapstructure:"default_statistics_target,omitempty"`
+	// \N
+	DeadlockTimeout *types.Duration `json:"deadlock_timeout,omitempty" yaml:"deadlock_timeout,omitempty" mapstructure:"deadlock_timeout,omitempty"`
 
-	// Sets the default table access method for new tables.
-	DefaultTableAccessMethod *string `yaml:"default_table_access_method,omitempty" mapstructure:"default_table_access_method,omitempty"`
+	// \N
+	DebugDiscardCaches *int `json:"debug_discard_caches,omitempty" yaml:"debug_discard_caches,omitempty" mapstructure:"debug_discard_caches,omitempty"`
 
-	// Sets the default tablespace to create tables and indexes in. An empty string
-	// selects the database's default tablespace.
-	DefaultTablespace *string `yaml:"default_tablespace,omitempty" mapstructure:"default_tablespace,omitempty"`
+	// \N
+	DebugIoDirect *string `json:"debug_io_direct,omitempty" yaml:"debug_io_direct,omitempty" mapstructure:"debug_io_direct,omitempty"`
 
-	// Sets default text search configuration.
-	DefaultTextSearchConfig *string `yaml:"default_text_search_config,omitempty" mapstructure:"default_text_search_config,omitempty"`
+	// \N
+	DebugLogicalReplicationStreaming string `json:"debug_logical_replication_streaming,omitempty" yaml:"debug_logical_replication_streaming,omitempty" mapstructure:"debug_logical_replication_streaming,omitempty"`
 
-	// Sets the default compression method for compressible values.
-	DefaultToastCompression *string `yaml:"default_toast_compression,omitempty" mapstructure:"default_toast_compression,omitempty"`
+	// \N
+	DebugParallelQuery string `json:"debug_parallel_query,omitempty" yaml:"debug_parallel_query,omitempty" mapstructure:"debug_parallel_query,omitempty"`
 
-	// Sets the default deferrable status of new transactions.
-	DefaultTransactionDeferrable *string `yaml:"default_transaction_deferrable,omitempty" mapstructure:"default_transaction_deferrable,omitempty"`
+	// \N
+	DebugPrettyPrint *bool `json:"debug_pretty_print,omitempty" yaml:"debug_pretty_print,omitempty" mapstructure:"debug_pretty_print,omitempty"`
 
-	// Sets the transaction isolation level of each new transaction.
-	DefaultTransactionIsolation string `yaml:"default_transaction_isolation,omitempty" mapstructure:"default_transaction_isolation,omitempty"`
+	// \N
+	DebugPrintParse *bool `json:"debug_print_parse,omitempty" yaml:"debug_print_parse,omitempty" mapstructure:"debug_print_parse,omitempty"`
 
-	// Sets the default read-only status of new transactions.
-	DefaultTransactionReadOnly *string `yaml:"default_transaction_read_only,omitempty" mapstructure:"default_transaction_read_only,omitempty"`
+	// \N
+	DebugPrintPlan *bool `json:"debug_print_plan,omitempty" yaml:"debug_print_plan,omitempty" mapstructure:"debug_print_plan,omitempty"`
 
-	// Sets the path for dynamically loadable modules. If a dynamically loadable
-	// module needs to be opened and the specified name does not have a directory
-	// component (i.e., the name does not contain a slash), the system will search
-	// this path for the specified file.
-	DynamicLibraryPath *string `yaml:"dynamic_library_path,omitempty" mapstructure:"dynamic_library_path,omitempty"`
+	// \N
+	DebugPrintRewritten *bool `json:"debug_print_rewritten,omitempty" yaml:"debug_print_rewritten,omitempty" mapstructure:"debug_print_rewritten,omitempty"`
 
-	// Selects the dynamic shared memory implementation used.
-	DynamicSharedMemoryType *string `yaml:"dynamic_shared_memory_type,omitempty" mapstructure:"dynamic_shared_memory_type,omitempty"`
+	// \N
+	DefaultStatisticsTarget *int `json:"default_statistics_target,omitempty" yaml:"default_statistics_target,omitempty" mapstructure:"default_statistics_target,omitempty"`
 
-	// Sets the planner's assumption about the total size of the data caches. That is,
-	// the total size of the caches (kernel cache and shared buffers) used for
-	// PostgreSQL data files. This is measured in disk pages, which are normally 8 kB
-	// each.
-	EffectiveCacheSize *int `yaml:"effective_cache_size,omitempty" mapstructure:"effective_cache_size,omitempty"`
+	// \N
+	DefaultTableAccessMethod *string `json:"default_table_access_method,omitempty" yaml:"default_table_access_method,omitempty" mapstructure:"default_table_access_method,omitempty"`
 
-	// Number of simultaneous requests that can be handled efficiently by the disk
-	// subsystem.
-	EffectiveIoConcurrency *int `yaml:"effective_io_concurrency,omitempty" mapstructure:"effective_io_concurrency,omitempty"`
+	// \N
+	DefaultTablespace *string `json:"default_tablespace,omitempty" yaml:"default_tablespace,omitempty" mapstructure:"default_tablespace,omitempty"`
 
-	// Enables the planner's use of async append plans.
-	EnableAsyncAppend *string `yaml:"enable_async_append,omitempty" mapstructure:"enable_async_append,omitempty"`
+	// \N
+	DefaultTextSearchConfig *string `json:"default_text_search_config,omitempty" yaml:"default_text_search_config,omitempty" mapstructure:"default_text_search_config,omitempty"`
 
-	// Enables the planner's use of bitmap-scan plans.
-	EnableBitmapscan *string `yaml:"enable_bitmapscan,omitempty" mapstructure:"enable_bitmapscan,omitempty"`
+	// \N
+	DefaultToastCompression string `json:"default_toast_compression,omitempty" yaml:"default_toast_compression,omitempty" mapstructure:"default_toast_compression,omitempty"`
 
-	// Enables the planner's use of gather merge plans.
-	EnableGathermerge *string `yaml:"enable_gathermerge,omitempty" mapstructure:"enable_gathermerge,omitempty"`
+	// \N
+	DefaultTransactionDeferrable *bool `json:"default_transaction_deferrable,omitempty" yaml:"default_transaction_deferrable,omitempty" mapstructure:"default_transaction_deferrable,omitempty"`
 
-	// Enables reordering of GROUP BY keys.
-	EnableGroupByReordering *string `yaml:"enable_group_by_reordering,omitempty" mapstructure:"enable_group_by_reordering,omitempty"`
+	// \N
+	DefaultTransactionIsolation string `json:"default_transaction_isolation,omitempty" yaml:"default_transaction_isolation,omitempty" mapstructure:"default_transaction_isolation,omitempty"`
 
-	// Enables the planner's use of hashed aggregation plans.
-	EnableHashagg *string `yaml:"enable_hashagg,omitempty" mapstructure:"enable_hashagg,omitempty"`
+	// \N
+	DefaultTransactionReadOnly *bool `json:"default_transaction_read_only,omitempty" yaml:"default_transaction_read_only,omitempty" mapstructure:"default_transaction_read_only,omitempty"`
 
-	// Enables the planner's use of hash join plans.
-	EnableHashjoin *string `yaml:"enable_hashjoin,omitempty" mapstructure:"enable_hashjoin,omitempty"`
+	// \N
+	DynamicLibraryPath *string `json:"dynamic_library_path,omitempty" yaml:"dynamic_library_path,omitempty" mapstructure:"dynamic_library_path,omitempty"`
 
-	// Enables the planner's use of incremental sort steps.
-	EnableIncrementalSort *string `yaml:"enable_incremental_sort,omitempty" mapstructure:"enable_incremental_sort,omitempty"`
+	// \N
+	DynamicSharedMemoryType string `json:"dynamic_shared_memory_type,omitempty" yaml:"dynamic_shared_memory_type,omitempty" mapstructure:"dynamic_shared_memory_type,omitempty"`
 
-	// Enables the planner's use of index-only-scan plans.
-	EnableIndexonlyscan *string `yaml:"enable_indexonlyscan,omitempty" mapstructure:"enable_indexonlyscan,omitempty"`
+	// \N
+	EffectiveCacheSize *types.Size `json:"effective_cache_size,omitempty" yaml:"effective_cache_size,omitempty" mapstructure:"effective_cache_size,omitempty"`
 
-	// Enables the planner's use of index-scan plans.
-	EnableIndexscan *string `yaml:"enable_indexscan,omitempty" mapstructure:"enable_indexscan,omitempty"`
+	// \N
+	EffectiveIoConcurrency *int `json:"effective_io_concurrency,omitempty" yaml:"effective_io_concurrency,omitempty" mapstructure:"effective_io_concurrency,omitempty"`
 
-	// Enables the planner's use of materialization.
-	EnableMaterial *string `yaml:"enable_material,omitempty" mapstructure:"enable_material,omitempty"`
+	// \N
+	EnableAsyncAppend *bool `json:"enable_async_append,omitempty" yaml:"enable_async_append,omitempty" mapstructure:"enable_async_append,omitempty"`
 
-	// Enables the planner's use of memoization.
-	EnableMemoize *string `yaml:"enable_memoize,omitempty" mapstructure:"enable_memoize,omitempty"`
+	// \N
+	EnableBitmapscan *bool `json:"enable_bitmapscan,omitempty" yaml:"enable_bitmapscan,omitempty" mapstructure:"enable_bitmapscan,omitempty"`
 
-	// Enables the planner's use of merge join plans.
-	EnableMergejoin *string `yaml:"enable_mergejoin,omitempty" mapstructure:"enable_mergejoin,omitempty"`
+	// \N
+	EnableGathermerge *bool `json:"enable_gathermerge,omitempty" yaml:"enable_gathermerge,omitempty" mapstructure:"enable_gathermerge,omitempty"`
 
-	// Enables the planner's use of nested-loop join plans.
-	EnableNestloop *string `yaml:"enable_nestloop,omitempty" mapstructure:"enable_nestloop,omitempty"`
+	// \N
+	EnableGroupByReordering *bool `json:"enable_group_by_reordering,omitempty" yaml:"enable_group_by_reordering,omitempty" mapstructure:"enable_group_by_reordering,omitempty"`
 
-	// Enables the planner's use of parallel append plans.
-	EnableParallelAppend *string `yaml:"enable_parallel_append,omitempty" mapstructure:"enable_parallel_append,omitempty"`
+	// \N
+	EnableHashagg *bool `json:"enable_hashagg,omitempty" yaml:"enable_hashagg,omitempty" mapstructure:"enable_hashagg,omitempty"`
 
-	// Enables the planner's use of parallel hash plans.
-	EnableParallelHash *string `yaml:"enable_parallel_hash,omitempty" mapstructure:"enable_parallel_hash,omitempty"`
+	// \N
+	EnableHashjoin *bool `json:"enable_hashjoin,omitempty" yaml:"enable_hashjoin,omitempty" mapstructure:"enable_hashjoin,omitempty"`
 
-	// Enables plan-time and execution-time partition pruning. Allows the query
-	// planner and executor to compare partition bounds to conditions in the query to
-	// determine which partitions must be scanned.
-	EnablePartitionPruning *string `yaml:"enable_partition_pruning,omitempty" mapstructure:"enable_partition_pruning,omitempty"`
+	// \N
+	EnableIncrementalSort *bool `json:"enable_incremental_sort,omitempty" yaml:"enable_incremental_sort,omitempty" mapstructure:"enable_incremental_sort,omitempty"`
 
-	// Enables partitionwise aggregation and grouping.
-	EnablePartitionwiseAggregate *string `yaml:"enable_partitionwise_aggregate,omitempty" mapstructure:"enable_partitionwise_aggregate,omitempty"`
+	// \N
+	EnableIndexonlyscan *bool `json:"enable_indexonlyscan,omitempty" yaml:"enable_indexonlyscan,omitempty" mapstructure:"enable_indexonlyscan,omitempty"`
 
-	// Enables partitionwise join.
-	EnablePartitionwiseJoin *string `yaml:"enable_partitionwise_join,omitempty" mapstructure:"enable_partitionwise_join,omitempty"`
+	// \N
+	EnableIndexscan *bool `json:"enable_indexscan,omitempty" yaml:"enable_indexscan,omitempty" mapstructure:"enable_indexscan,omitempty"`
 
-	// Enables the planner's ability to produce plans that provide presorted input for
-	// ORDER BY / DISTINCT aggregate functions. Allows the query planner to build
-	// plans that provide presorted input for aggregate functions with an ORDER BY /
-	// DISTINCT clause.  When disabled, implicit sorts are always performed during
-	// execution.
-	EnablePresortedAggregate *string `yaml:"enable_presorted_aggregate,omitempty" mapstructure:"enable_presorted_aggregate,omitempty"`
+	// \N
+	EnableMaterial *bool `json:"enable_material,omitempty" yaml:"enable_material,omitempty" mapstructure:"enable_material,omitempty"`
 
-	// Enables the planner's use of sequential-scan plans.
-	EnableSeqscan *string `yaml:"enable_seqscan,omitempty" mapstructure:"enable_seqscan,omitempty"`
+	// \N
+	EnableMemoize *bool `json:"enable_memoize,omitempty" yaml:"enable_memoize,omitempty" mapstructure:"enable_memoize,omitempty"`
 
-	// Enables the planner's use of explicit sort steps.
-	EnableSort *string `yaml:"enable_sort,omitempty" mapstructure:"enable_sort,omitempty"`
+	// \N
+	EnableMergejoin *bool `json:"enable_mergejoin,omitempty" yaml:"enable_mergejoin,omitempty" mapstructure:"enable_mergejoin,omitempty"`
 
-	// Enables the planner's use of TID scan plans.
-	EnableTidscan *string `yaml:"enable_tidscan,omitempty" mapstructure:"enable_tidscan,omitempty"`
+	// \N
+	EnableNestloop *bool `json:"enable_nestloop,omitempty" yaml:"enable_nestloop,omitempty" mapstructure:"enable_nestloop,omitempty"`
 
-	// Warn about backslash escapes in ordinary string literals.
-	EscapeStringWarning *string `yaml:"escape_string_warning,omitempty" mapstructure:"escape_string_warning,omitempty"`
+	// \N
+	EnableParallelAppend *bool `json:"enable_parallel_append,omitempty" yaml:"enable_parallel_append,omitempty" mapstructure:"enable_parallel_append,omitempty"`
 
-	// Sets the application name used to identify PostgreSQL messages in the event
-	// log.
-	EventSource *string `yaml:"event_source,omitempty" mapstructure:"event_source,omitempty"`
+	// \N
+	EnableParallelHash *bool `json:"enable_parallel_hash,omitempty" yaml:"enable_parallel_hash,omitempty" mapstructure:"enable_parallel_hash,omitempty"`
 
-	// Enables event triggers. When enabled, event triggers will fire for all
-	// applicable statements.
-	EventTriggers *string `yaml:"event_triggers,omitempty" mapstructure:"event_triggers,omitempty"`
+	// \N
+	EnablePartitionPruning *bool `json:"enable_partition_pruning,omitempty" yaml:"enable_partition_pruning,omitempty" mapstructure:"enable_partition_pruning,omitempty"`
 
-	// Terminate session on any error.
-	ExitOnError *string `yaml:"exit_on_error,omitempty" mapstructure:"exit_on_error,omitempty"`
+	// \N
+	EnablePartitionwiseAggregate *bool `json:"enable_partitionwise_aggregate,omitempty" yaml:"enable_partitionwise_aggregate,omitempty" mapstructure:"enable_partitionwise_aggregate,omitempty"`
 
-	// Writes the postmaster PID to the specified file.
-	ExternalPidFile *string `yaml:"external_pid_file,omitempty" mapstructure:"external_pid_file,omitempty"`
+	// \N
+	EnablePartitionwiseJoin *bool `json:"enable_partitionwise_join,omitempty" yaml:"enable_partitionwise_join,omitempty" mapstructure:"enable_partitionwise_join,omitempty"`
 
-	// Sets the number of digits displayed for floating-point values. This affects
-	// real, double precision, and geometric data types. A zero or negative parameter
-	// value is added to the standard number of digits (FLT_DIG or DBL_DIG as
-	// appropriate). Any value greater than zero selects precise output mode.
-	ExtraFloatDigits *int `yaml:"extra_float_digits,omitempty" mapstructure:"extra_float_digits,omitempty"`
+	// \N
+	EnablePresortedAggregate *bool `json:"enable_presorted_aggregate,omitempty" yaml:"enable_presorted_aggregate,omitempty" mapstructure:"enable_presorted_aggregate,omitempty"`
 
-	// Sets the FROM-list size beyond which subqueries are not collapsed. The planner
-	// will merge subqueries into upper queries if the resulting FROM list would have
-	// no more than this many items.
-	FromCollapseLimit *int `yaml:"from_collapse_limit,omitempty" mapstructure:"from_collapse_limit,omitempty"`
+	// \N
+	EnableSeqscan *bool `json:"enable_seqscan,omitempty" yaml:"enable_seqscan,omitempty" mapstructure:"enable_seqscan,omitempty"`
 
-	// Forces synchronization of updates to disk. The server will use the fsync()
-	// system call in several places to make sure that updates are physically written
-	// to disk. This ensures that a database cluster will recover to a consistent
-	// state after an operating system or hardware crash.
-	Fsync *string `yaml:"fsync,omitempty" mapstructure:"fsync,omitempty"`
+	// \N
+	EnableSort *bool `json:"enable_sort,omitempty" yaml:"enable_sort,omitempty" mapstructure:"enable_sort,omitempty"`
 
-	// Writes full pages to WAL when first modified after a checkpoint. A page write
-	// in process during an operating system crash might be only partially written to
-	// disk.  During recovery, the row changes stored in WAL are not enough to
-	// recover.  This option writes pages when first modified after a checkpoint to
-	// WAL so full recovery is possible.
-	FullPageWrites *string `yaml:"full_page_writes,omitempty" mapstructure:"full_page_writes,omitempty"`
+	// \N
+	EnableTidscan *bool `json:"enable_tidscan,omitempty" yaml:"enable_tidscan,omitempty" mapstructure:"enable_tidscan,omitempty"`
 
-	// Enables genetic query optimization. This algorithm attempts to do planning
-	// without exhaustive searching.
-	Geqo *string `yaml:"geqo,omitempty" mapstructure:"geqo,omitempty"`
+	// \N
+	EscapeStringWarning *bool `json:"escape_string_warning,omitempty" yaml:"escape_string_warning,omitempty" mapstructure:"escape_string_warning,omitempty"`
 
-	// GEQO: effort is used to set the default for other GEQO parameters.
-	GeqoEffort *int `yaml:"geqo_effort,omitempty" mapstructure:"geqo_effort,omitempty"`
+	// \N
+	EventSource *string `json:"event_source,omitempty" yaml:"event_source,omitempty" mapstructure:"event_source,omitempty"`
 
-	// GEQO: number of iterations of the algorithm. Zero selects a suitable default
-	// value.
-	GeqoGenerations *int `yaml:"geqo_generations,omitempty" mapstructure:"geqo_generations,omitempty"`
+	// \N
+	EventTriggers *bool `json:"event_triggers,omitempty" yaml:"event_triggers,omitempty" mapstructure:"event_triggers,omitempty"`
 
-	// GEQO: number of individuals in the population. Zero selects a suitable default
-	// value.
-	GeqoPoolSize *int `yaml:"geqo_pool_size,omitempty" mapstructure:"geqo_pool_size,omitempty"`
+	// \N
+	ExitOnError *bool `json:"exit_on_error,omitempty" yaml:"exit_on_error,omitempty" mapstructure:"exit_on_error,omitempty"`
 
-	// GEQO: seed for random path selection.
-	GeqoSeed *float64 `yaml:"geqo_seed,omitempty" mapstructure:"geqo_seed,omitempty"`
+	// \N
+	ExternalPidFile *string `json:"external_pid_file,omitempty" yaml:"external_pid_file,omitempty" mapstructure:"external_pid_file,omitempty"`
 
-	// GEQO: selective pressure within the population.
-	GeqoSelectionBias *float64 `yaml:"geqo_selection_bias,omitempty" mapstructure:"geqo_selection_bias,omitempty"`
+	// \N
+	ExtraFloatDigits *int `json:"extra_float_digits,omitempty" yaml:"extra_float_digits,omitempty" mapstructure:"extra_float_digits,omitempty"`
 
-	// Sets the threshold of FROM items beyond which GEQO is used.
-	GeqoThreshold *int `yaml:"geqo_threshold,omitempty" mapstructure:"geqo_threshold,omitempty"`
+	// \N
+	FromCollapseLimit *int `json:"from_collapse_limit,omitempty" yaml:"from_collapse_limit,omitempty" mapstructure:"from_collapse_limit,omitempty"`
 
-	// Sets the maximum allowed result for exact search by GIN.
-	GinFuzzySearchLimit *int `yaml:"gin_fuzzy_search_limit,omitempty" mapstructure:"gin_fuzzy_search_limit,omitempty"`
+	// \N
+	Fsync *bool `json:"fsync,omitempty" yaml:"fsync,omitempty" mapstructure:"fsync,omitempty"`
 
-	// Sets the maximum size of the pending list for GIN index.
-	GinPendingListLimit *int `yaml:"gin_pending_list_limit,omitempty" mapstructure:"gin_pending_list_limit,omitempty"`
+	// \N
+	FullPageWrites *bool `json:"full_page_writes,omitempty" yaml:"full_page_writes,omitempty" mapstructure:"full_page_writes,omitempty"`
 
-	// Sets whether GSSAPI delegation should be accepted from the client.
-	GssAcceptDelegation *string `yaml:"gss_accept_delegation,omitempty" mapstructure:"gss_accept_delegation,omitempty"`
+	// \N
+	Geqo *bool `json:"geqo,omitempty" yaml:"geqo,omitempty" mapstructure:"geqo,omitempty"`
 
-	// Multiple of "work_mem" to use for hash tables.
-	HashMemMultiplier *float64 `yaml:"hash_mem_multiplier,omitempty" mapstructure:"hash_mem_multiplier,omitempty"`
+	// \N
+	GeqoEffort *int `json:"geqo_effort,omitempty" yaml:"geqo_effort,omitempty" mapstructure:"geqo_effort,omitempty"`
 
-	// Sets the server's "hba" configuration file.
-	HbaFile *string `yaml:"hba_file,omitempty" mapstructure:"hba_file,omitempty"`
+	// \N
+	GeqoGenerations *int `json:"geqo_generations,omitempty" yaml:"geqo_generations,omitempty" mapstructure:"geqo_generations,omitempty"`
 
-	// Allows connections and queries during recovery.
-	HotStandby *string `yaml:"hot_standby,omitempty" mapstructure:"hot_standby,omitempty"`
+	// \N
+	GeqoPoolSize *int `json:"geqo_pool_size,omitempty" yaml:"geqo_pool_size,omitempty" mapstructure:"geqo_pool_size,omitempty"`
 
-	// Allows feedback from a hot standby to the primary that will avoid query
-	// conflicts.
-	HotStandbyFeedback *string `yaml:"hot_standby_feedback,omitempty" mapstructure:"hot_standby_feedback,omitempty"`
+	// \N
+	GeqoSeed *float64 `json:"geqo_seed,omitempty" yaml:"geqo_seed,omitempty" mapstructure:"geqo_seed,omitempty"`
 
-	// The size of huge page that should be requested.
-	HugePageSize *int `yaml:"huge_page_size,omitempty" mapstructure:"huge_page_size,omitempty"`
+	// \N
+	GeqoSelectionBias *float64 `json:"geqo_selection_bias,omitempty" yaml:"geqo_selection_bias,omitempty" mapstructure:"geqo_selection_bias,omitempty"`
 
-	// Use of huge pages on Linux or Windows.
-	HugePages *string `yaml:"huge_pages,omitempty" mapstructure:"huge_pages,omitempty"`
+	// \N
+	GeqoThreshold *int `json:"geqo_threshold,omitempty" yaml:"geqo_threshold,omitempty" mapstructure:"geqo_threshold,omitempty"`
 
-	// Log level for reporting invalid ICU locale strings.
-	IcuValidationLevel *string `yaml:"icu_validation_level,omitempty" mapstructure:"icu_validation_level,omitempty"`
+	// \N
+	GinFuzzySearchLimit *int `json:"gin_fuzzy_search_limit,omitempty" yaml:"gin_fuzzy_search_limit,omitempty" mapstructure:"gin_fuzzy_search_limit,omitempty"`
 
-	// Sets the server's "ident" configuration file.
-	IdentFile *string `yaml:"ident_file,omitempty" mapstructure:"ident_file,omitempty"`
+	// \N
+	GinPendingListLimit *types.Size `json:"gin_pending_list_limit,omitempty" yaml:"gin_pending_list_limit,omitempty" mapstructure:"gin_pending_list_limit,omitempty"`
 
-	// Sets the maximum allowed idle time between queries, when in a transaction. A
-	// value of 0 turns off the timeout.
-	IdleInTransactionSessionTimeout *int `yaml:"idle_in_transaction_session_timeout,omitempty" mapstructure:"idle_in_transaction_session_timeout,omitempty"`
+	// \N
+	GssAcceptDelegation *bool `json:"gss_accept_delegation,omitempty" yaml:"gss_accept_delegation,omitempty" mapstructure:"gss_accept_delegation,omitempty"`
 
-	// Sets the maximum allowed idle time between queries, when not in a transaction.
-	// A value of 0 turns off the timeout.
-	IdleSessionTimeout *int `yaml:"idle_session_timeout,omitempty" mapstructure:"idle_session_timeout,omitempty"`
+	// \N
+	HashMemMultiplier *float64 `json:"hash_mem_multiplier,omitempty" yaml:"hash_mem_multiplier,omitempty" mapstructure:"hash_mem_multiplier,omitempty"`
 
-	// Limit on the size of data reads and writes.
-	IoCombineLimit *int `yaml:"io_combine_limit,omitempty" mapstructure:"io_combine_limit,omitempty"`
+	// \N
+	HbaFile *string `json:"hba_file,omitempty" yaml:"hba_file,omitempty" mapstructure:"hba_file,omitempty"`
 
-	// Allow JIT compilation.
-	Jit *string `yaml:"jit,omitempty" mapstructure:"jit,omitempty"`
+	// \N
+	HotStandby *bool `json:"hot_standby,omitempty" yaml:"hot_standby,omitempty" mapstructure:"hot_standby,omitempty"`
 
-	// Perform JIT compilation if query is more expensive. -1 disables JIT
-	// compilation.
-	JitAboveCost *float64 `yaml:"jit_above_cost,omitempty" mapstructure:"jit_above_cost,omitempty"`
+	// \N
+	HotStandbyFeedback *bool `json:"hot_standby_feedback,omitempty" yaml:"hot_standby_feedback,omitempty" mapstructure:"hot_standby_feedback,omitempty"`
 
-	// Perform JIT inlining if query is more expensive. -1 disables inlining.
-	JitInlineAboveCost *float64 `yaml:"jit_inline_above_cost,omitempty" mapstructure:"jit_inline_above_cost,omitempty"`
+	// \N
+	HugePageSize *types.Size `json:"huge_page_size,omitempty" yaml:"huge_page_size,omitempty" mapstructure:"huge_page_size,omitempty"`
 
-	// Optimize JIT-compiled functions if query is more expensive. -1 disables
-	// optimization.
-	JitOptimizeAboveCost *float64 `yaml:"jit_optimize_above_cost,omitempty" mapstructure:"jit_optimize_above_cost,omitempty"`
+	// \N
+	HugePages string `json:"huge_pages,omitempty" yaml:"huge_pages,omitempty" mapstructure:"huge_pages,omitempty"`
 
-	// JIT provider to use.
-	JitProvider *string `yaml:"jit_provider,omitempty" mapstructure:"jit_provider,omitempty"`
+	// \N
+	IcuValidationLevel string `json:"icu_validation_level,omitempty" yaml:"icu_validation_level,omitempty" mapstructure:"icu_validation_level,omitempty"`
 
-	// Sets the FROM-list size beyond which JOIN constructs are not flattened. The
-	// planner will flatten explicit JOIN constructs into lists of FROM items whenever
-	// a list of no more than this many items would result.
-	JoinCollapseLimit *int `yaml:"join_collapse_limit,omitempty" mapstructure:"join_collapse_limit,omitempty"`
+	// \N
+	IdentFile *string `json:"ident_file,omitempty" yaml:"ident_file,omitempty" mapstructure:"ident_file,omitempty"`
 
-	// Sets whether Kerberos and GSSAPI user names should be treated as
-	// case-insensitive.
-	KrbCaseinsUsers *string `yaml:"krb_caseins_users,omitempty" mapstructure:"krb_caseins_users,omitempty"`
+	// \N
+	IdleInTransactionSessionTimeout *types.Duration `json:"idle_in_transaction_session_timeout,omitempty" yaml:"idle_in_transaction_session_timeout,omitempty" mapstructure:"idle_in_transaction_session_timeout,omitempty"`
 
-	// Sets the location of the Kerberos server key file.
-	KrbServerKeyfile *string `yaml:"krb_server_keyfile,omitempty" mapstructure:"krb_server_keyfile,omitempty"`
+	// \N
+	IdleSessionTimeout *types.Duration `json:"idle_session_timeout,omitempty" yaml:"idle_session_timeout,omitempty" mapstructure:"idle_session_timeout,omitempty"`
 
-	// Sets the language in which messages are displayed.
-	LcMessages *string `yaml:"lc_messages,omitempty" mapstructure:"lc_messages,omitempty"`
+	// \N
+	IgnoreChecksumFailure *bool `json:"ignore_checksum_failure,omitempty" yaml:"ignore_checksum_failure,omitempty" mapstructure:"ignore_checksum_failure,omitempty"`
 
-	// Sets the locale for formatting monetary amounts.
-	LcMonetary *string `yaml:"lc_monetary,omitempty" mapstructure:"lc_monetary,omitempty"`
+	// \N
+	IgnoreInvalidPages *bool `json:"ignore_invalid_pages,omitempty" yaml:"ignore_invalid_pages,omitempty" mapstructure:"ignore_invalid_pages,omitempty"`
 
-	// Sets the locale for formatting numbers.
-	LcNumeric *string `yaml:"lc_numeric,omitempty" mapstructure:"lc_numeric,omitempty"`
+	// \N
+	IgnoreSystemIndexes *bool `json:"ignore_system_indexes,omitempty" yaml:"ignore_system_indexes,omitempty" mapstructure:"ignore_system_indexes,omitempty"`
 
-	// Sets the locale for formatting date and time values.
-	LcTime *string `yaml:"lc_time,omitempty" mapstructure:"lc_time,omitempty"`
+	// \N
+	IoCombineLimit *types.Size `json:"io_combine_limit,omitempty" yaml:"io_combine_limit,omitempty" mapstructure:"io_combine_limit,omitempty"`
 
-	// Sets the host name or IP address(es) to listen to.
-	ListenAddresses *string `yaml:"listen_addresses,omitempty" mapstructure:"listen_addresses,omitempty"`
+	// \N
+	Jit *bool `json:"jit,omitempty" yaml:"jit,omitempty" mapstructure:"jit,omitempty"`
 
-	// Enables backward compatibility mode for privilege checks on large objects.
-	// Skips privilege checks when reading or modifying large objects, for
-	// compatibility with PostgreSQL releases prior to 9.0.
-	LoCompatPrivileges *string `yaml:"lo_compat_privileges,omitempty" mapstructure:"lo_compat_privileges,omitempty"`
+	// \N
+	JitAboveCost *float64 `json:"jit_above_cost,omitempty" yaml:"jit_above_cost,omitempty" mapstructure:"jit_above_cost,omitempty"`
 
-	// Lists unprivileged shared libraries to preload into each backend.
-	LocalPreloadLibraries *string `yaml:"local_preload_libraries,omitempty" mapstructure:"local_preload_libraries,omitempty"`
+	// \N
+	JitDebuggingSupport *bool `json:"jit_debugging_support,omitempty" yaml:"jit_debugging_support,omitempty" mapstructure:"jit_debugging_support,omitempty"`
 
-	// Sets the maximum allowed duration of any wait for a lock. A value of 0 turns
-	// off the timeout.
-	LockTimeout *int `yaml:"lock_timeout,omitempty" mapstructure:"lock_timeout,omitempty"`
+	// \N
+	JitDumpBitcode *bool `json:"jit_dump_bitcode,omitempty" yaml:"jit_dump_bitcode,omitempty" mapstructure:"jit_dump_bitcode,omitempty"`
 
-	// Sets the minimum execution time above which autovacuum actions will be logged.
-	// Zero prints all actions. -1 turns autovacuum logging off.
-	LogAutovacuumMinDuration *int `yaml:"log_autovacuum_min_duration,omitempty" mapstructure:"log_autovacuum_min_duration,omitempty"`
+	// \N
+	JitExpressions *bool `json:"jit_expressions,omitempty" yaml:"jit_expressions,omitempty" mapstructure:"jit_expressions,omitempty"`
 
-	// Logs each checkpoint.
-	LogCheckpoints *string `yaml:"log_checkpoints,omitempty" mapstructure:"log_checkpoints,omitempty"`
+	// \N
+	JitInlineAboveCost *float64 `json:"jit_inline_above_cost,omitempty" yaml:"jit_inline_above_cost,omitempty" mapstructure:"jit_inline_above_cost,omitempty"`
 
-	// Logs each successful connection.
-	LogConnections *string `yaml:"log_connections,omitempty" mapstructure:"log_connections,omitempty"`
+	// \N
+	JitOptimizeAboveCost *float64 `json:"jit_optimize_above_cost,omitempty" yaml:"jit_optimize_above_cost,omitempty" mapstructure:"jit_optimize_above_cost,omitempty"`
 
-	// Sets the destination for server log output. Valid values are combinations of
-	// "stderr", "syslog", "csvlog", "jsonlog", and "eventlog", depending on the
-	// platform.
-	LogDestination *string `yaml:"log_destination,omitempty" mapstructure:"log_destination,omitempty"`
+	// \N
+	JitProfilingSupport *bool `json:"jit_profiling_support,omitempty" yaml:"jit_profiling_support,omitempty" mapstructure:"jit_profiling_support,omitempty"`
 
-	// Sets the destination directory for log files. Can be specified as relative to
-	// the data directory or as absolute path.
-	LogDirectory *string `yaml:"log_directory,omitempty" mapstructure:"log_directory,omitempty"`
+	// \N
+	JitProvider *string `json:"jit_provider,omitempty" yaml:"jit_provider,omitempty" mapstructure:"jit_provider,omitempty"`
 
-	// Logs end of a session, including duration.
-	LogDisconnections *string `yaml:"log_disconnections,omitempty" mapstructure:"log_disconnections,omitempty"`
+	// \N
+	JitTupleDeforming *bool `json:"jit_tuple_deforming,omitempty" yaml:"jit_tuple_deforming,omitempty" mapstructure:"jit_tuple_deforming,omitempty"`
 
-	// Logs the duration of each completed SQL statement.
-	LogDuration *string `yaml:"log_duration,omitempty" mapstructure:"log_duration,omitempty"`
+	// \N
+	JoinCollapseLimit *int `json:"join_collapse_limit,omitempty" yaml:"join_collapse_limit,omitempty" mapstructure:"join_collapse_limit,omitempty"`
 
-	// Sets the verbosity of logged messages.
-	LogErrorVerbosity *string `yaml:"log_error_verbosity,omitempty" mapstructure:"log_error_verbosity,omitempty"`
+	// \N
+	KrbCaseinsUsers *bool `json:"krb_caseins_users,omitempty" yaml:"krb_caseins_users,omitempty" mapstructure:"krb_caseins_users,omitempty"`
 
-	// Writes executor performance statistics to the server log.
-	LogExecutorStats *string `yaml:"log_executor_stats,omitempty" mapstructure:"log_executor_stats,omitempty"`
+	// \N
+	KrbServerKeyfile *string `json:"krb_server_keyfile,omitempty" yaml:"krb_server_keyfile,omitempty" mapstructure:"krb_server_keyfile,omitempty"`
 
-	// Sets the file permissions for log files. The parameter value is expected to be
-	// a numeric mode specification in the form accepted by the chmod and umask system
-	// calls. (To use the customary octal format the number must start with a 0
-	// (zero).)
-	LogFileMode *int `yaml:"log_file_mode,omitempty" mapstructure:"log_file_mode,omitempty"`
+	// \N
+	LcMessages *string `json:"lc_messages,omitempty" yaml:"lc_messages,omitempty" mapstructure:"lc_messages,omitempty"`
 
-	// Sets the file name pattern for log files.
-	LogFilename *string `yaml:"log_filename,omitempty" mapstructure:"log_filename,omitempty"`
+	// \N
+	LcMonetary *string `json:"lc_monetary,omitempty" yaml:"lc_monetary,omitempty" mapstructure:"lc_monetary,omitempty"`
 
-	// Logs the host name in the connection logs. By default, connection logs only
-	// show the IP address of the connecting host. If you want them to show the host
-	// name you can turn this on, but depending on your host name resolution setup it
-	// might impose a non-negligible performance penalty.
-	LogHostname *string `yaml:"log_hostname,omitempty" mapstructure:"log_hostname,omitempty"`
+	// \N
+	LcNumeric *string `json:"lc_numeric,omitempty" yaml:"lc_numeric,omitempty" mapstructure:"lc_numeric,omitempty"`
 
-	// Controls information prefixed to each log line. If blank, no prefix is used.
-	LogLinePrefix *string `yaml:"log_line_prefix,omitempty" mapstructure:"log_line_prefix,omitempty"`
+	// \N
+	LcTime *string `json:"lc_time,omitempty" yaml:"lc_time,omitempty" mapstructure:"lc_time,omitempty"`
 
-	// Logs long lock waits.
-	LogLockWaits *string `yaml:"log_lock_waits,omitempty" mapstructure:"log_lock_waits,omitempty"`
+	// \N
+	ListenAddresses *string `json:"listen_addresses,omitempty" yaml:"listen_addresses,omitempty" mapstructure:"listen_addresses,omitempty"`
 
-	// Sets the minimum execution time above which a sample of statements will be
-	// logged. Sampling is determined by log_statement_sample_rate. Zero logs a sample
-	// of all queries. -1 turns this feature off.
-	LogMinDurationSample *int `yaml:"log_min_duration_sample,omitempty" mapstructure:"log_min_duration_sample,omitempty"`
+	// \N
+	LoCompatPrivileges *bool `json:"lo_compat_privileges,omitempty" yaml:"lo_compat_privileges,omitempty" mapstructure:"lo_compat_privileges,omitempty"`
 
-	// Sets the minimum execution time above which all statements will be logged. Zero
-	// prints all queries. -1 turns this feature off.
-	LogMinDurationStatement *int `yaml:"log_min_duration_statement,omitempty" mapstructure:"log_min_duration_statement,omitempty"`
+	// \N
+	LocalPreloadLibraries *string `json:"local_preload_libraries,omitempty" yaml:"local_preload_libraries,omitempty" mapstructure:"local_preload_libraries,omitempty"`
 
-	// Causes all statements generating error at or above this level to be logged.
-	// Each level includes all the levels that follow it. The later the level, the
-	// fewer messages are sent.
-	LogMinErrorStatement *string `yaml:"log_min_error_statement,omitempty" mapstructure:"log_min_error_statement,omitempty"`
+	// \N
+	LockTimeout *types.Duration `json:"lock_timeout,omitempty" yaml:"lock_timeout,omitempty" mapstructure:"lock_timeout,omitempty"`
 
-	// Sets the message levels that are logged. Each level includes all the levels
-	// that follow it. The later the level, the fewer messages are sent.
-	LogMinMessages string `yaml:"log_min_messages,omitempty" mapstructure:"log_min_messages,omitempty"`
+	// \N
+	LogAutovacuumMinDuration *types.Duration `json:"log_autovacuum_min_duration,omitempty" yaml:"log_autovacuum_min_duration,omitempty" mapstructure:"log_autovacuum_min_duration,omitempty"`
 
-	// Sets the maximum length in bytes of data logged for bind parameter values when
-	// logging statements. -1 to print values in full.
-	LogParameterMaxLength *int `yaml:"log_parameter_max_length,omitempty" mapstructure:"log_parameter_max_length,omitempty"`
+	// \N
+	LogCheckpoints *bool `json:"log_checkpoints,omitempty" yaml:"log_checkpoints,omitempty" mapstructure:"log_checkpoints,omitempty"`
 
-	// Sets the maximum length in bytes of data logged for bind parameter values when
-	// logging statements, on error. -1 to print values in full.
-	LogParameterMaxLengthOnError *int `yaml:"log_parameter_max_length_on_error,omitempty" mapstructure:"log_parameter_max_length_on_error,omitempty"`
+	// \N
+	LogConnections *bool `json:"log_connections,omitempty" yaml:"log_connections,omitempty" mapstructure:"log_connections,omitempty"`
 
-	// Writes parser performance statistics to the server log.
-	LogParserStats *string `yaml:"log_parser_stats,omitempty" mapstructure:"log_parser_stats,omitempty"`
+	// \N
+	LogDestination *string `json:"log_destination,omitempty" yaml:"log_destination,omitempty" mapstructure:"log_destination,omitempty"`
 
-	// Writes planner performance statistics to the server log.
-	LogPlannerStats *string `yaml:"log_planner_stats,omitempty" mapstructure:"log_planner_stats,omitempty"`
+	// \N
+	LogDirectory *string `json:"log_directory,omitempty" yaml:"log_directory,omitempty" mapstructure:"log_directory,omitempty"`
 
-	// Logs standby recovery conflict waits.
-	LogRecoveryConflictWaits *string `yaml:"log_recovery_conflict_waits,omitempty" mapstructure:"log_recovery_conflict_waits,omitempty"`
+	// \N
+	LogDisconnections *bool `json:"log_disconnections,omitempty" yaml:"log_disconnections,omitempty" mapstructure:"log_disconnections,omitempty"`
 
-	// Logs each replication command.
-	LogReplicationCommands *string `yaml:"log_replication_commands,omitempty" mapstructure:"log_replication_commands,omitempty"`
+	// \N
+	LogDuration *bool `json:"log_duration,omitempty" yaml:"log_duration,omitempty" mapstructure:"log_duration,omitempty"`
 
-	// Sets the amount of time to wait before forcing log file rotation.
-	LogRotationAge *int `yaml:"log_rotation_age,omitempty" mapstructure:"log_rotation_age,omitempty"`
+	// \N
+	LogErrorVerbosity string `json:"log_error_verbosity,omitempty" yaml:"log_error_verbosity,omitempty" mapstructure:"log_error_verbosity,omitempty"`
 
-	// Sets the maximum size a log file can reach before being rotated.
-	LogRotationSize *int `yaml:"log_rotation_size,omitempty" mapstructure:"log_rotation_size,omitempty"`
+	// \N
+	LogExecutorStats *bool `json:"log_executor_stats,omitempty" yaml:"log_executor_stats,omitempty" mapstructure:"log_executor_stats,omitempty"`
 
-	// Time between progress updates for long-running startup operations. 0 turns this
-	// feature off.
-	LogStartupProgressInterval *int `yaml:"log_startup_progress_interval,omitempty" mapstructure:"log_startup_progress_interval,omitempty"`
+	// \N
+	LogFileMode *int `json:"log_file_mode,omitempty" yaml:"log_file_mode,omitempty" mapstructure:"log_file_mode,omitempty"`
 
-	// Sets the type of statements logged.
-	LogStatement string `yaml:"log_statement,omitempty" mapstructure:"log_statement,omitempty"`
+	// \N
+	LogFilename *string `json:"log_filename,omitempty" yaml:"log_filename,omitempty" mapstructure:"log_filename,omitempty"`
 
-	// Fraction of statements exceeding "log_min_duration_sample" to be logged. Use a
-	// value between 0.0 (never log) and 1.0 (always log).
-	LogStatementSampleRate *float64 `yaml:"log_statement_sample_rate,omitempty" mapstructure:"log_statement_sample_rate,omitempty"`
+	// \N
+	LogHostname *bool `json:"log_hostname,omitempty" yaml:"log_hostname,omitempty" mapstructure:"log_hostname,omitempty"`
 
-	// Writes cumulative performance statistics to the server log.
-	LogStatementStats *string `yaml:"log_statement_stats,omitempty" mapstructure:"log_statement_stats,omitempty"`
+	// \N
+	LogLinePrefix *string `json:"log_line_prefix,omitempty" yaml:"log_line_prefix,omitempty" mapstructure:"log_line_prefix,omitempty"`
 
-	// Log the use of temporary files larger than this number of kilobytes. Zero logs
-	// all files. The default is -1 (turning this feature off).
-	LogTempFiles *int `yaml:"log_temp_files,omitempty" mapstructure:"log_temp_files,omitempty"`
+	// \N
+	LogLockWaits *bool `json:"log_lock_waits,omitempty" yaml:"log_lock_waits,omitempty" mapstructure:"log_lock_waits,omitempty"`
 
-	// Sets the time zone to use in log messages.
-	LogTimezone *string `yaml:"log_timezone,omitempty" mapstructure:"log_timezone,omitempty"`
+	// \N
+	LogMinDurationSample *types.Duration `json:"log_min_duration_sample,omitempty" yaml:"log_min_duration_sample,omitempty" mapstructure:"log_min_duration_sample,omitempty"`
 
-	// Sets the fraction of transactions from which to log all statements. Use a value
-	// between 0.0 (never log) and 1.0 (log all statements for all transactions).
-	LogTransactionSampleRate *float64 `yaml:"log_transaction_sample_rate,omitempty" mapstructure:"log_transaction_sample_rate,omitempty"`
+	// \N
+	LogMinDurationStatement *types.Duration `json:"log_min_duration_statement,omitempty" yaml:"log_min_duration_statement,omitempty" mapstructure:"log_min_duration_statement,omitempty"`
 
-	// Truncate existing log files of same name during log rotation.
-	LogTruncateOnRotation *string `yaml:"log_truncate_on_rotation,omitempty" mapstructure:"log_truncate_on_rotation,omitempty"`
+	// \N
+	LogMinErrorStatement string `json:"log_min_error_statement,omitempty" yaml:"log_min_error_statement,omitempty" mapstructure:"log_min_error_statement,omitempty"`
 
-	// Start a subprocess to capture stderr, csvlog and/or jsonlog into log files.
-	LoggingCollector *string `yaml:"logging_collector,omitempty" mapstructure:"logging_collector,omitempty"`
+	// \N
+	LogMinMessages string `json:"log_min_messages,omitempty" yaml:"log_min_messages,omitempty" mapstructure:"log_min_messages,omitempty"`
 
-	// Sets the maximum memory to be used for logical decoding. This much memory can
-	// be used by each internal reorder buffer before spilling to disk.
-	LogicalDecodingWorkMem *int `yaml:"logical_decoding_work_mem,omitempty" mapstructure:"logical_decoding_work_mem,omitempty"`
+	// \N
+	LogParameterMaxLength *int `json:"log_parameter_max_length,omitempty" yaml:"log_parameter_max_length,omitempty" mapstructure:"log_parameter_max_length,omitempty"`
 
-	// A variant of "effective_io_concurrency" that is used for maintenance work.
-	MaintenanceIoConcurrency *int `yaml:"maintenance_io_concurrency,omitempty" mapstructure:"maintenance_io_concurrency,omitempty"`
+	// \N
+	LogParameterMaxLengthOnError *int `json:"log_parameter_max_length_on_error,omitempty" yaml:"log_parameter_max_length_on_error,omitempty" mapstructure:"log_parameter_max_length_on_error,omitempty"`
 
-	// Sets the maximum memory to be used for maintenance operations. This includes
-	// operations such as VACUUM and CREATE INDEX.
-	MaintenanceWorkMem *int `yaml:"maintenance_work_mem,omitempty" mapstructure:"maintenance_work_mem,omitempty"`
+	// \N
+	LogParserStats *bool `json:"log_parser_stats,omitempty" yaml:"log_parser_stats,omitempty" mapstructure:"log_parser_stats,omitempty"`
 
-	// Sets the maximum number of concurrent connections.
-	MaxConnections *int `yaml:"max_connections,omitempty" mapstructure:"max_connections,omitempty"`
+	// \N
+	LogPlannerStats *bool `json:"log_planner_stats,omitempty" yaml:"log_planner_stats,omitempty" mapstructure:"log_planner_stats,omitempty"`
 
-	// Sets the maximum number of simultaneously open files for each server process.
-	MaxFilesPerProcess *int `yaml:"max_files_per_process,omitempty" mapstructure:"max_files_per_process,omitempty"`
+	// \N
+	LogRecoveryConflictWaits *bool `json:"log_recovery_conflict_waits,omitempty" yaml:"log_recovery_conflict_waits,omitempty" mapstructure:"log_recovery_conflict_waits,omitempty"`
 
-	// Sets the maximum number of locks per transaction. The shared lock table is
-	// sized on the assumption that at most "max_locks_per_transaction" objects per
-	// server process or prepared transaction will need to be locked at any one time.
-	MaxLocksPerTransaction *int `yaml:"max_locks_per_transaction,omitempty" mapstructure:"max_locks_per_transaction,omitempty"`
+	// \N
+	LogReplicationCommands *bool `json:"log_replication_commands,omitempty" yaml:"log_replication_commands,omitempty" mapstructure:"log_replication_commands,omitempty"`
 
-	// Maximum number of logical replication worker processes.
-	MaxLogicalReplicationWorkers *int `yaml:"max_logical_replication_workers,omitempty" mapstructure:"max_logical_replication_workers,omitempty"`
+	// \N
+	LogRotationAge *types.Duration `json:"log_rotation_age,omitempty" yaml:"log_rotation_age,omitempty" mapstructure:"log_rotation_age,omitempty"`
 
-	// Sets the maximum number of allocated pages for NOTIFY / LISTEN queue.
-	MaxNotifyQueuePages *int `yaml:"max_notify_queue_pages,omitempty" mapstructure:"max_notify_queue_pages,omitempty"`
+	// \N
+	LogRotationSize *types.Size `json:"log_rotation_size,omitempty" yaml:"log_rotation_size,omitempty" mapstructure:"log_rotation_size,omitempty"`
 
-	// Maximum number of parallel apply workers per subscription.
-	MaxParallelApplyWorkersPerSubscription *int `yaml:"max_parallel_apply_workers_per_subscription,omitempty" mapstructure:"max_parallel_apply_workers_per_subscription,omitempty"`
+	// \N
+	LogStartupProgressInterval *types.Duration `json:"log_startup_progress_interval,omitempty" yaml:"log_startup_progress_interval,omitempty" mapstructure:"log_startup_progress_interval,omitempty"`
 
-	// Sets the maximum number of parallel processes per maintenance operation.
-	MaxParallelMaintenanceWorkers *int `yaml:"max_parallel_maintenance_workers,omitempty" mapstructure:"max_parallel_maintenance_workers,omitempty"`
+	// \N
+	LogStatement string `json:"log_statement,omitempty" yaml:"log_statement,omitempty" mapstructure:"log_statement,omitempty"`
 
-	// Sets the maximum number of parallel workers that can be active at one time.
-	MaxParallelWorkers *int `yaml:"max_parallel_workers,omitempty" mapstructure:"max_parallel_workers,omitempty"`
+	// \N
+	LogStatementSampleRate *float64 `json:"log_statement_sample_rate,omitempty" yaml:"log_statement_sample_rate,omitempty" mapstructure:"log_statement_sample_rate,omitempty"`
 
-	// Sets the maximum number of parallel processes per executor node.
-	MaxParallelWorkersPerGather *int `yaml:"max_parallel_workers_per_gather,omitempty" mapstructure:"max_parallel_workers_per_gather,omitempty"`
+	// \N
+	LogStatementStats *bool `json:"log_statement_stats,omitempty" yaml:"log_statement_stats,omitempty" mapstructure:"log_statement_stats,omitempty"`
 
-	// Sets the maximum number of predicate-locked tuples per page. If more than this
-	// number of tuples on the same page are locked by a connection, those locks are
-	// replaced by a page-level lock.
-	MaxPredLocksPerPage *int `yaml:"max_pred_locks_per_page,omitempty" mapstructure:"max_pred_locks_per_page,omitempty"`
+	// \N
+	LogTempFiles *types.Size `json:"log_temp_files,omitempty" yaml:"log_temp_files,omitempty" mapstructure:"log_temp_files,omitempty"`
 
-	// Sets the maximum number of predicate-locked pages and tuples per relation. If
-	// more than this total of pages and tuples in the same relation are locked by a
-	// connection, those locks are replaced by a relation-level lock.
-	MaxPredLocksPerRelation *int `yaml:"max_pred_locks_per_relation,omitempty" mapstructure:"max_pred_locks_per_relation,omitempty"`
+	// \N
+	LogTimezone *string `json:"log_timezone,omitempty" yaml:"log_timezone,omitempty" mapstructure:"log_timezone,omitempty"`
 
-	// Sets the maximum number of predicate locks per transaction. The shared
-	// predicate lock table is sized on the assumption that at most
-	// "max_pred_locks_per_transaction" objects per server process or prepared
-	// transaction will need to be locked at any one time.
-	MaxPredLocksPerTransaction *int `yaml:"max_pred_locks_per_transaction,omitempty" mapstructure:"max_pred_locks_per_transaction,omitempty"`
+	// \N
+	LogTransactionSampleRate *float64 `json:"log_transaction_sample_rate,omitempty" yaml:"log_transaction_sample_rate,omitempty" mapstructure:"log_transaction_sample_rate,omitempty"`
 
-	// Sets the maximum number of simultaneously prepared transactions.
-	MaxPreparedTransactions *int `yaml:"max_prepared_transactions,omitempty" mapstructure:"max_prepared_transactions,omitempty"`
+	// \N
+	LogTruncateOnRotation *bool `json:"log_truncate_on_rotation,omitempty" yaml:"log_truncate_on_rotation,omitempty" mapstructure:"log_truncate_on_rotation,omitempty"`
 
-	// Sets the maximum number of simultaneously defined replication slots.
-	MaxReplicationSlots *int `yaml:"max_replication_slots,omitempty" mapstructure:"max_replication_slots,omitempty"`
+	// \N
+	LoggingCollector *bool `json:"logging_collector,omitempty" yaml:"logging_collector,omitempty" mapstructure:"logging_collector,omitempty"`
 
-	// Sets the maximum WAL size that can be reserved by replication slots.
-	// Replication slots will be marked as failed, and segments released for deletion
-	// or recycling, if this much space is occupied by WAL on disk.
-	MaxSlotWalKeepSize *int `yaml:"max_slot_wal_keep_size,omitempty" mapstructure:"max_slot_wal_keep_size,omitempty"`
+	// \N
+	LogicalDecodingWorkMem *types.Size `json:"logical_decoding_work_mem,omitempty" yaml:"logical_decoding_work_mem,omitempty" mapstructure:"logical_decoding_work_mem,omitempty"`
 
-	// Sets the maximum stack depth, in kilobytes.
-	MaxStackDepth *int `yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
+	// \N
+	MaintenanceIoConcurrency *int `json:"maintenance_io_concurrency,omitempty" yaml:"maintenance_io_concurrency,omitempty" mapstructure:"maintenance_io_concurrency,omitempty"`
 
-	// Sets the maximum delay before canceling queries when a hot standby server is
-	// processing archived WAL data.
-	MaxStandbyArchiveDelay *int `yaml:"max_standby_archive_delay,omitempty" mapstructure:"max_standby_archive_delay,omitempty"`
+	// \N
+	MaintenanceWorkMem *types.Size `json:"maintenance_work_mem,omitempty" yaml:"maintenance_work_mem,omitempty" mapstructure:"maintenance_work_mem,omitempty"`
 
-	// Sets the maximum delay before canceling queries when a hot standby server is
-	// processing streamed WAL data.
-	MaxStandbyStreamingDelay *int `yaml:"max_standby_streaming_delay,omitempty" mapstructure:"max_standby_streaming_delay,omitempty"`
+	// \N
+	MaxConnections *int `json:"max_connections,omitempty" yaml:"max_connections,omitempty" mapstructure:"max_connections,omitempty"`
 
-	// Maximum number of table synchronization workers per subscription.
-	MaxSyncWorkersPerSubscription *int `yaml:"max_sync_workers_per_subscription,omitempty" mapstructure:"max_sync_workers_per_subscription,omitempty"`
+	// \N
+	MaxFilesPerProcess *int `json:"max_files_per_process,omitempty" yaml:"max_files_per_process,omitempty" mapstructure:"max_files_per_process,omitempty"`
 
-	// Sets the maximum number of simultaneously running WAL sender processes.
-	MaxWalSenders *int `yaml:"max_wal_senders,omitempty" mapstructure:"max_wal_senders,omitempty"`
+	// \N
+	MaxLocksPerTransaction *int `json:"max_locks_per_transaction,omitempty" yaml:"max_locks_per_transaction,omitempty" mapstructure:"max_locks_per_transaction,omitempty"`
 
-	// Sets the WAL size that triggers a checkpoint.
-	MaxWalSize *int `yaml:"max_wal_size,omitempty" mapstructure:"max_wal_size,omitempty"`
+	// \N
+	MaxLogicalReplicationWorkers *int `json:"max_logical_replication_workers,omitempty" yaml:"max_logical_replication_workers,omitempty" mapstructure:"max_logical_replication_workers,omitempty"`
 
-	// Maximum number of concurrent worker processes.
-	MaxWorkerProcesses *int `yaml:"max_worker_processes,omitempty" mapstructure:"max_worker_processes,omitempty"`
+	// \N
+	MaxNotifyQueuePages *int `json:"max_notify_queue_pages,omitempty" yaml:"max_notify_queue_pages,omitempty" mapstructure:"max_notify_queue_pages,omitempty"`
 
-	// Amount of dynamic shared memory reserved at startup.
-	MinDynamicSharedMemory *int `yaml:"min_dynamic_shared_memory,omitempty" mapstructure:"min_dynamic_shared_memory,omitempty"`
+	// \N
+	MaxParallelApplyWorkersPerSubscription *int `json:"max_parallel_apply_workers_per_subscription,omitempty" yaml:"max_parallel_apply_workers_per_subscription,omitempty" mapstructure:"max_parallel_apply_workers_per_subscription,omitempty"`
 
-	// Sets the minimum amount of index data for a parallel scan. If the planner
-	// estimates that it will read a number of index pages too small to reach this
-	// limit, a parallel scan will not be considered.
-	MinParallelIndexScanSize *int `yaml:"min_parallel_index_scan_size,omitempty" mapstructure:"min_parallel_index_scan_size,omitempty"`
+	// \N
+	MaxParallelMaintenanceWorkers *int `json:"max_parallel_maintenance_workers,omitempty" yaml:"max_parallel_maintenance_workers,omitempty" mapstructure:"max_parallel_maintenance_workers,omitempty"`
 
-	// Sets the minimum amount of table data for a parallel scan. If the planner
-	// estimates that it will read a number of table pages too small to reach this
-	// limit, a parallel scan will not be considered.
-	MinParallelTableScanSize *int `yaml:"min_parallel_table_scan_size,omitempty" mapstructure:"min_parallel_table_scan_size,omitempty"`
+	// \N
+	MaxParallelWorkers *int `json:"max_parallel_workers,omitempty" yaml:"max_parallel_workers,omitempty" mapstructure:"max_parallel_workers,omitempty"`
 
-	// Sets the minimum size to shrink the WAL to.
-	MinWalSize *int `yaml:"min_wal_size,omitempty" mapstructure:"min_wal_size,omitempty"`
+	// \N
+	MaxParallelWorkersPerGather *int `json:"max_parallel_workers_per_gather,omitempty" yaml:"max_parallel_workers_per_gather,omitempty" mapstructure:"max_parallel_workers_per_gather,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the MultiXact member cache.
-	MultixactMemberBuffers *int `yaml:"multixact_member_buffers,omitempty" mapstructure:"multixact_member_buffers,omitempty"`
+	// \N
+	MaxPredLocksPerPage *int `json:"max_pred_locks_per_page,omitempty" yaml:"max_pred_locks_per_page,omitempty" mapstructure:"max_pred_locks_per_page,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the MultiXact offset cache.
-	MultixactOffsetBuffers *int `yaml:"multixact_offset_buffers,omitempty" mapstructure:"multixact_offset_buffers,omitempty"`
+	// \N
+	MaxPredLocksPerRelation *int `json:"max_pred_locks_per_relation,omitempty" yaml:"max_pred_locks_per_relation,omitempty" mapstructure:"max_pred_locks_per_relation,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the LISTEN/NOTIFY message
-	// cache.
-	NotifyBuffers *int `yaml:"notify_buffers,omitempty" mapstructure:"notify_buffers,omitempty"`
+	// \N
+	MaxPredLocksPerTransaction *int `json:"max_pred_locks_per_transaction,omitempty" yaml:"max_pred_locks_per_transaction,omitempty" mapstructure:"max_pred_locks_per_transaction,omitempty"`
 
-	// Controls whether Gather and Gather Merge also run subplans. Should gather nodes
-	// also run subplans or just gather tuples?
-	ParallelLeaderParticipation *string `yaml:"parallel_leader_participation,omitempty" mapstructure:"parallel_leader_participation,omitempty"`
+	// \N
+	MaxPreparedTransactions *int `json:"max_prepared_transactions,omitempty" yaml:"max_prepared_transactions,omitempty" mapstructure:"max_prepared_transactions,omitempty"`
 
-	// Sets the planner's estimate of the cost of starting up worker processes for
-	// parallel query.
-	ParallelSetupCost *float64 `yaml:"parallel_setup_cost,omitempty" mapstructure:"parallel_setup_cost,omitempty"`
+	// \N
+	MaxReplicationSlots *int `json:"max_replication_slots,omitempty" yaml:"max_replication_slots,omitempty" mapstructure:"max_replication_slots,omitempty"`
 
-	// Sets the planner's estimate of the cost of passing each tuple (row) from worker
-	// to leader backend.
-	ParallelTupleCost *float64 `yaml:"parallel_tuple_cost,omitempty" mapstructure:"parallel_tuple_cost,omitempty"`
+	// \N
+	MaxSlotWalKeepSize *int `json:"max_slot_wal_keep_size,omitempty" yaml:"max_slot_wal_keep_size,omitempty" mapstructure:"max_slot_wal_keep_size,omitempty"`
 
-	// Chooses the algorithm for encrypting passwords.
-	PasswordEncryption string `yaml:"password_encryption,omitempty" mapstructure:"password_encryption,omitempty"`
+	// \N
+	MaxStackDepth *types.Size `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
 
-	// Controls the planner's selection of custom or generic plan. Prepared statements
-	// can have custom and generic plans, and the planner will attempt to choose which
-	// is better.  This can be set to override the default behavior.
-	PlanCacheMode *string `yaml:"plan_cache_mode,omitempty" mapstructure:"plan_cache_mode,omitempty"`
+	// \N
+	MaxStandbyArchiveDelay *types.Duration `json:"max_standby_archive_delay,omitempty" yaml:"max_standby_archive_delay,omitempty" mapstructure:"max_standby_archive_delay,omitempty"`
 
-	// Sets the TCP port the server listens on.
-	Port *int `yaml:"port,omitempty" mapstructure:"port,omitempty"`
+	// \N
+	MaxStandbyStreamingDelay *types.Duration `json:"max_standby_streaming_delay,omitempty" yaml:"max_standby_streaming_delay,omitempty" mapstructure:"max_standby_streaming_delay,omitempty"`
 
-	// Sets the connection string to be used to connect to the sending server.
-	PrimaryConninfo *string `yaml:"primary_conninfo,omitempty" mapstructure:"primary_conninfo,omitempty"`
+	// \N
+	MaxSyncWorkersPerSubscription *int `json:"max_sync_workers_per_subscription,omitempty" yaml:"max_sync_workers_per_subscription,omitempty" mapstructure:"max_sync_workers_per_subscription,omitempty"`
 
-	// Sets the name of the replication slot to use on the sending server.
-	PrimarySlotName *string `yaml:"primary_slot_name,omitempty" mapstructure:"primary_slot_name,omitempty"`
+	// \N
+	MaxWalSenders *int `json:"max_wal_senders,omitempty" yaml:"max_wal_senders,omitempty" mapstructure:"max_wal_senders,omitempty"`
 
-	// When generating SQL fragments, quote all identifiers.
-	QuoteAllIdentifiers *string `yaml:"quote_all_identifiers,omitempty" mapstructure:"quote_all_identifiers,omitempty"`
+	// \N
+	MaxWalSize *int `json:"max_wal_size,omitempty" yaml:"max_wal_size,omitempty" mapstructure:"max_wal_size,omitempty"`
 
-	// Sets the planner's estimate of the cost of a nonsequentially fetched disk page.
-	RandomPageCost *float64 `yaml:"random_page_cost,omitempty" mapstructure:"random_page_cost,omitempty"`
+	// \N
+	MaxWorkerProcesses *int `json:"max_worker_processes,omitempty" yaml:"max_worker_processes,omitempty" mapstructure:"max_worker_processes,omitempty"`
 
-	// Sets the shell command that will be executed once at the end of recovery.
-	RecoveryEndCommand *string `yaml:"recovery_end_command,omitempty" mapstructure:"recovery_end_command,omitempty"`
+	// \N
+	MinDynamicSharedMemory *int `json:"min_dynamic_shared_memory,omitempty" yaml:"min_dynamic_shared_memory,omitempty" mapstructure:"min_dynamic_shared_memory,omitempty"`
 
-	// Sets the method for synchronizing the data directory before crash recovery.
-	RecoveryInitSyncMethod *string `yaml:"recovery_init_sync_method,omitempty" mapstructure:"recovery_init_sync_method,omitempty"`
+	// \N
+	MinParallelIndexScanSize *types.Size `json:"min_parallel_index_scan_size,omitempty" yaml:"min_parallel_index_scan_size,omitempty" mapstructure:"min_parallel_index_scan_size,omitempty"`
 
-	// Sets the minimum delay for applying changes during recovery.
-	RecoveryMinApplyDelay *int `yaml:"recovery_min_apply_delay,omitempty" mapstructure:"recovery_min_apply_delay,omitempty"`
+	// \N
+	MinParallelTableScanSize *types.Size `json:"min_parallel_table_scan_size,omitempty" yaml:"min_parallel_table_scan_size,omitempty" mapstructure:"min_parallel_table_scan_size,omitempty"`
 
-	// Prefetch referenced blocks during recovery. Look ahead in the WAL to find
-	// references to uncached data.
-	RecoveryPrefetch *string `yaml:"recovery_prefetch,omitempty" mapstructure:"recovery_prefetch,omitempty"`
+	// \N
+	MinWalSize *int `json:"min_wal_size,omitempty" yaml:"min_wal_size,omitempty" mapstructure:"min_wal_size,omitempty"`
 
-	// Set to "immediate" to end recovery as soon as a consistent state is reached.
-	RecoveryTarget *string `yaml:"recovery_target,omitempty" mapstructure:"recovery_target,omitempty"`
+	// \N
+	MultixactMemberBuffers *types.Size `json:"multixact_member_buffers,omitempty" yaml:"multixact_member_buffers,omitempty" mapstructure:"multixact_member_buffers,omitempty"`
 
-	// Sets the action to perform upon reaching the recovery target.
-	RecoveryTargetAction *string `yaml:"recovery_target_action,omitempty" mapstructure:"recovery_target_action,omitempty"`
+	// \N
+	MultixactOffsetBuffers *types.Size `json:"multixact_offset_buffers,omitempty" yaml:"multixact_offset_buffers,omitempty" mapstructure:"multixact_offset_buffers,omitempty"`
 
-	// Sets whether to include or exclude transaction with recovery target.
-	RecoveryTargetInclusive *string `yaml:"recovery_target_inclusive,omitempty" mapstructure:"recovery_target_inclusive,omitempty"`
+	// \N
+	NotifyBuffers *types.Size `json:"notify_buffers,omitempty" yaml:"notify_buffers,omitempty" mapstructure:"notify_buffers,omitempty"`
 
-	// Sets the LSN of the write-ahead log location up to which recovery will proceed.
-	RecoveryTargetLsn *string `yaml:"recovery_target_lsn,omitempty" mapstructure:"recovery_target_lsn,omitempty"`
+	// \N
+	ParallelLeaderParticipation *bool `json:"parallel_leader_participation,omitempty" yaml:"parallel_leader_participation,omitempty" mapstructure:"parallel_leader_participation,omitempty"`
 
-	// Sets the named restore point up to which recovery will proceed.
-	RecoveryTargetName *string `yaml:"recovery_target_name,omitempty" mapstructure:"recovery_target_name,omitempty"`
+	// \N
+	ParallelSetupCost *float64 `json:"parallel_setup_cost,omitempty" yaml:"parallel_setup_cost,omitempty" mapstructure:"parallel_setup_cost,omitempty"`
 
-	// Sets the time stamp up to which recovery will proceed.
-	RecoveryTargetTime *string `yaml:"recovery_target_time,omitempty" mapstructure:"recovery_target_time,omitempty"`
+	// \N
+	ParallelTupleCost *float64 `json:"parallel_tuple_cost,omitempty" yaml:"parallel_tuple_cost,omitempty" mapstructure:"parallel_tuple_cost,omitempty"`
 
-	// Specifies the timeline to recover into.
-	RecoveryTargetTimeline *string `yaml:"recovery_target_timeline,omitempty" mapstructure:"recovery_target_timeline,omitempty"`
+	// \N
+	PasswordEncryption string `json:"password_encryption,omitempty" yaml:"password_encryption,omitempty" mapstructure:"password_encryption,omitempty"`
 
-	// Sets the transaction ID up to which recovery will proceed.
-	RecoveryTargetXid *string `yaml:"recovery_target_xid,omitempty" mapstructure:"recovery_target_xid,omitempty"`
+	// \N
+	PlanCacheMode string `json:"plan_cache_mode,omitempty" yaml:"plan_cache_mode,omitempty" mapstructure:"plan_cache_mode,omitempty"`
 
-	// Sets the planner's estimate of the average size of a recursive query's working
-	// table.
-	RecursiveWorktableFactor *float64 `yaml:"recursive_worktable_factor,omitempty" mapstructure:"recursive_worktable_factor,omitempty"`
+	// \N
+	Port *int `json:"port,omitempty" yaml:"port,omitempty" mapstructure:"port,omitempty"`
 
-	// Sets the number of connection slots reserved for roles with privileges of
-	// pg_use_reserved_connections.
-	ReservedConnections *int `yaml:"reserved_connections,omitempty" mapstructure:"reserved_connections,omitempty"`
+	// \N
+	PostAuthDelay *types.Duration `json:"post_auth_delay,omitempty" yaml:"post_auth_delay,omitempty" mapstructure:"post_auth_delay,omitempty"`
 
-	// Reinitialize server after backend crash.
-	RestartAfterCrash *string `yaml:"restart_after_crash,omitempty" mapstructure:"restart_after_crash,omitempty"`
+	// \N
+	PreAuthDelay *types.Duration `json:"pre_auth_delay,omitempty" yaml:"pre_auth_delay,omitempty" mapstructure:"pre_auth_delay,omitempty"`
 
-	// Sets the shell command that will be called to retrieve an archived WAL file.
-	RestoreCommand *string `yaml:"restore_command,omitempty" mapstructure:"restore_command,omitempty"`
+	// \N
+	PrimaryConninfo *string `json:"primary_conninfo,omitempty" yaml:"primary_conninfo,omitempty" mapstructure:"primary_conninfo,omitempty"`
 
-	// Enable row security. When enabled, row security will be applied to all users.
-	RowSecurity *string `yaml:"row_security,omitempty" mapstructure:"row_security,omitempty"`
+	// \N
+	PrimarySlotName *string `json:"primary_slot_name,omitempty" yaml:"primary_slot_name,omitempty" mapstructure:"primary_slot_name,omitempty"`
 
-	// Sets the iteration count for SCRAM secret generation.
-	ScramIterations *int `yaml:"scram_iterations,omitempty" mapstructure:"scram_iterations,omitempty"`
+	// \N
+	QuoteAllIdentifiers *bool `json:"quote_all_identifiers,omitempty" yaml:"quote_all_identifiers,omitempty" mapstructure:"quote_all_identifiers,omitempty"`
 
-	// Sets the schema search order for names that are not schema-qualified.
-	SearchPath *string `yaml:"search_path,omitempty" mapstructure:"search_path,omitempty"`
+	// \N
+	RandomPageCost *float64 `json:"random_page_cost,omitempty" yaml:"random_page_cost,omitempty" mapstructure:"random_page_cost,omitempty"`
 
-	// Sets the planner's estimate of the cost of a sequentially fetched disk page.
-	SeqPageCost *float64 `yaml:"seq_page_cost,omitempty" mapstructure:"seq_page_cost,omitempty"`
+	// \N
+	RecoveryEndCommand *string `json:"recovery_end_command,omitempty" yaml:"recovery_end_command,omitempty" mapstructure:"recovery_end_command,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the serializable
-	// transaction cache.
-	SerializableBuffers *int `yaml:"serializable_buffers,omitempty" mapstructure:"serializable_buffers,omitempty"`
+	// \N
+	RecoveryInitSyncMethod string `json:"recovery_init_sync_method,omitempty" yaml:"recovery_init_sync_method,omitempty" mapstructure:"recovery_init_sync_method,omitempty"`
 
-	// Lists shared libraries to preload into each backend.
-	SessionPreloadLibraries *string `yaml:"session_preload_libraries,omitempty" mapstructure:"session_preload_libraries,omitempty"`
+	// \N
+	RecoveryMinApplyDelay *types.Duration `json:"recovery_min_apply_delay,omitempty" yaml:"recovery_min_apply_delay,omitempty" mapstructure:"recovery_min_apply_delay,omitempty"`
 
-	// Sets the session's behavior for triggers and rewrite rules.
-	SessionReplicationRole *string `yaml:"session_replication_role,omitempty" mapstructure:"session_replication_role,omitempty"`
+	// \N
+	RecoveryPrefetch string `json:"recovery_prefetch,omitempty" yaml:"recovery_prefetch,omitempty" mapstructure:"recovery_prefetch,omitempty"`
 
-	// Sets the number of shared memory buffers used by the server.
-	SharedBuffers *int `yaml:"shared_buffers,omitempty" mapstructure:"shared_buffers,omitempty"`
+	// \N
+	RecoveryTarget *string `json:"recovery_target,omitempty" yaml:"recovery_target,omitempty" mapstructure:"recovery_target,omitempty"`
 
-	// Selects the shared memory implementation used for the main shared memory
-	// region.
-	SharedMemoryType *string `yaml:"shared_memory_type,omitempty" mapstructure:"shared_memory_type,omitempty"`
+	// \N
+	RecoveryTargetAction string `json:"recovery_target_action,omitempty" yaml:"recovery_target_action,omitempty" mapstructure:"recovery_target_action,omitempty"`
 
-	// Lists shared libraries to preload into server.
-	SharedPreloadLibraries *string `yaml:"shared_preload_libraries,omitempty" mapstructure:"shared_preload_libraries,omitempty"`
+	// \N
+	RecoveryTargetInclusive *bool `json:"recovery_target_inclusive,omitempty" yaml:"recovery_target_inclusive,omitempty" mapstructure:"recovery_target_inclusive,omitempty"`
 
-	// Enables SSL connections.
-	Ssl *string `yaml:"ssl,omitempty" mapstructure:"ssl,omitempty"`
+	// \N
+	RecoveryTargetLsn *string `json:"recovery_target_lsn,omitempty" yaml:"recovery_target_lsn,omitempty" mapstructure:"recovery_target_lsn,omitempty"`
 
-	// Location of the SSL certificate authority file.
-	SslCaFile *string `yaml:"ssl_ca_file,omitempty" mapstructure:"ssl_ca_file,omitempty"`
+	// \N
+	RecoveryTargetName *string `json:"recovery_target_name,omitempty" yaml:"recovery_target_name,omitempty" mapstructure:"recovery_target_name,omitempty"`
 
-	// Location of the SSL server certificate file.
-	SslCertFile *string `yaml:"ssl_cert_file,omitempty" mapstructure:"ssl_cert_file,omitempty"`
+	// \N
+	RecoveryTargetTime *string `json:"recovery_target_time,omitempty" yaml:"recovery_target_time,omitempty" mapstructure:"recovery_target_time,omitempty"`
 
-	// Sets the list of allowed SSL ciphers.
-	SslCiphers *string `yaml:"ssl_ciphers,omitempty" mapstructure:"ssl_ciphers,omitempty"`
+	// \N
+	RecoveryTargetTimeline *string `json:"recovery_target_timeline,omitempty" yaml:"recovery_target_timeline,omitempty" mapstructure:"recovery_target_timeline,omitempty"`
 
-	// Location of the SSL certificate revocation list directory.
-	SslCrlDir *string `yaml:"ssl_crl_dir,omitempty" mapstructure:"ssl_crl_dir,omitempty"`
+	// \N
+	RecoveryTargetXid *string `json:"recovery_target_xid,omitempty" yaml:"recovery_target_xid,omitempty" mapstructure:"recovery_target_xid,omitempty"`
 
-	// Location of the SSL certificate revocation list file.
-	SslCrlFile *string `yaml:"ssl_crl_file,omitempty" mapstructure:"ssl_crl_file,omitempty"`
+	// \N
+	RecursiveWorktableFactor *float64 `json:"recursive_worktable_factor,omitempty" yaml:"recursive_worktable_factor,omitempty" mapstructure:"recursive_worktable_factor,omitempty"`
 
-	// Location of the SSL DH parameters file.
-	SslDhParamsFile *string `yaml:"ssl_dh_params_file,omitempty" mapstructure:"ssl_dh_params_file,omitempty"`
+	// \N
+	RemoveTempFilesAfterCrash *bool `json:"remove_temp_files_after_crash,omitempty" yaml:"remove_temp_files_after_crash,omitempty" mapstructure:"remove_temp_files_after_crash,omitempty"`
 
-	// Sets the curve to use for ECDH.
-	SslEcdhCurve *string `yaml:"ssl_ecdh_curve,omitempty" mapstructure:"ssl_ecdh_curve,omitempty"`
+	// \N
+	ReservedConnections *int `json:"reserved_connections,omitempty" yaml:"reserved_connections,omitempty" mapstructure:"reserved_connections,omitempty"`
 
-	// Location of the SSL server private key file.
-	SslKeyFile *string `yaml:"ssl_key_file,omitempty" mapstructure:"ssl_key_file,omitempty"`
+	// \N
+	RestartAfterCrash *bool `json:"restart_after_crash,omitempty" yaml:"restart_after_crash,omitempty" mapstructure:"restart_after_crash,omitempty"`
 
-	// Sets the maximum SSL/TLS protocol version to use.
-	SslMaxProtocolVersion *string `yaml:"ssl_max_protocol_version,omitempty" mapstructure:"ssl_max_protocol_version,omitempty"`
+	// \N
+	RestoreCommand *string `json:"restore_command,omitempty" yaml:"restore_command,omitempty" mapstructure:"restore_command,omitempty"`
 
-	// Sets the minimum SSL/TLS protocol version to use.
-	SslMinProtocolVersion *string `yaml:"ssl_min_protocol_version,omitempty" mapstructure:"ssl_min_protocol_version,omitempty"`
+	// \N
+	RestrictNonsystemRelationKind *string `json:"restrict_nonsystem_relation_kind,omitempty" yaml:"restrict_nonsystem_relation_kind,omitempty" mapstructure:"restrict_nonsystem_relation_kind,omitempty"`
 
-	// Command to obtain passphrases for SSL.
-	SslPassphraseCommand *string `yaml:"ssl_passphrase_command,omitempty" mapstructure:"ssl_passphrase_command,omitempty"`
+	// \N
+	RowSecurity *bool `json:"row_security,omitempty" yaml:"row_security,omitempty" mapstructure:"row_security,omitempty"`
 
-	// Controls whether "ssl_passphrase_command" is called during server reload.
-	SslPassphraseCommandSupportsReload *string `yaml:"ssl_passphrase_command_supports_reload,omitempty" mapstructure:"ssl_passphrase_command_supports_reload,omitempty"`
+	// \N
+	ScramIterations *int `json:"scram_iterations,omitempty" yaml:"scram_iterations,omitempty" mapstructure:"scram_iterations,omitempty"`
 
-	// Give priority to server ciphersuite order.
-	SslPreferServerCiphers *string `yaml:"ssl_prefer_server_ciphers,omitempty" mapstructure:"ssl_prefer_server_ciphers,omitempty"`
+	// \N
+	SearchPath *string `json:"search_path,omitempty" yaml:"search_path,omitempty" mapstructure:"search_path,omitempty"`
 
-	// Causes '...' strings to treat backslashes literally.
-	StandardConformingStrings *string `yaml:"standard_conforming_strings,omitempty" mapstructure:"standard_conforming_strings,omitempty"`
+	// \N
+	SendAbortForCrash *bool `json:"send_abort_for_crash,omitempty" yaml:"send_abort_for_crash,omitempty" mapstructure:"send_abort_for_crash,omitempty"`
 
-	// Sets the maximum allowed duration of any statement. A value of 0 turns off the
-	// timeout.
-	StatementTimeout *int `yaml:"statement_timeout,omitempty" mapstructure:"statement_timeout,omitempty"`
+	// \N
+	SendAbortForKill *bool `json:"send_abort_for_kill,omitempty" yaml:"send_abort_for_kill,omitempty" mapstructure:"send_abort_for_kill,omitempty"`
 
-	// Sets the consistency of accesses to statistics data.
-	StatsFetchConsistency *string `yaml:"stats_fetch_consistency,omitempty" mapstructure:"stats_fetch_consistency,omitempty"`
+	// \N
+	SeqPageCost *float64 `json:"seq_page_cost,omitempty" yaml:"seq_page_cost,omitempty" mapstructure:"seq_page_cost,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the subtransaction cache.
-	// Specify 0 to have this value determined as a fraction of shared_buffers.
-	SubtransactionBuffers *int `yaml:"subtransaction_buffers,omitempty" mapstructure:"subtransaction_buffers,omitempty"`
+	// \N
+	SerializableBuffers *types.Size `json:"serializable_buffers,omitempty" yaml:"serializable_buffers,omitempty" mapstructure:"serializable_buffers,omitempty"`
 
-	// Starts the WAL summarizer process to enable incremental backup.
-	SummarizeWal *string `yaml:"summarize_wal,omitempty" mapstructure:"summarize_wal,omitempty"`
+	// \N
+	SessionPreloadLibraries *string `json:"session_preload_libraries,omitempty" yaml:"session_preload_libraries,omitempty" mapstructure:"session_preload_libraries,omitempty"`
 
-	// Sets the number of connection slots reserved for superusers.
-	SuperuserReservedConnections *int `yaml:"superuser_reserved_connections,omitempty" mapstructure:"superuser_reserved_connections,omitempty"`
+	// \N
+	SessionReplicationRole string `json:"session_replication_role,omitempty" yaml:"session_replication_role,omitempty" mapstructure:"session_replication_role,omitempty"`
 
-	// Enables a physical standby to synchronize logical failover replication slots
-	// from the primary server.
-	SyncReplicationSlots *string `yaml:"sync_replication_slots,omitempty" mapstructure:"sync_replication_slots,omitempty"`
+	// \N
+	SharedBuffers *types.Size `json:"shared_buffers,omitempty" yaml:"shared_buffers,omitempty" mapstructure:"shared_buffers,omitempty"`
 
-	// Enable synchronized sequential scans.
-	SynchronizeSeqscans *string `yaml:"synchronize_seqscans,omitempty" mapstructure:"synchronize_seqscans,omitempty"`
+	// \N
+	SharedMemoryType string `json:"shared_memory_type,omitempty" yaml:"shared_memory_type,omitempty" mapstructure:"shared_memory_type,omitempty"`
 
-	// Lists streaming replication standby server replication slot names that logical
-	// WAL sender processes will wait for. Logical WAL sender processes will send
-	// decoded changes to output plugins only after the specified replication slots
-	// have confirmed receiving WAL.
-	SynchronizedStandbySlots *string `yaml:"synchronized_standby_slots,omitempty" mapstructure:"synchronized_standby_slots,omitempty"`
+	// \N
+	SharedPreloadLibraries *string `json:"shared_preload_libraries,omitempty" yaml:"shared_preload_libraries,omitempty" mapstructure:"shared_preload_libraries,omitempty"`
 
-	// Sets the current transaction's synchronization level.
-	SynchronousCommit string `yaml:"synchronous_commit,omitempty" mapstructure:"synchronous_commit,omitempty"`
+	// \N
+	Ssl *bool `json:"ssl,omitempty" yaml:"ssl,omitempty" mapstructure:"ssl,omitempty"`
 
-	// Number of synchronous standbys and list of names of potential synchronous ones.
-	SynchronousStandbyNames *string `yaml:"synchronous_standby_names,omitempty" mapstructure:"synchronous_standby_names,omitempty"`
+	// \N
+	SslCaFile *string `json:"ssl_ca_file,omitempty" yaml:"ssl_ca_file,omitempty" mapstructure:"ssl_ca_file,omitempty"`
 
-	// Sets the syslog "facility" to be used when syslog enabled.
-	SyslogFacility string `yaml:"syslog_facility,omitempty" mapstructure:"syslog_facility,omitempty"`
+	// \N
+	SslCertFile *string `json:"ssl_cert_file,omitempty" yaml:"ssl_cert_file,omitempty" mapstructure:"ssl_cert_file,omitempty"`
 
-	// Sets the program name used to identify PostgreSQL messages in syslog.
-	SyslogIdent *string `yaml:"syslog_ident,omitempty" mapstructure:"syslog_ident,omitempty"`
+	// \N
+	SslCiphers *string `json:"ssl_ciphers,omitempty" yaml:"ssl_ciphers,omitempty" mapstructure:"ssl_ciphers,omitempty"`
 
-	// Add sequence number to syslog messages to avoid duplicate suppression.
-	SyslogSequenceNumbers *string `yaml:"syslog_sequence_numbers,omitempty" mapstructure:"syslog_sequence_numbers,omitempty"`
+	// \N
+	SslCrlDir *string `json:"ssl_crl_dir,omitempty" yaml:"ssl_crl_dir,omitempty" mapstructure:"ssl_crl_dir,omitempty"`
 
-	// Split messages sent to syslog by lines and to fit into 1024 bytes.
-	SyslogSplitMessages *string `yaml:"syslog_split_messages,omitempty" mapstructure:"syslog_split_messages,omitempty"`
+	// \N
+	SslCrlFile *string `json:"ssl_crl_file,omitempty" yaml:"ssl_crl_file,omitempty" mapstructure:"ssl_crl_file,omitempty"`
 
-	// Maximum number of TCP keepalive retransmits. Number of consecutive keepalive
-	// retransmits that can be lost before a connection is considered dead. A value of
-	// 0 uses the system default.
-	TcpKeepalivesCount *int `yaml:"tcp_keepalives_count,omitempty" mapstructure:"tcp_keepalives_count,omitempty"`
+	// \N
+	SslDhParamsFile *string `json:"ssl_dh_params_file,omitempty" yaml:"ssl_dh_params_file,omitempty" mapstructure:"ssl_dh_params_file,omitempty"`
 
-	// Time between issuing TCP keepalives. A value of 0 uses the system default.
-	TcpKeepalivesIdle *int `yaml:"tcp_keepalives_idle,omitempty" mapstructure:"tcp_keepalives_idle,omitempty"`
+	// \N
+	SslEcdhCurve *string `json:"ssl_ecdh_curve,omitempty" yaml:"ssl_ecdh_curve,omitempty" mapstructure:"ssl_ecdh_curve,omitempty"`
 
-	// Time between TCP keepalive retransmits. A value of 0 uses the system default.
-	TcpKeepalivesInterval *int `yaml:"tcp_keepalives_interval,omitempty" mapstructure:"tcp_keepalives_interval,omitempty"`
+	// \N
+	SslKeyFile *string `json:"ssl_key_file,omitempty" yaml:"ssl_key_file,omitempty" mapstructure:"ssl_key_file,omitempty"`
 
-	// TCP user timeout. A value of 0 uses the system default.
-	TcpUserTimeout *int `yaml:"tcp_user_timeout,omitempty" mapstructure:"tcp_user_timeout,omitempty"`
+	// \N
+	SslMaxProtocolVersion string `json:"ssl_max_protocol_version,omitempty" yaml:"ssl_max_protocol_version,omitempty" mapstructure:"ssl_max_protocol_version,omitempty"`
 
-	// Sets the maximum number of temporary buffers used by each session.
-	TempBuffers *int `yaml:"temp_buffers,omitempty" mapstructure:"temp_buffers,omitempty"`
+	// \N
+	SslMinProtocolVersion string `json:"ssl_min_protocol_version,omitempty" yaml:"ssl_min_protocol_version,omitempty" mapstructure:"ssl_min_protocol_version,omitempty"`
 
-	// Limits the total size of all temporary files used by each process. -1 means no
-	// limit.
-	TempFileLimit *int `yaml:"temp_file_limit,omitempty" mapstructure:"temp_file_limit,omitempty"`
+	// \N
+	SslPassphraseCommand *string `json:"ssl_passphrase_command,omitempty" yaml:"ssl_passphrase_command,omitempty" mapstructure:"ssl_passphrase_command,omitempty"`
 
-	// Sets the tablespace(s) to use for temporary tables and sort files.
-	TempTablespaces *string `yaml:"temp_tablespaces,omitempty" mapstructure:"temp_tablespaces,omitempty"`
+	// \N
+	SslPassphraseCommandSupportsReload *bool `json:"ssl_passphrase_command_supports_reload,omitempty" yaml:"ssl_passphrase_command_supports_reload,omitempty" mapstructure:"ssl_passphrase_command_supports_reload,omitempty"`
 
-	// Selects a file of time zone abbreviations.
-	TimezoneAbbreviations *string `yaml:"timezone_abbreviations,omitempty" mapstructure:"timezone_abbreviations,omitempty"`
+	// \N
+	SslPreferServerCiphers *bool `json:"ssl_prefer_server_ciphers,omitempty" yaml:"ssl_prefer_server_ciphers,omitempty" mapstructure:"ssl_prefer_server_ciphers,omitempty"`
 
-	// Collects information about executing commands. Enables the collection of
-	// information on the currently executing command of each session, along with the
-	// time at which that command began execution.
-	TrackActivities *string `yaml:"track_activities,omitempty" mapstructure:"track_activities,omitempty"`
+	// \N
+	StandardConformingStrings *bool `json:"standard_conforming_strings,omitempty" yaml:"standard_conforming_strings,omitempty" mapstructure:"standard_conforming_strings,omitempty"`
 
-	// Sets the size reserved for pg_stat_activity.query, in bytes.
-	TrackActivityQuerySize *int `yaml:"track_activity_query_size,omitempty" mapstructure:"track_activity_query_size,omitempty"`
+	// \N
+	StatementTimeout *types.Duration `json:"statement_timeout,omitempty" yaml:"statement_timeout,omitempty" mapstructure:"statement_timeout,omitempty"`
 
-	// Collects transaction commit time.
-	TrackCommitTimestamp *string `yaml:"track_commit_timestamp,omitempty" mapstructure:"track_commit_timestamp,omitempty"`
+	// \N
+	StatsFetchConsistency string `json:"stats_fetch_consistency,omitempty" yaml:"stats_fetch_consistency,omitempty" mapstructure:"stats_fetch_consistency,omitempty"`
 
-	// Collects statistics on database activity.
-	TrackCounts *string `yaml:"track_counts,omitempty" mapstructure:"track_counts,omitempty"`
+	// \N
+	SubtransactionBuffers *types.Size `json:"subtransaction_buffers,omitempty" yaml:"subtransaction_buffers,omitempty" mapstructure:"subtransaction_buffers,omitempty"`
 
-	// Collects function-level statistics on database activity.
-	TrackFunctions *string `yaml:"track_functions,omitempty" mapstructure:"track_functions,omitempty"`
+	// \N
+	SummarizeWal *bool `json:"summarize_wal,omitempty" yaml:"summarize_wal,omitempty" mapstructure:"summarize_wal,omitempty"`
 
-	// Collects timing statistics for database I/O activity.
-	TrackIoTiming *string `yaml:"track_io_timing,omitempty" mapstructure:"track_io_timing,omitempty"`
+	// \N
+	SuperuserReservedConnections *int `json:"superuser_reserved_connections,omitempty" yaml:"superuser_reserved_connections,omitempty" mapstructure:"superuser_reserved_connections,omitempty"`
 
-	// Collects timing statistics for WAL I/O activity.
-	TrackWalIoTiming *string `yaml:"track_wal_io_timing,omitempty" mapstructure:"track_wal_io_timing,omitempty"`
+	// \N
+	SyncReplicationSlots *bool `json:"sync_replication_slots,omitempty" yaml:"sync_replication_slots,omitempty" mapstructure:"sync_replication_slots,omitempty"`
 
-	// Sets the size of the dedicated buffer pool used for the transaction status
-	// cache. Specify 0 to have this value determined as a fraction of shared_buffers.
-	TransactionBuffers *int `yaml:"transaction_buffers,omitempty" mapstructure:"transaction_buffers,omitempty"`
+	// \N
+	SynchronizeSeqscans *bool `json:"synchronize_seqscans,omitempty" yaml:"synchronize_seqscans,omitempty" mapstructure:"synchronize_seqscans,omitempty"`
 
-	// Sets the maximum allowed duration of any transaction within a session (not a
-	// prepared transaction). A value of 0 turns off the timeout.
-	TransactionTimeout *int `yaml:"transaction_timeout,omitempty" mapstructure:"transaction_timeout,omitempty"`
+	// \N
+	SynchronizedStandbySlots *string `json:"synchronized_standby_slots,omitempty" yaml:"synchronized_standby_slots,omitempty" mapstructure:"synchronized_standby_slots,omitempty"`
 
-	// Treats "expr=NULL" as "expr IS NULL". When turned on, expressions of the form
-	// expr = NULL (or NULL = expr) are treated as expr IS NULL, that is, they return
-	// true if expr evaluates to the null value, and false otherwise. The correct
-	// behavior of expr = NULL is to always return null (unknown).
-	TransformNullEquals *string `yaml:"transform_null_equals,omitempty" mapstructure:"transform_null_equals,omitempty"`
+	// \N
+	SynchronousCommit string `json:"synchronous_commit,omitempty" yaml:"synchronous_commit,omitempty" mapstructure:"synchronous_commit,omitempty"`
 
-	// Sets the directories where Unix-domain sockets will be created.
-	UnixSocketDirectories *string `yaml:"unix_socket_directories,omitempty" mapstructure:"unix_socket_directories,omitempty"`
+	// \N
+	SynchronousStandbyNames *string `json:"synchronous_standby_names,omitempty" yaml:"synchronous_standby_names,omitempty" mapstructure:"synchronous_standby_names,omitempty"`
 
-	// Sets the owning group of the Unix-domain socket. The owning user of the socket
-	// is always the user that starts the server.
-	UnixSocketGroup *string `yaml:"unix_socket_group,omitempty" mapstructure:"unix_socket_group,omitempty"`
+	// \N
+	SyslogFacility string `json:"syslog_facility,omitempty" yaml:"syslog_facility,omitempty" mapstructure:"syslog_facility,omitempty"`
 
-	// Sets the access permissions of the Unix-domain socket. Unix-domain sockets use
-	// the usual Unix file system permission set. The parameter value is expected to
-	// be a numeric mode specification in the form accepted by the chmod and umask
-	// system calls. (To use the customary octal format the number must start with a 0
-	// (zero).)
-	UnixSocketPermissions *int `yaml:"unix_socket_permissions,omitempty" mapstructure:"unix_socket_permissions,omitempty"`
+	// \N
+	SyslogIdent *string `json:"syslog_ident,omitempty" yaml:"syslog_ident,omitempty" mapstructure:"syslog_ident,omitempty"`
 
-	// Updates the process title to show the active SQL command. Enables updating of
-	// the process title every time a new SQL command is received by the server.
-	UpdateProcessTitle *string `yaml:"update_process_title,omitempty" mapstructure:"update_process_title,omitempty"`
+	// \N
+	SyslogSequenceNumbers *bool `json:"syslog_sequence_numbers,omitempty" yaml:"syslog_sequence_numbers,omitempty" mapstructure:"syslog_sequence_numbers,omitempty"`
 
-	// Sets the buffer pool size for VACUUM, ANALYZE, and autovacuum.
-	VacuumBufferUsageLimit *int `yaml:"vacuum_buffer_usage_limit,omitempty" mapstructure:"vacuum_buffer_usage_limit,omitempty"`
+	// \N
+	SyslogSplitMessages *bool `json:"syslog_split_messages,omitempty" yaml:"syslog_split_messages,omitempty" mapstructure:"syslog_split_messages,omitempty"`
 
-	// Vacuum cost delay in milliseconds.
-	VacuumCostDelay *float64 `yaml:"vacuum_cost_delay,omitempty" mapstructure:"vacuum_cost_delay,omitempty"`
+	// \N
+	TcpKeepalivesCount *int `json:"tcp_keepalives_count,omitempty" yaml:"tcp_keepalives_count,omitempty" mapstructure:"tcp_keepalives_count,omitempty"`
 
-	// Vacuum cost amount available before napping.
-	VacuumCostLimit *int `yaml:"vacuum_cost_limit,omitempty" mapstructure:"vacuum_cost_limit,omitempty"`
+	// \N
+	TcpKeepalivesIdle *types.Duration `json:"tcp_keepalives_idle,omitempty" yaml:"tcp_keepalives_idle,omitempty" mapstructure:"tcp_keepalives_idle,omitempty"`
 
-	// Vacuum cost for a page dirtied by vacuum.
-	VacuumCostPageDirty *int `yaml:"vacuum_cost_page_dirty,omitempty" mapstructure:"vacuum_cost_page_dirty,omitempty"`
+	// \N
+	TcpKeepalivesInterval *types.Duration `json:"tcp_keepalives_interval,omitempty" yaml:"tcp_keepalives_interval,omitempty" mapstructure:"tcp_keepalives_interval,omitempty"`
 
-	// Vacuum cost for a page found in the buffer cache.
-	VacuumCostPageHit *int `yaml:"vacuum_cost_page_hit,omitempty" mapstructure:"vacuum_cost_page_hit,omitempty"`
+	// \N
+	TcpUserTimeout *types.Duration `json:"tcp_user_timeout,omitempty" yaml:"tcp_user_timeout,omitempty" mapstructure:"tcp_user_timeout,omitempty"`
 
-	// Vacuum cost for a page not found in the buffer cache.
-	VacuumCostPageMiss *int `yaml:"vacuum_cost_page_miss,omitempty" mapstructure:"vacuum_cost_page_miss,omitempty"`
+	// \N
+	TempBuffers *types.Size `json:"temp_buffers,omitempty" yaml:"temp_buffers,omitempty" mapstructure:"temp_buffers,omitempty"`
 
-	// Age at which VACUUM should trigger failsafe to avoid a wraparound outage.
-	VacuumFailsafeAge *int `yaml:"vacuum_failsafe_age,omitempty" mapstructure:"vacuum_failsafe_age,omitempty"`
+	// \N
+	TempFileLimit *types.Size `json:"temp_file_limit,omitempty" yaml:"temp_file_limit,omitempty" mapstructure:"temp_file_limit,omitempty"`
 
-	// Minimum age at which VACUUM should freeze a table row.
-	VacuumFreezeMinAge *int `yaml:"vacuum_freeze_min_age,omitempty" mapstructure:"vacuum_freeze_min_age,omitempty"`
+	// \N
+	TempTablespaces *string `json:"temp_tablespaces,omitempty" yaml:"temp_tablespaces,omitempty" mapstructure:"temp_tablespaces,omitempty"`
 
-	// Age at which VACUUM should scan whole table to freeze tuples.
-	VacuumFreezeTableAge *int `yaml:"vacuum_freeze_table_age,omitempty" mapstructure:"vacuum_freeze_table_age,omitempty"`
+	// \N
+	TimezoneAbbreviations *string `json:"timezone_abbreviations,omitempty" yaml:"timezone_abbreviations,omitempty" mapstructure:"timezone_abbreviations,omitempty"`
 
-	// Multixact age at which VACUUM should trigger failsafe to avoid a wraparound
-	// outage.
-	VacuumMultixactFailsafeAge *int `yaml:"vacuum_multixact_failsafe_age,omitempty" mapstructure:"vacuum_multixact_failsafe_age,omitempty"`
+	// \N
+	TraceNotify *bool `json:"trace_notify,omitempty" yaml:"trace_notify,omitempty" mapstructure:"trace_notify,omitempty"`
 
-	// Minimum age at which VACUUM should freeze a MultiXactId in a table row.
-	VacuumMultixactFreezeMinAge *int `yaml:"vacuum_multixact_freeze_min_age,omitempty" mapstructure:"vacuum_multixact_freeze_min_age,omitempty"`
+	// \N
+	TraceSort *bool `json:"trace_sort,omitempty" yaml:"trace_sort,omitempty" mapstructure:"trace_sort,omitempty"`
 
-	// Multixact age at which VACUUM should scan whole table to freeze tuples.
-	VacuumMultixactFreezeTableAge *int `yaml:"vacuum_multixact_freeze_table_age,omitempty" mapstructure:"vacuum_multixact_freeze_table_age,omitempty"`
+	// \N
+	TrackActivities *bool `json:"track_activities,omitempty" yaml:"track_activities,omitempty" mapstructure:"track_activities,omitempty"`
 
-	// Sets the number of disk-page buffers in shared memory for WAL. Specify -1 to
-	// have this value determined as a fraction of shared_buffers.
-	WalBuffers *int `yaml:"wal_buffers,omitempty" mapstructure:"wal_buffers,omitempty"`
+	// \N
+	TrackActivityQuerySize *int `json:"track_activity_query_size,omitempty" yaml:"track_activity_query_size,omitempty" mapstructure:"track_activity_query_size,omitempty"`
 
-	// Compresses full-page writes written in WAL file with specified method.
-	WalCompression string `yaml:"wal_compression,omitempty" mapstructure:"wal_compression,omitempty"`
+	// \N
+	TrackCommitTimestamp *bool `json:"track_commit_timestamp,omitempty" yaml:"track_commit_timestamp,omitempty" mapstructure:"track_commit_timestamp,omitempty"`
 
-	// Buffer size for reading ahead in the WAL during recovery. Maximum distance to
-	// read ahead in the WAL to prefetch referenced data blocks.
-	WalDecodeBufferSize *int `yaml:"wal_decode_buffer_size,omitempty" mapstructure:"wal_decode_buffer_size,omitempty"`
+	// \N
+	TrackCounts *bool `json:"track_counts,omitempty" yaml:"track_counts,omitempty" mapstructure:"track_counts,omitempty"`
 
-	// Writes zeroes to new WAL files before first use.
-	WalInitZero *string `yaml:"wal_init_zero,omitempty" mapstructure:"wal_init_zero,omitempty"`
+	// \N
+	TrackFunctions string `json:"track_functions,omitempty" yaml:"track_functions,omitempty" mapstructure:"track_functions,omitempty"`
 
-	// Sets the size of WAL files held for standby servers.
-	WalKeepSize *int `yaml:"wal_keep_size,omitempty" mapstructure:"wal_keep_size,omitempty"`
+	// \N
+	TrackIoTiming *bool `json:"track_io_timing,omitempty" yaml:"track_io_timing,omitempty" mapstructure:"track_io_timing,omitempty"`
 
-	// Sets the level of information written to the WAL.
-	WalLevel string `yaml:"wal_level,omitempty" mapstructure:"wal_level,omitempty"`
+	// \N
+	TrackWalIoTiming *bool `json:"track_wal_io_timing,omitempty" yaml:"track_wal_io_timing,omitempty" mapstructure:"track_wal_io_timing,omitempty"`
 
-	// Writes full pages to WAL when first modified after a checkpoint, even for a
-	// non-critical modification.
-	WalLogHints *string `yaml:"wal_log_hints,omitempty" mapstructure:"wal_log_hints,omitempty"`
+	// \N
+	TransactionBuffers *types.Size `json:"transaction_buffers,omitempty" yaml:"transaction_buffers,omitempty" mapstructure:"transaction_buffers,omitempty"`
 
-	// Sets whether a WAL receiver should create a temporary replication slot if no
-	// permanent slot is configured.
-	WalReceiverCreateTempSlot *string `yaml:"wal_receiver_create_temp_slot,omitempty" mapstructure:"wal_receiver_create_temp_slot,omitempty"`
+	// \N
+	TransactionDeferrable *bool `json:"transaction_deferrable,omitempty" yaml:"transaction_deferrable,omitempty" mapstructure:"transaction_deferrable,omitempty"`
 
-	// Sets the maximum interval between WAL receiver status reports to the sending
-	// server.
-	WalReceiverStatusInterval *int `yaml:"wal_receiver_status_interval,omitempty" mapstructure:"wal_receiver_status_interval,omitempty"`
+	// \N
+	TransactionIsolation string `json:"transaction_isolation,omitempty" yaml:"transaction_isolation,omitempty" mapstructure:"transaction_isolation,omitempty"`
 
-	// Sets the maximum wait time to receive data from the sending server.
-	WalReceiverTimeout *int `yaml:"wal_receiver_timeout,omitempty" mapstructure:"wal_receiver_timeout,omitempty"`
+	// \N
+	TransactionReadOnly *bool `json:"transaction_read_only,omitempty" yaml:"transaction_read_only,omitempty" mapstructure:"transaction_read_only,omitempty"`
 
-	// Recycles WAL files by renaming them.
-	WalRecycle *string `yaml:"wal_recycle,omitempty" mapstructure:"wal_recycle,omitempty"`
+	// \N
+	TransactionTimeout *types.Duration `json:"transaction_timeout,omitempty" yaml:"transaction_timeout,omitempty" mapstructure:"transaction_timeout,omitempty"`
 
-	// Sets the time to wait before retrying to retrieve WAL after a failed attempt.
-	WalRetrieveRetryInterval *int `yaml:"wal_retrieve_retry_interval,omitempty" mapstructure:"wal_retrieve_retry_interval,omitempty"`
+	// \N
+	TransformNullEquals *bool `json:"transform_null_equals,omitempty" yaml:"transform_null_equals,omitempty" mapstructure:"transform_null_equals,omitempty"`
 
-	// Sets the maximum time to wait for WAL replication.
-	WalSenderTimeout *int `yaml:"wal_sender_timeout,omitempty" mapstructure:"wal_sender_timeout,omitempty"`
+	// \N
+	UnixSocketDirectories *string `json:"unix_socket_directories,omitempty" yaml:"unix_socket_directories,omitempty" mapstructure:"unix_socket_directories,omitempty"`
 
-	// Minimum size of new file to fsync instead of writing WAL.
-	WalSkipThreshold *int `yaml:"wal_skip_threshold,omitempty" mapstructure:"wal_skip_threshold,omitempty"`
+	// \N
+	UnixSocketGroup *string `json:"unix_socket_group,omitempty" yaml:"unix_socket_group,omitempty" mapstructure:"unix_socket_group,omitempty"`
 
-	// Time for which WAL summary files should be kept.
-	WalSummaryKeepTime *int `yaml:"wal_summary_keep_time,omitempty" mapstructure:"wal_summary_keep_time,omitempty"`
+	// \N
+	UnixSocketPermissions *int `json:"unix_socket_permissions,omitempty" yaml:"unix_socket_permissions,omitempty" mapstructure:"unix_socket_permissions,omitempty"`
 
-	// Selects the method used for forcing WAL updates to disk.
-	WalSyncMethod *string `yaml:"wal_sync_method,omitempty" mapstructure:"wal_sync_method,omitempty"`
+	// \N
+	UpdateProcessTitle *bool `json:"update_process_title,omitempty" yaml:"update_process_title,omitempty" mapstructure:"update_process_title,omitempty"`
 
-	// Time between WAL flushes performed in the WAL writer.
-	WalWriterDelay *int `yaml:"wal_writer_delay,omitempty" mapstructure:"wal_writer_delay,omitempty"`
+	// \N
+	VacuumBufferUsageLimit *types.Size `json:"vacuum_buffer_usage_limit,omitempty" yaml:"vacuum_buffer_usage_limit,omitempty" mapstructure:"vacuum_buffer_usage_limit,omitempty"`
 
-	// Amount of WAL written out by WAL writer that triggers a flush.
-	WalWriterFlushAfter *int `yaml:"wal_writer_flush_after,omitempty" mapstructure:"wal_writer_flush_after,omitempty"`
+	// \N
+	VacuumCostDelay *types.Duration `json:"vacuum_cost_delay,omitempty" yaml:"vacuum_cost_delay,omitempty" mapstructure:"vacuum_cost_delay,omitempty"`
 
-	// Sets the maximum memory to be used for query workspaces. This much memory can
-	// be used by each internal sort operation and hash table before switching to
-	// temporary disk files.
-	WorkMem *int `yaml:"work_mem,omitempty" mapstructure:"work_mem,omitempty"`
+	// \N
+	VacuumCostLimit *int `json:"vacuum_cost_limit,omitempty" yaml:"vacuum_cost_limit,omitempty" mapstructure:"vacuum_cost_limit,omitempty"`
 
-	// Sets how binary values are to be encoded in XML.
-	Xmlbinary *string `yaml:"xmlbinary,omitempty" mapstructure:"xmlbinary,omitempty"`
+	// \N
+	VacuumCostPageDirty *int `json:"vacuum_cost_page_dirty,omitempty" yaml:"vacuum_cost_page_dirty,omitempty" mapstructure:"vacuum_cost_page_dirty,omitempty"`
 
-	// Sets whether XML data in implicit parsing and serialization operations is to be
-	// considered as documents or content fragments.
-	Xmloption *string `yaml:"xmloption,omitempty" mapstructure:"xmloption,omitempty"`
+	// \N
+	VacuumCostPageHit *int `json:"vacuum_cost_page_hit,omitempty" yaml:"vacuum_cost_page_hit,omitempty" mapstructure:"vacuum_cost_page_hit,omitempty"`
+
+	// \N
+	VacuumCostPageMiss *int `json:"vacuum_cost_page_miss,omitempty" yaml:"vacuum_cost_page_miss,omitempty" mapstructure:"vacuum_cost_page_miss,omitempty"`
+
+	// \N
+	VacuumFailsafeAge *int `json:"vacuum_failsafe_age,omitempty" yaml:"vacuum_failsafe_age,omitempty" mapstructure:"vacuum_failsafe_age,omitempty"`
+
+	// \N
+	VacuumFreezeMinAge *int `json:"vacuum_freeze_min_age,omitempty" yaml:"vacuum_freeze_min_age,omitempty" mapstructure:"vacuum_freeze_min_age,omitempty"`
+
+	// \N
+	VacuumFreezeTableAge *int `json:"vacuum_freeze_table_age,omitempty" yaml:"vacuum_freeze_table_age,omitempty" mapstructure:"vacuum_freeze_table_age,omitempty"`
+
+	// \N
+	VacuumMultixactFailsafeAge *int `json:"vacuum_multixact_failsafe_age,omitempty" yaml:"vacuum_multixact_failsafe_age,omitempty" mapstructure:"vacuum_multixact_failsafe_age,omitempty"`
+
+	// \N
+	VacuumMultixactFreezeMinAge *int `json:"vacuum_multixact_freeze_min_age,omitempty" yaml:"vacuum_multixact_freeze_min_age,omitempty" mapstructure:"vacuum_multixact_freeze_min_age,omitempty"`
+
+	// \N
+	VacuumMultixactFreezeTableAge *int `json:"vacuum_multixact_freeze_table_age,omitempty" yaml:"vacuum_multixact_freeze_table_age,omitempty" mapstructure:"vacuum_multixact_freeze_table_age,omitempty"`
+
+	// \N
+	WalBuffers *types.Size `json:"wal_buffers,omitempty" yaml:"wal_buffers,omitempty" mapstructure:"wal_buffers,omitempty"`
+
+	// \N
+	WalCompression string `json:"wal_compression,omitempty" yaml:"wal_compression,omitempty" mapstructure:"wal_compression,omitempty"`
+
+	// \N
+	WalConsistencyChecking *string `json:"wal_consistency_checking,omitempty" yaml:"wal_consistency_checking,omitempty" mapstructure:"wal_consistency_checking,omitempty"`
+
+	// \N
+	WalDecodeBufferSize *int `json:"wal_decode_buffer_size,omitempty" yaml:"wal_decode_buffer_size,omitempty" mapstructure:"wal_decode_buffer_size,omitempty"`
+
+	// \N
+	WalInitZero *bool `json:"wal_init_zero,omitempty" yaml:"wal_init_zero,omitempty" mapstructure:"wal_init_zero,omitempty"`
+
+	// \N
+	WalKeepSize *int `json:"wal_keep_size,omitempty" yaml:"wal_keep_size,omitempty" mapstructure:"wal_keep_size,omitempty"`
+
+	// \N
+	WalLevel string `json:"wal_level,omitempty" yaml:"wal_level,omitempty" mapstructure:"wal_level,omitempty"`
+
+	// \N
+	WalLogHints *bool `json:"wal_log_hints,omitempty" yaml:"wal_log_hints,omitempty" mapstructure:"wal_log_hints,omitempty"`
+
+	// \N
+	WalReceiverCreateTempSlot *bool `json:"wal_receiver_create_temp_slot,omitempty" yaml:"wal_receiver_create_temp_slot,omitempty" mapstructure:"wal_receiver_create_temp_slot,omitempty"`
+
+	// \N
+	WalReceiverStatusInterval *types.Duration `json:"wal_receiver_status_interval,omitempty" yaml:"wal_receiver_status_interval,omitempty" mapstructure:"wal_receiver_status_interval,omitempty"`
+
+	// \N
+	WalReceiverTimeout *types.Duration `json:"wal_receiver_timeout,omitempty" yaml:"wal_receiver_timeout,omitempty" mapstructure:"wal_receiver_timeout,omitempty"`
+
+	// \N
+	WalRecycle *bool `json:"wal_recycle,omitempty" yaml:"wal_recycle,omitempty" mapstructure:"wal_recycle,omitempty"`
+
+	// \N
+	WalRetrieveRetryInterval *types.Duration `json:"wal_retrieve_retry_interval,omitempty" yaml:"wal_retrieve_retry_interval,omitempty" mapstructure:"wal_retrieve_retry_interval,omitempty"`
+
+	// \N
+	WalSenderTimeout *types.Duration `json:"wal_sender_timeout,omitempty" yaml:"wal_sender_timeout,omitempty" mapstructure:"wal_sender_timeout,omitempty"`
+
+	// \N
+	WalSkipThreshold *types.Size `json:"wal_skip_threshold,omitempty" yaml:"wal_skip_threshold,omitempty" mapstructure:"wal_skip_threshold,omitempty"`
+
+	// \N
+	WalSummaryKeepTime *types.Duration `json:"wal_summary_keep_time,omitempty" yaml:"wal_summary_keep_time,omitempty" mapstructure:"wal_summary_keep_time,omitempty"`
+
+	// \N
+	WalSyncMethod string `json:"wal_sync_method,omitempty" yaml:"wal_sync_method,omitempty" mapstructure:"wal_sync_method,omitempty"`
+
+	// \N
+	WalWriterDelay *types.Duration `json:"wal_writer_delay,omitempty" yaml:"wal_writer_delay,omitempty" mapstructure:"wal_writer_delay,omitempty"`
+
+	// \N
+	WalWriterFlushAfter *types.Size `json:"wal_writer_flush_after,omitempty" yaml:"wal_writer_flush_after,omitempty" mapstructure:"wal_writer_flush_after,omitempty"`
+
+	// \N
+	WorkMem *types.Size `json:"work_mem,omitempty" yaml:"work_mem,omitempty" mapstructure:"work_mem,omitempty"`
+
+	// \N
+	Xmlbinary string `json:"xmlbinary,omitempty" yaml:"xmlbinary,omitempty" mapstructure:"xmlbinary,omitempty"`
+
+	// \N
+	Xmloption string `json:"xmloption,omitempty" yaml:"xmloption,omitempty" mapstructure:"xmloption,omitempty"`
+
+	// \N
+	ZeroDamagedPages *bool `json:"zero_damaged_pages,omitempty" yaml:"zero_damaged_pages,omitempty" mapstructure:"zero_damaged_pages,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -2112,17 +2059,11 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
+	if v, ok := raw["IntervalStyle"]; !ok || v == nil {
+		plain.IntervalStyle = "{postgres,postgres_verbose,sql_standard,iso_8601}"
+	}
 	if v, ok := raw["archive_mode"]; !ok || v == nil {
-		plain.ArchiveMode = "{off,on,always}"
-	}
-	if plain.ArchiveTimeout != nil && 1073741823 < *plain.ArchiveTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "archive_timeout", 1073741823)
-	}
-	if plain.AuthenticationTimeout != nil && 600 < *plain.AuthenticationTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "authentication_timeout", 600)
-	}
-	if plain.AuthenticationTimeout != nil && 1 > *plain.AuthenticationTimeout {
-		return fmt.Errorf("field %s: must be >= %v", "authentication_timeout", 1)
+		plain.ArchiveMode = "{always,on,off}"
 	}
 	if plain.AutovacuumAnalyzeScaleFactor != nil && 100 < *plain.AutovacuumAnalyzeScaleFactor {
 		return fmt.Errorf("field %s: must be <= %v", "autovacuum_analyze_scale_factor", 100)
@@ -2148,18 +2089,6 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.AutovacuumMultixactFreezeMaxAge != nil && 10000 > *plain.AutovacuumMultixactFreezeMaxAge {
 		return fmt.Errorf("field %s: must be >= %v", "autovacuum_multixact_freeze_max_age", 10000)
 	}
-	if plain.AutovacuumNaptime != nil && 2147483 < *plain.AutovacuumNaptime {
-		return fmt.Errorf("field %s: must be <= %v", "autovacuum_naptime", 2147483)
-	}
-	if plain.AutovacuumNaptime != nil && 1 > *plain.AutovacuumNaptime {
-		return fmt.Errorf("field %s: must be >= %v", "autovacuum_naptime", 1)
-	}
-	if plain.AutovacuumVacuumCostDelay != nil && 100 < *plain.AutovacuumVacuumCostDelay {
-		return fmt.Errorf("field %s: must be <= %v", "autovacuum_vacuum_cost_delay", 100)
-	}
-	if plain.AutovacuumVacuumCostDelay != nil && -1 > *plain.AutovacuumVacuumCostDelay {
-		return fmt.Errorf("field %s: must be >= %v", "autovacuum_vacuum_cost_delay", -1)
-	}
 	if plain.AutovacuumVacuumCostLimit != nil && 10000 < *plain.AutovacuumVacuumCostLimit {
 		return fmt.Errorf("field %s: must be <= %v", "autovacuum_vacuum_cost_limit", 10000)
 	}
@@ -2181,23 +2110,23 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.AutovacuumVacuumThreshold != nil && 2147483647 < *plain.AutovacuumVacuumThreshold {
 		return fmt.Errorf("field %s: must be <= %v", "autovacuum_vacuum_threshold", 2147483647)
 	}
-	if plain.AutovacuumWorkMem != nil && 2147483647 < *plain.AutovacuumWorkMem {
-		return fmt.Errorf("field %s: must be <= %v", "autovacuum_work_mem", 2147483647)
+	if plain.AutovacuumWorkMem != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.AutovacuumWorkMem.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "AutovacuumWorkMem", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.AutovacuumWorkMem != nil && -1 > *plain.AutovacuumWorkMem {
-		return fmt.Errorf("field %s: must be >= %v", "autovacuum_work_mem", -1)
+	if plain.BackendFlushAfter != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.BackendFlushAfter.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "BackendFlushAfter", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.BackendFlushAfter != nil && 256 < *plain.BackendFlushAfter {
-		return fmt.Errorf("field %s: must be <= %v", "backend_flush_after", 256)
+	if v, ok := raw["backslash_quote"]; !ok || v == nil {
+		plain.BackslashQuote = "{safe_encoding,on,off}"
 	}
-	if plain.BgwriterDelay != nil && 10000 < *plain.BgwriterDelay {
-		return fmt.Errorf("field %s: must be <= %v", "bgwriter_delay", 10000)
-	}
-	if plain.BgwriterDelay != nil && 10 > *plain.BgwriterDelay {
-		return fmt.Errorf("field %s: must be >= %v", "bgwriter_delay", 10)
-	}
-	if plain.BgwriterFlushAfter != nil && 256 < *plain.BgwriterFlushAfter {
-		return fmt.Errorf("field %s: must be <= %v", "bgwriter_flush_after", 256)
+	if plain.BgwriterFlushAfter != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.BgwriterFlushAfter.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "BgwriterFlushAfter", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.BgwriterLruMaxpages != nil && 1073741823 < *plain.BgwriterLruMaxpages {
 		return fmt.Errorf("field %s: must be <= %v", "bgwriter_lru_maxpages", 1073741823)
@@ -2205,23 +2134,16 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.BgwriterLruMultiplier != nil && 10 < *plain.BgwriterLruMultiplier {
 		return fmt.Errorf("field %s: must be <= %v", "bgwriter_lru_multiplier", 10)
 	}
+	if v, ok := raw["bytea_output"]; !ok || v == nil {
+		plain.ByteaOutput = "{escape,hex}"
+	}
 	if plain.CheckpointCompletionTarget != nil && 1 < *plain.CheckpointCompletionTarget {
 		return fmt.Errorf("field %s: must be <= %v", "checkpoint_completion_target", 1)
 	}
-	if plain.CheckpointFlushAfter != nil && 256 < *plain.CheckpointFlushAfter {
-		return fmt.Errorf("field %s: must be <= %v", "checkpoint_flush_after", 256)
-	}
-	if plain.CheckpointTimeout != nil && 86400 < *plain.CheckpointTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "checkpoint_timeout", 86400)
-	}
-	if plain.CheckpointTimeout != nil && 30 > *plain.CheckpointTimeout {
-		return fmt.Errorf("field %s: must be >= %v", "checkpoint_timeout", 30)
-	}
-	if plain.CheckpointWarning != nil && 2147483647 < *plain.CheckpointWarning {
-		return fmt.Errorf("field %s: must be <= %v", "checkpoint_warning", 2147483647)
-	}
-	if plain.ClientConnectionCheckInterval != nil && 2147483647 < *plain.ClientConnectionCheckInterval {
-		return fmt.Errorf("field %s: must be <= %v", "client_connection_check_interval", 2147483647)
+	if plain.CheckpointFlushAfter != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.CheckpointFlushAfter.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "CheckpointFlushAfter", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if v, ok := raw["client_min_messages"]; !ok || v == nil {
 		plain.ClientMinMessages = "{debug5,debug4,debug3,debug2,debug1,log,notice,warning,error}"
@@ -2232,14 +2154,16 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.CommitSiblings != nil && 1000 < *plain.CommitSiblings {
 		return fmt.Errorf("field %s: must be <= %v", "commit_siblings", 1000)
 	}
-	if plain.CommitTimestampBuffers != nil && 131072 < *plain.CommitTimestampBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "commit_timestamp_buffers", 131072)
+	if plain.CommitTimestampBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.CommitTimestampBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "CommitTimestampBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if v, ok := raw["compute_query_id"]; !ok || v == nil {
-		plain.ComputeQueryId = "{on,off}"
+		plain.ComputeQueryId = "{auto,regress,on,off}"
 	}
 	if v, ok := raw["constraint_exclusion"]; !ok || v == nil {
-		plain.ConstraintExclusion = "{on,off}"
+		plain.ConstraintExclusion = "{partition,on,off}"
 	}
 	if plain.CpuIndexTupleCost != nil && 1.79769e+308 < *plain.CpuIndexTupleCost {
 		return fmt.Errorf("field %s: must be <= %v", "cpu_index_tuple_cost", 1.79769e+308)
@@ -2253,11 +2177,11 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.CursorTupleFraction != nil && 1 < *plain.CursorTupleFraction {
 		return fmt.Errorf("field %s: must be <= %v", "cursor_tuple_fraction", 1)
 	}
-	if plain.DeadlockTimeout != nil && 2147483647 < *plain.DeadlockTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "deadlock_timeout", 2147483647)
+	if v, ok := raw["debug_logical_replication_streaming"]; !ok || v == nil {
+		plain.DebugLogicalReplicationStreaming = "{buffered,immediate}"
 	}
-	if plain.DeadlockTimeout != nil && 1 > *plain.DeadlockTimeout {
-		return fmt.Errorf("field %s: must be >= %v", "deadlock_timeout", 1)
+	if v, ok := raw["debug_parallel_query"]; !ok || v == nil {
+		plain.DebugParallelQuery = "{off,on,regress}"
 	}
 	if plain.DefaultStatisticsTarget != nil && 10000 < *plain.DefaultStatisticsTarget {
 		return fmt.Errorf("field %s: must be <= %v", "default_statistics_target", 10000)
@@ -2265,14 +2189,19 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.DefaultStatisticsTarget != nil && 1 > *plain.DefaultStatisticsTarget {
 		return fmt.Errorf("field %s: must be >= %v", "default_statistics_target", 1)
 	}
+	if v, ok := raw["default_toast_compression"]; !ok || v == nil {
+		plain.DefaultToastCompression = "{pglz,lz4}"
+	}
 	if v, ok := raw["default_transaction_isolation"]; !ok || v == nil {
 		plain.DefaultTransactionIsolation = "{serializable,repeatable read,read committed,read uncommitted}"
 	}
-	if plain.EffectiveCacheSize != nil && 2147483647 < *plain.EffectiveCacheSize {
-		return fmt.Errorf("field %s: must be <= %v", "effective_cache_size", 2147483647)
+	if v, ok := raw["dynamic_shared_memory_type"]; !ok || v == nil {
+		plain.DynamicSharedMemoryType = "{posix,sysv,mmap}"
 	}
-	if plain.EffectiveCacheSize != nil && 1 > *plain.EffectiveCacheSize {
-		return fmt.Errorf("field %s: must be >= %v", "effective_cache_size", 1)
+	if plain.EffectiveCacheSize != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.EffectiveCacheSize.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "EffectiveCacheSize", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.EffectiveIoConcurrency != nil && 1000 < *plain.EffectiveIoConcurrency {
 		return fmt.Errorf("field %s: must be <= %v", "effective_io_concurrency", 1000)
@@ -2319,11 +2248,10 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.GinFuzzySearchLimit != nil && 2147483647 < *plain.GinFuzzySearchLimit {
 		return fmt.Errorf("field %s: must be <= %v", "gin_fuzzy_search_limit", 2147483647)
 	}
-	if plain.GinPendingListLimit != nil && 2147483647 < *plain.GinPendingListLimit {
-		return fmt.Errorf("field %s: must be <= %v", "gin_pending_list_limit", 2147483647)
-	}
-	if plain.GinPendingListLimit != nil && 64 > *plain.GinPendingListLimit {
-		return fmt.Errorf("field %s: must be >= %v", "gin_pending_list_limit", 64)
+	if plain.GinPendingListLimit != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.GinPendingListLimit.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "GinPendingListLimit", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.HashMemMultiplier != nil && 1000 < *plain.HashMemMultiplier {
 		return fmt.Errorf("field %s: must be <= %v", "hash_mem_multiplier", 1000)
@@ -2331,20 +2259,21 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.HashMemMultiplier != nil && 1 > *plain.HashMemMultiplier {
 		return fmt.Errorf("field %s: must be >= %v", "hash_mem_multiplier", 1)
 	}
-	if plain.HugePageSize != nil && 2147483647 < *plain.HugePageSize {
-		return fmt.Errorf("field %s: must be <= %v", "huge_page_size", 2147483647)
+	if plain.HugePageSize != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.HugePageSize.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "HugePageSize", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.IdleInTransactionSessionTimeout != nil && 2147483647 < *plain.IdleInTransactionSessionTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "idle_in_transaction_session_timeout", 2147483647)
+	if v, ok := raw["huge_pages"]; !ok || v == nil {
+		plain.HugePages = "{off,on,try}"
 	}
-	if plain.IdleSessionTimeout != nil && 2147483647 < *plain.IdleSessionTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "idle_session_timeout", 2147483647)
+	if v, ok := raw["icu_validation_level"]; !ok || v == nil {
+		plain.IcuValidationLevel = "{disabled,debug5,debug4,debug3,debug2,debug1,log,notice,warning,error}"
 	}
-	if plain.IoCombineLimit != nil && 32 < *plain.IoCombineLimit {
-		return fmt.Errorf("field %s: must be <= %v", "io_combine_limit", 32)
-	}
-	if plain.IoCombineLimit != nil && 1 > *plain.IoCombineLimit {
-		return fmt.Errorf("field %s: must be >= %v", "io_combine_limit", 1)
+	if plain.IoCombineLimit != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.IoCombineLimit.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "IoCombineLimit", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.JitAboveCost != nil && 1.79769e+308 < *plain.JitAboveCost {
 		return fmt.Errorf("field %s: must be <= %v", "jit_above_cost", 1.79769e+308)
@@ -2370,29 +2299,14 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.JoinCollapseLimit != nil && 1 > *plain.JoinCollapseLimit {
 		return fmt.Errorf("field %s: must be >= %v", "join_collapse_limit", 1)
 	}
-	if plain.LockTimeout != nil && 2147483647 < *plain.LockTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "lock_timeout", 2147483647)
-	}
-	if plain.LogAutovacuumMinDuration != nil && 2147483647 < *plain.LogAutovacuumMinDuration {
-		return fmt.Errorf("field %s: must be <= %v", "log_autovacuum_min_duration", 2147483647)
-	}
-	if plain.LogAutovacuumMinDuration != nil && -1 > *plain.LogAutovacuumMinDuration {
-		return fmt.Errorf("field %s: must be >= %v", "log_autovacuum_min_duration", -1)
+	if v, ok := raw["log_error_verbosity"]; !ok || v == nil {
+		plain.LogErrorVerbosity = "{terse,default,verbose}"
 	}
 	if plain.LogFileMode != nil && 511 < *plain.LogFileMode {
 		return fmt.Errorf("field %s: must be <= %v", "log_file_mode", 511)
 	}
-	if plain.LogMinDurationSample != nil && 2147483647 < *plain.LogMinDurationSample {
-		return fmt.Errorf("field %s: must be <= %v", "log_min_duration_sample", 2147483647)
-	}
-	if plain.LogMinDurationSample != nil && -1 > *plain.LogMinDurationSample {
-		return fmt.Errorf("field %s: must be >= %v", "log_min_duration_sample", -1)
-	}
-	if plain.LogMinDurationStatement != nil && 2147483647 < *plain.LogMinDurationStatement {
-		return fmt.Errorf("field %s: must be <= %v", "log_min_duration_statement", 2147483647)
-	}
-	if plain.LogMinDurationStatement != nil && -1 > *plain.LogMinDurationStatement {
-		return fmt.Errorf("field %s: must be >= %v", "log_min_duration_statement", -1)
+	if v, ok := raw["log_min_error_statement"]; !ok || v == nil {
+		plain.LogMinErrorStatement = "{debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic}"
 	}
 	if v, ok := raw["log_min_messages"]; !ok || v == nil {
 		plain.LogMinMessages = "{debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic}"
@@ -2409,14 +2323,10 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.LogParameterMaxLengthOnError != nil && -1 > *plain.LogParameterMaxLengthOnError {
 		return fmt.Errorf("field %s: must be >= %v", "log_parameter_max_length_on_error", -1)
 	}
-	if plain.LogRotationAge != nil && 35791394 < *plain.LogRotationAge {
-		return fmt.Errorf("field %s: must be <= %v", "log_rotation_age", 35791394)
-	}
-	if plain.LogRotationSize != nil && 2097151 < *plain.LogRotationSize {
-		return fmt.Errorf("field %s: must be <= %v", "log_rotation_size", 2097151)
-	}
-	if plain.LogStartupProgressInterval != nil && 2147483647 < *plain.LogStartupProgressInterval {
-		return fmt.Errorf("field %s: must be <= %v", "log_startup_progress_interval", 2147483647)
+	if plain.LogRotationSize != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.LogRotationSize.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "LogRotationSize", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if v, ok := raw["log_statement"]; !ok || v == nil {
 		plain.LogStatement = "{none,ddl,mod,all}"
@@ -2424,29 +2334,26 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.LogStatementSampleRate != nil && 1 < *plain.LogStatementSampleRate {
 		return fmt.Errorf("field %s: must be <= %v", "log_statement_sample_rate", 1)
 	}
-	if plain.LogTempFiles != nil && 2147483647 < *plain.LogTempFiles {
-		return fmt.Errorf("field %s: must be <= %v", "log_temp_files", 2147483647)
-	}
-	if plain.LogTempFiles != nil && -1 > *plain.LogTempFiles {
-		return fmt.Errorf("field %s: must be >= %v", "log_temp_files", -1)
+	if plain.LogTempFiles != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.LogTempFiles.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "LogTempFiles", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.LogTransactionSampleRate != nil && 1 < *plain.LogTransactionSampleRate {
 		return fmt.Errorf("field %s: must be <= %v", "log_transaction_sample_rate", 1)
 	}
-	if plain.LogicalDecodingWorkMem != nil && 2147483647 < *plain.LogicalDecodingWorkMem {
-		return fmt.Errorf("field %s: must be <= %v", "logical_decoding_work_mem", 2147483647)
-	}
-	if plain.LogicalDecodingWorkMem != nil && 64 > *plain.LogicalDecodingWorkMem {
-		return fmt.Errorf("field %s: must be >= %v", "logical_decoding_work_mem", 64)
+	if plain.LogicalDecodingWorkMem != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.LogicalDecodingWorkMem.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "LogicalDecodingWorkMem", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.MaintenanceIoConcurrency != nil && 1000 < *plain.MaintenanceIoConcurrency {
 		return fmt.Errorf("field %s: must be <= %v", "maintenance_io_concurrency", 1000)
 	}
-	if plain.MaintenanceWorkMem != nil && 2147483647 < *plain.MaintenanceWorkMem {
-		return fmt.Errorf("field %s: must be <= %v", "maintenance_work_mem", 2147483647)
-	}
-	if plain.MaintenanceWorkMem != nil && 64 > *plain.MaintenanceWorkMem {
-		return fmt.Errorf("field %s: must be >= %v", "maintenance_work_mem", 64)
+	if plain.MaintenanceWorkMem != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MaintenanceWorkMem.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MaintenanceWorkMem", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.MaxConnections != nil && 262143 < *plain.MaxConnections {
 		return fmt.Errorf("field %s: must be <= %v", "max_connections", 262143)
@@ -2514,23 +2421,10 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.MaxSlotWalKeepSize != nil && -1 > *plain.MaxSlotWalKeepSize {
 		return fmt.Errorf("field %s: must be >= %v", "max_slot_wal_keep_size", -1)
 	}
-	if plain.MaxStackDepth != nil && 2147483647 < *plain.MaxStackDepth {
-		return fmt.Errorf("field %s: must be <= %v", "max_stack_depth", 2147483647)
-	}
-	if plain.MaxStackDepth != nil && 100 > *plain.MaxStackDepth {
-		return fmt.Errorf("field %s: must be >= %v", "max_stack_depth", 100)
-	}
-	if plain.MaxStandbyArchiveDelay != nil && 2147483647 < *plain.MaxStandbyArchiveDelay {
-		return fmt.Errorf("field %s: must be <= %v", "max_standby_archive_delay", 2147483647)
-	}
-	if plain.MaxStandbyArchiveDelay != nil && -1 > *plain.MaxStandbyArchiveDelay {
-		return fmt.Errorf("field %s: must be >= %v", "max_standby_archive_delay", -1)
-	}
-	if plain.MaxStandbyStreamingDelay != nil && 2147483647 < *plain.MaxStandbyStreamingDelay {
-		return fmt.Errorf("field %s: must be <= %v", "max_standby_streaming_delay", 2147483647)
-	}
-	if plain.MaxStandbyStreamingDelay != nil && -1 > *plain.MaxStandbyStreamingDelay {
-		return fmt.Errorf("field %s: must be >= %v", "max_standby_streaming_delay", -1)
+	if plain.MaxStackDepth != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MaxStackDepth.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MaxStackDepth", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.MaxSyncWorkersPerSubscription != nil && 262143 < *plain.MaxSyncWorkersPerSubscription {
 		return fmt.Errorf("field %s: must be <= %v", "max_sync_workers_per_subscription", 262143)
@@ -2550,11 +2444,15 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.MinDynamicSharedMemory != nil && 2147483647 < *plain.MinDynamicSharedMemory {
 		return fmt.Errorf("field %s: must be <= %v", "min_dynamic_shared_memory", 2147483647)
 	}
-	if plain.MinParallelIndexScanSize != nil && 715827882 < *plain.MinParallelIndexScanSize {
-		return fmt.Errorf("field %s: must be <= %v", "min_parallel_index_scan_size", 715827882)
+	if plain.MinParallelIndexScanSize != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MinParallelIndexScanSize.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MinParallelIndexScanSize", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.MinParallelTableScanSize != nil && 715827882 < *plain.MinParallelTableScanSize {
-		return fmt.Errorf("field %s: must be <= %v", "min_parallel_table_scan_size", 715827882)
+	if plain.MinParallelTableScanSize != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MinParallelTableScanSize.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MinParallelTableScanSize", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.MinWalSize != nil && 2147483647 < *plain.MinWalSize {
 		return fmt.Errorf("field %s: must be <= %v", "min_wal_size", 2147483647)
@@ -2562,23 +2460,20 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.MinWalSize != nil && 2 > *plain.MinWalSize {
 		return fmt.Errorf("field %s: must be >= %v", "min_wal_size", 2)
 	}
-	if plain.MultixactMemberBuffers != nil && 131072 < *plain.MultixactMemberBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "multixact_member_buffers", 131072)
+	if plain.MultixactMemberBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MultixactMemberBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MultixactMemberBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.MultixactMemberBuffers != nil && 16 > *plain.MultixactMemberBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "multixact_member_buffers", 16)
+	if plain.MultixactOffsetBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MultixactOffsetBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "MultixactOffsetBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.MultixactOffsetBuffers != nil && 131072 < *plain.MultixactOffsetBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "multixact_offset_buffers", 131072)
-	}
-	if plain.MultixactOffsetBuffers != nil && 16 > *plain.MultixactOffsetBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "multixact_offset_buffers", 16)
-	}
-	if plain.NotifyBuffers != nil && 131072 < *plain.NotifyBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "notify_buffers", 131072)
-	}
-	if plain.NotifyBuffers != nil && 16 > *plain.NotifyBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "notify_buffers", 16)
+	if plain.NotifyBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.NotifyBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "NotifyBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.ParallelSetupCost != nil && 1.79769e+308 < *plain.ParallelSetupCost {
 		return fmt.Errorf("field %s: must be <= %v", "parallel_setup_cost", 1.79769e+308)
@@ -2589,6 +2484,9 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if v, ok := raw["password_encryption"]; !ok || v == nil {
 		plain.PasswordEncryption = "{md5,scram-sha-256}"
 	}
+	if v, ok := raw["plan_cache_mode"]; !ok || v == nil {
+		plain.PlanCacheMode = "{auto,force_generic_plan,force_custom_plan}"
+	}
 	if plain.Port != nil && 65535 < *plain.Port {
 		return fmt.Errorf("field %s: must be <= %v", "port", 65535)
 	}
@@ -2598,8 +2496,14 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.RandomPageCost != nil && 1.79769e+308 < *plain.RandomPageCost {
 		return fmt.Errorf("field %s: must be <= %v", "random_page_cost", 1.79769e+308)
 	}
-	if plain.RecoveryMinApplyDelay != nil && 2147483647 < *plain.RecoveryMinApplyDelay {
-		return fmt.Errorf("field %s: must be <= %v", "recovery_min_apply_delay", 2147483647)
+	if v, ok := raw["recovery_init_sync_method"]; !ok || v == nil {
+		plain.RecoveryInitSyncMethod = "{fsync,syncfs}"
+	}
+	if v, ok := raw["recovery_prefetch"]; !ok || v == nil {
+		plain.RecoveryPrefetch = "{off,on,try}"
+	}
+	if v, ok := raw["recovery_target_action"]; !ok || v == nil {
+		plain.RecoveryTargetAction = "{pause,promote,shutdown}"
 	}
 	if plain.RecursiveWorktableFactor != nil && 1e+06 < *plain.RecursiveWorktableFactor {
 		return fmt.Errorf("field %s: must be <= %v", "recursive_worktable_factor", 1e+06)
@@ -2616,56 +2520,57 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.SeqPageCost != nil && 1.79769e+308 < *plain.SeqPageCost {
 		return fmt.Errorf("field %s: must be <= %v", "seq_page_cost", 1.79769e+308)
 	}
-	if plain.SerializableBuffers != nil && 131072 < *plain.SerializableBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "serializable_buffers", 131072)
+	if plain.SerializableBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.SerializableBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "SerializableBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.SerializableBuffers != nil && 16 > *plain.SerializableBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "serializable_buffers", 16)
+	if v, ok := raw["session_replication_role"]; !ok || v == nil {
+		plain.SessionReplicationRole = "{origin,replica,local}"
 	}
-	if plain.SharedBuffers != nil && 1073741823 < *plain.SharedBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "shared_buffers", 1073741823)
+	if plain.SharedBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.SharedBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "SharedBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.SharedBuffers != nil && 16 > *plain.SharedBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "shared_buffers", 16)
+	if v, ok := raw["shared_memory_type"]; !ok || v == nil {
+		plain.SharedMemoryType = "{sysv,mmap}"
 	}
-	if plain.StatementTimeout != nil && 2147483647 < *plain.StatementTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "statement_timeout", 2147483647)
+	if v, ok := raw["ssl_max_protocol_version"]; !ok || v == nil {
+		plain.SslMaxProtocolVersion = "{TLSv1,TLSv1.1,TLSv1.2,TLSv1.3}"
 	}
-	if plain.SubtransactionBuffers != nil && 131072 < *plain.SubtransactionBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "subtransaction_buffers", 131072)
+	if v, ok := raw["ssl_min_protocol_version"]; !ok || v == nil {
+		plain.SslMinProtocolVersion = "{TLSv1,TLSv1.1,TLSv1.2,TLSv1.3}"
+	}
+	if v, ok := raw["stats_fetch_consistency"]; !ok || v == nil {
+		plain.StatsFetchConsistency = "{none,cache,snapshot}"
+	}
+	if plain.SubtransactionBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.SubtransactionBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "SubtransactionBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.SuperuserReservedConnections != nil && 262143 < *plain.SuperuserReservedConnections {
 		return fmt.Errorf("field %s: must be <= %v", "superuser_reserved_connections", 262143)
 	}
 	if v, ok := raw["synchronous_commit"]; !ok || v == nil {
-		plain.SynchronousCommit = "{off,local,remote_write,remote_apply,on}"
+		plain.SynchronousCommit = "{local,remote_write,remote_apply,on,off}"
 	}
 	if v, ok := raw["syslog_facility"]; !ok || v == nil {
-		plain.SyslogFacility = "{on,off}"
+		plain.SyslogFacility = "{local0,local1,local2,local3,local4,local5,local6,local7}"
 	}
 	if plain.TcpKeepalivesCount != nil && 2147483647 < *plain.TcpKeepalivesCount {
 		return fmt.Errorf("field %s: must be <= %v", "tcp_keepalives_count", 2147483647)
 	}
-	if plain.TcpKeepalivesIdle != nil && 2147483647 < *plain.TcpKeepalivesIdle {
-		return fmt.Errorf("field %s: must be <= %v", "tcp_keepalives_idle", 2147483647)
+	if plain.TempBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.TempBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "TempBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.TcpKeepalivesInterval != nil && 2147483647 < *plain.TcpKeepalivesInterval {
-		return fmt.Errorf("field %s: must be <= %v", "tcp_keepalives_interval", 2147483647)
-	}
-	if plain.TcpUserTimeout != nil && 2147483647 < *plain.TcpUserTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "tcp_user_timeout", 2147483647)
-	}
-	if plain.TempBuffers != nil && 1073741823 < *plain.TempBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "temp_buffers", 1073741823)
-	}
-	if plain.TempBuffers != nil && 100 > *plain.TempBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "temp_buffers", 100)
-	}
-	if plain.TempFileLimit != nil && 2147483647 < *plain.TempFileLimit {
-		return fmt.Errorf("field %s: must be <= %v", "temp_file_limit", 2147483647)
-	}
-	if plain.TempFileLimit != nil && -1 > *plain.TempFileLimit {
-		return fmt.Errorf("field %s: must be >= %v", "temp_file_limit", -1)
+	if plain.TempFileLimit != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.TempFileLimit.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "TempFileLimit", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.TrackActivityQuerySize != nil && 1048576 < *plain.TrackActivityQuerySize {
 		return fmt.Errorf("field %s: must be <= %v", "track_activity_query_size", 1048576)
@@ -2673,20 +2578,24 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.TrackActivityQuerySize != nil && 100 > *plain.TrackActivityQuerySize {
 		return fmt.Errorf("field %s: must be >= %v", "track_activity_query_size", 100)
 	}
-	if plain.TransactionBuffers != nil && 131072 < *plain.TransactionBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "transaction_buffers", 131072)
+	if v, ok := raw["track_functions"]; !ok || v == nil {
+		plain.TrackFunctions = "{none,pl,all}"
 	}
-	if plain.TransactionTimeout != nil && 2147483647 < *plain.TransactionTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "transaction_timeout", 2147483647)
+	if plain.TransactionBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.TransactionBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "TransactionBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
+	}
+	if v, ok := raw["transaction_isolation"]; !ok || v == nil {
+		plain.TransactionIsolation = "{serializable,repeatable read,read committed,read uncommitted}"
 	}
 	if plain.UnixSocketPermissions != nil && 511 < *plain.UnixSocketPermissions {
 		return fmt.Errorf("field %s: must be <= %v", "unix_socket_permissions", 511)
 	}
-	if plain.VacuumBufferUsageLimit != nil && 16777216 < *plain.VacuumBufferUsageLimit {
-		return fmt.Errorf("field %s: must be <= %v", "vacuum_buffer_usage_limit", 16777216)
-	}
-	if plain.VacuumCostDelay != nil && 100 < *plain.VacuumCostDelay {
-		return fmt.Errorf("field %s: must be <= %v", "vacuum_cost_delay", 100)
+	if plain.VacuumBufferUsageLimit != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.VacuumBufferUsageLimit.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "VacuumBufferUsageLimit", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if plain.VacuumCostLimit != nil && 10000 < *plain.VacuumCostLimit {
 		return fmt.Errorf("field %s: must be <= %v", "vacuum_cost_limit", 10000)
@@ -2721,14 +2630,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if plain.VacuumMultixactFreezeTableAge != nil && 2000000000 < *plain.VacuumMultixactFreezeTableAge {
 		return fmt.Errorf("field %s: must be <= %v", "vacuum_multixact_freeze_table_age", 2000000000)
 	}
-	if plain.WalBuffers != nil && 262143 < *plain.WalBuffers {
-		return fmt.Errorf("field %s: must be <= %v", "wal_buffers", 262143)
-	}
-	if plain.WalBuffers != nil && -1 > *plain.WalBuffers {
-		return fmt.Errorf("field %s: must be >= %v", "wal_buffers", -1)
+	if plain.WalBuffers != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.WalBuffers.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "WalBuffers", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
 	if v, ok := raw["wal_compression"]; !ok || v == nil {
-		plain.WalCompression = "{off,on,pglz,lz4,zstd}"
+		plain.WalCompression = "{pglz,lz4,zstd,on,off}"
 	}
 	if plain.WalDecodeBufferSize != nil && 1073741823 < *plain.WalDecodeBufferSize {
 		return fmt.Errorf("field %s: must be <= %v", "wal_decode_buffer_size", 1073741823)
@@ -2742,41 +2650,29 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 	if v, ok := raw["wal_level"]; !ok || v == nil {
 		plain.WalLevel = "{minimal,replica,logical}"
 	}
-	if plain.WalReceiverStatusInterval != nil && 2147483 < *plain.WalReceiverStatusInterval {
-		return fmt.Errorf("field %s: must be <= %v", "wal_receiver_status_interval", 2147483)
+	if plain.WalSkipThreshold != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.WalSkipThreshold.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "WalSkipThreshold", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.WalReceiverTimeout != nil && 2147483647 < *plain.WalReceiverTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "wal_receiver_timeout", 2147483647)
+	if v, ok := raw["wal_sync_method"]; !ok || v == nil {
+		plain.WalSyncMethod = "{fsync,fdatasync,open_sync,open_datasync}"
 	}
-	if plain.WalRetrieveRetryInterval != nil && 2147483647 < *plain.WalRetrieveRetryInterval {
-		return fmt.Errorf("field %s: must be <= %v", "wal_retrieve_retry_interval", 2147483647)
+	if plain.WalWriterFlushAfter != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.WalWriterFlushAfter.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "WalWriterFlushAfter", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.WalRetrieveRetryInterval != nil && 1 > *plain.WalRetrieveRetryInterval {
-		return fmt.Errorf("field %s: must be >= %v", "wal_retrieve_retry_interval", 1)
+	if plain.WorkMem != nil {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.WorkMem.String()); !matched {
+			return fmt.Errorf("field %s pattern match: must match %s", "WorkMem", `^[0-9]+[kMGT]?B?$`)
+		}
 	}
-	if plain.WalSenderTimeout != nil && 2147483647 < *plain.WalSenderTimeout {
-		return fmt.Errorf("field %s: must be <= %v", "wal_sender_timeout", 2147483647)
+	if v, ok := raw["xmlbinary"]; !ok || v == nil {
+		plain.Xmlbinary = "{base64,hex}"
 	}
-	if plain.WalSkipThreshold != nil && 2147483647 < *plain.WalSkipThreshold {
-		return fmt.Errorf("field %s: must be <= %v", "wal_skip_threshold", 2147483647)
-	}
-	if plain.WalSummaryKeepTime != nil && 35791394 < *plain.WalSummaryKeepTime {
-		return fmt.Errorf("field %s: must be <= %v", "wal_summary_keep_time", 35791394)
-	}
-	if plain.WalWriterDelay != nil && 10000 < *plain.WalWriterDelay {
-		return fmt.Errorf("field %s: must be <= %v", "wal_writer_delay", 10000)
-	}
-	if plain.WalWriterDelay != nil && 1 > *plain.WalWriterDelay {
-		return fmt.Errorf("field %s: must be >= %v", "wal_writer_delay", 1)
-	}
-	if plain.WalWriterFlushAfter != nil && 2147483647 < *plain.WalWriterFlushAfter {
-		return fmt.Errorf("field %s: must be <= %v", "wal_writer_flush_after", 2147483647)
-	}
-	if plain.WorkMem != nil && 2147483647 < *plain.WorkMem {
-		return fmt.Errorf("field %s: must be <= %v", "work_mem", 2147483647)
-	}
-	if plain.WorkMem != nil && 64 > *plain.WorkMem {
-		return fmt.Errorf("field %s: must be >= %v", "work_mem", 64)
+	if v, ok := raw["xmloption"]; !ok || v == nil {
+		plain.Xmloption = "{content,document}"
 	}
 	*j = PostgresConf(plain)
 	return nil
@@ -2785,55 +2681,55 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 // PostgREST API server configuration
 type PostgrestConf struct {
 	// Database role with admin privileges
-	AdminRole string `yaml:"admin_role,omitempty" mapstructure:"admin_role,omitempty"`
+	AdminRole string `json:"admin_role,omitempty" yaml:"admin_role,omitempty" mapstructure:"admin_role,omitempty"`
 
 	// Database role for anonymous access
-	AnonymousRole string `yaml:"anonymous_role,omitempty" mapstructure:"anonymous_role,omitempty"`
+	AnonymousRole string `json:"anonymous_role,omitempty" yaml:"anonymous_role,omitempty" mapstructure:"anonymous_role,omitempty"`
 
 	// Database connection pool size
-	DbPool int `yaml:"db_pool,omitempty" mapstructure:"db_pool,omitempty"`
+	DbPool int `json:"db_pool,omitempty" yaml:"db_pool,omitempty" mapstructure:"db_pool,omitempty"`
 
 	// Database connection pool timeout in seconds
-	DbPoolTimeout int `yaml:"db_pool_timeout,omitempty" mapstructure:"db_pool_timeout,omitempty"`
+	DbPoolTimeout int `json:"db_pool_timeout,omitempty" yaml:"db_pool_timeout,omitempty" mapstructure:"db_pool_timeout,omitempty"`
 
 	// Database schemas to expose via API
-	DbSchemas string `yaml:"db_schemas,omitempty" mapstructure:"db_schemas,omitempty"`
+	DbSchemas string `json:"db_schemas,omitempty" yaml:"db_schemas,omitempty" mapstructure:"db_schemas,omitempty"`
 
 	// Database connection URI
-	DbUri *string `yaml:"db_uri,omitempty" mapstructure:"db_uri,omitempty"`
+	DbUri *string `json:"db_uri,omitempty" yaml:"db_uri,omitempty" mapstructure:"db_uri,omitempty"`
 
 	// JWT audience claim
-	JwtAud string `yaml:"jwt_aud,omitempty" mapstructure:"jwt_aud,omitempty"`
+	JwtAud string `json:"jwt_aud,omitempty" yaml:"jwt_aud,omitempty" mapstructure:"jwt_aud,omitempty"`
 
 	// JWT secret for authentication
-	JwtSecret *string `yaml:"jwt_secret,omitempty" mapstructure:"jwt_secret,omitempty"`
+	JwtSecret *string `json:"jwt_secret,omitempty" yaml:"jwt_secret,omitempty" mapstructure:"jwt_secret,omitempty"`
 
 	// Whether JWT secret is base64 encoded
-	JwtSecretIsBase64 bool `yaml:"jwt_secret_is_base64,omitempty" mapstructure:"jwt_secret_is_base64,omitempty"`
+	JwtSecretIsBase64 bool `json:"jwt_secret_is_base64,omitempty" yaml:"jwt_secret_is_base64,omitempty" mapstructure:"jwt_secret_is_base64,omitempty"`
 
 	// Logging level
-	LogLevel PostgrestConfLogLevel `yaml:"log_level,omitempty" mapstructure:"log_level,omitempty"`
+	LogLevel PostgrestConfLogLevel `json:"log_level,omitempty" yaml:"log_level,omitempty" mapstructure:"log_level,omitempty"`
 
 	// Maximum rows returned in a single response
-	MaxRows *int `yaml:"max_rows,omitempty" mapstructure:"max_rows,omitempty"`
+	MaxRows *int `json:"max_rows,omitempty" yaml:"max_rows,omitempty" mapstructure:"max_rows,omitempty"`
 
 	// Pre-request function to call
-	PreRequest string `yaml:"pre_request,omitempty" mapstructure:"pre_request,omitempty"`
+	PreRequest string `json:"pre_request,omitempty" yaml:"pre_request,omitempty" mapstructure:"pre_request,omitempty"`
 
 	// JWT claim key for role
-	RoleClaimKey string `yaml:"role_claim_key,omitempty" mapstructure:"role_claim_key,omitempty"`
+	RoleClaimKey string `json:"role_claim_key,omitempty" yaml:"role_claim_key,omitempty" mapstructure:"role_claim_key,omitempty"`
 
 	// Server host address
-	ServerHost string `yaml:"server_host,omitempty" mapstructure:"server_host,omitempty"`
+	ServerHost string `json:"server_host,omitempty" yaml:"server_host,omitempty" mapstructure:"server_host,omitempty"`
 
 	// Server port
-	ServerPort int `yaml:"server_port,omitempty" mapstructure:"server_port,omitempty"`
+	ServerPort int `json:"server_port,omitempty" yaml:"server_port,omitempty" mapstructure:"server_port,omitempty"`
 
 	// Path to SSL certificate file
-	ServerSslCert string `yaml:"server_ssl_cert,omitempty" mapstructure:"server_ssl_cert,omitempty"`
+	ServerSslCert string `json:"server_ssl_cert,omitempty" yaml:"server_ssl_cert,omitempty" mapstructure:"server_ssl_cert,omitempty"`
 
 	// Path to SSL private key file
-	ServerSslKey string `yaml:"server_ssl_key,omitempty" mapstructure:"server_ssl_key,omitempty"`
+	ServerSslKey string `json:"server_ssl_key,omitempty" yaml:"server_ssl_key,omitempty" mapstructure:"server_ssl_key,omitempty"`
 }
 
 type PostgrestConfLogLevel string
@@ -2955,82 +2851,82 @@ func (j *PostgrestConf) UnmarshalJSON(value []byte) error {
 // WAL-G backup and archiving configuration
 type WalgConf struct {
 	// Azure storage account key
-	AzAccountKey *string `yaml:"az_account_key,omitempty" mapstructure:"az_account_key,omitempty"`
+	AzAccountKey *string `json:"az_account_key,omitempty" yaml:"az_account_key,omitempty" mapstructure:"az_account_key,omitempty"`
 
 	// Azure storage account name
-	AzAccountName *string `yaml:"az_account_name,omitempty" mapstructure:"az_account_name,omitempty"`
+	AzAccountName *string `json:"az_account_name,omitempty" yaml:"az_account_name,omitempty" mapstructure:"az_account_name,omitempty"`
 
 	// Azure Storage prefix
-	AzPrefix *string `yaml:"az_prefix,omitempty" mapstructure:"az_prefix,omitempty"`
+	AzPrefix *string `json:"az_prefix,omitempty" yaml:"az_prefix,omitempty" mapstructure:"az_prefix,omitempty"`
 
 	// Number of backups to retain
-	BackupRetainCount int `yaml:"backup_retain_count,omitempty" mapstructure:"backup_retain_count,omitempty"`
+	BackupRetainCount int `json:"backup_retain_count,omitempty" yaml:"backup_retain_count,omitempty" mapstructure:"backup_retain_count,omitempty"`
 
 	// Backup schedule in cron format
-	BackupSchedule string `yaml:"backup_schedule,omitempty" mapstructure:"backup_schedule,omitempty"`
+	BackupSchedule string `json:"backup_schedule,omitempty" yaml:"backup_schedule,omitempty" mapstructure:"backup_schedule,omitempty"`
 
 	// Compression level (0-9)
-	CompressionLevel int `yaml:"compression_level,omitempty" mapstructure:"compression_level,omitempty"`
+	CompressionLevel int `json:"compression_level,omitempty" yaml:"compression_level,omitempty" mapstructure:"compression_level,omitempty"`
 
 	// Compression method for backups
-	CompressionMethod WalgConfCompressionMethod `yaml:"compression_method,omitempty" mapstructure:"compression_method,omitempty"`
+	CompressionMethod WalgConfCompressionMethod `json:"compression_method,omitempty" yaml:"compression_method,omitempty" mapstructure:"compression_method,omitempty"`
 
 	// Maximum steps for delta backups
-	DeltaMaxSteps int `yaml:"delta_max_steps,omitempty" mapstructure:"delta_max_steps,omitempty"`
+	DeltaMaxSteps int `json:"delta_max_steps,omitempty" yaml:"delta_max_steps,omitempty" mapstructure:"delta_max_steps,omitempty"`
 
 	// Enable or disable WAL-G
-	Enabled bool `yaml:"enabled,omitempty" mapstructure:"enabled,omitempty"`
+	Enabled bool `json:"enabled,omitempty" yaml:"enabled,omitempty" mapstructure:"enabled,omitempty"`
 
 	// Local file system prefix for backups
-	FilePrefix *string `yaml:"file_prefix,omitempty" mapstructure:"file_prefix,omitempty"`
+	FilePrefix *string `json:"file_prefix,omitempty" yaml:"file_prefix,omitempty" mapstructure:"file_prefix,omitempty"`
 
 	// Google Cloud Storage prefix (e.g., gs://bucket/path/to/folder)
-	GsPrefix *string `yaml:"gs_prefix,omitempty" mapstructure:"gs_prefix,omitempty"`
+	GsPrefix *string `json:"gs_prefix,omitempty" yaml:"gs_prefix,omitempty" mapstructure:"gs_prefix,omitempty"`
 
 	// Google Cloud project ID
-	GsProjectId *string `yaml:"gs_project_id,omitempty" mapstructure:"gs_project_id,omitempty"`
+	GsProjectId *string `json:"gs_project_id,omitempty" yaml:"gs_project_id,omitempty" mapstructure:"gs_project_id,omitempty"`
 
 	// Google Cloud service account key JSON
-	GsServiceAccountKey *string `yaml:"gs_service_account_key,omitempty" mapstructure:"gs_service_account_key,omitempty"`
+	GsServiceAccountKey *string `json:"gs_service_account_key,omitempty" yaml:"gs_service_account_key,omitempty" mapstructure:"gs_service_account_key,omitempty"`
 
 	// PostgreSQL data directory path
-	PostgresqlDataDir string `yaml:"postgresql_data_dir,omitempty" mapstructure:"postgresql_data_dir,omitempty"`
+	PostgresqlDataDir string `json:"postgresql_data_dir,omitempty" yaml:"postgresql_data_dir,omitempty" mapstructure:"postgresql_data_dir,omitempty"`
 
 	// AWS S3 access key ID
-	S3AccessKey *string `yaml:"s3_access_key,omitempty" mapstructure:"s3_access_key,omitempty"`
+	S3AccessKey *string `json:"s3_access_key,omitempty" yaml:"s3_access_key,omitempty" mapstructure:"s3_access_key,omitempty"`
 
 	// Custom S3 endpoint URL
-	S3Endpoint *string `yaml:"s3_endpoint,omitempty" mapstructure:"s3_endpoint,omitempty"`
+	S3Endpoint *string `json:"s3_endpoint,omitempty" yaml:"s3_endpoint,omitempty" mapstructure:"s3_endpoint,omitempty"`
 
 	// S3 storage prefix (e.g., s3://bucket/path/to/folder)
-	S3Prefix *string `yaml:"s3_prefix,omitempty" mapstructure:"s3_prefix,omitempty"`
+	S3Prefix *string `json:"s3_prefix,omitempty" yaml:"s3_prefix,omitempty" mapstructure:"s3_prefix,omitempty"`
 
 	// AWS S3 region
-	S3Region string `yaml:"s3_region,omitempty" mapstructure:"s3_region,omitempty"`
+	S3Region string `json:"s3_region,omitempty" yaml:"s3_region,omitempty" mapstructure:"s3_region,omitempty"`
 
 	// AWS S3 secret access key
-	S3SecretKey *string `yaml:"s3_secret_key,omitempty" mapstructure:"s3_secret_key,omitempty"`
+	S3SecretKey *string `json:"s3_secret_key,omitempty" yaml:"s3_secret_key,omitempty" mapstructure:"s3_secret_key,omitempty"`
 
 	// AWS S3 session token (for temporary credentials)
-	S3SessionToken *string `yaml:"s3_session_token,omitempty" mapstructure:"s3_session_token,omitempty"`
+	S3SessionToken *string `json:"s3_session_token,omitempty" yaml:"s3_session_token,omitempty" mapstructure:"s3_session_token,omitempty"`
 
 	// Use SSL for S3 connections
-	S3UseSsl bool `yaml:"s3_use_ssl,omitempty" mapstructure:"s3_use_ssl,omitempty"`
+	S3UseSsl bool `json:"s3_use_ssl,omitempty" yaml:"s3_use_ssl,omitempty" mapstructure:"s3_use_ssl,omitempty"`
 
 	// Command to create WAL stream
-	StreamCreateCommand *string `yaml:"stream_create_command,omitempty" mapstructure:"stream_create_command,omitempty"`
+	StreamCreateCommand *string `json:"stream_create_command,omitempty" yaml:"stream_create_command,omitempty" mapstructure:"stream_create_command,omitempty"`
 
 	// Command to restore from WAL stream
-	StreamRestoreCommand *string `yaml:"stream_restore_command,omitempty" mapstructure:"stream_restore_command,omitempty"`
+	StreamRestoreCommand *string `json:"stream_restore_command,omitempty" yaml:"stream_restore_command,omitempty" mapstructure:"stream_restore_command,omitempty"`
 
 	// Number of concurrent uploads
-	UploadConcurrency int `yaml:"upload_concurrency,omitempty" mapstructure:"upload_concurrency,omitempty"`
+	UploadConcurrency int `json:"upload_concurrency,omitempty" yaml:"upload_concurrency,omitempty" mapstructure:"upload_concurrency,omitempty"`
 
 	// Number of concurrent disk operations
-	UploadDiskConcurrency int `yaml:"upload_disk_concurrency,omitempty" mapstructure:"upload_disk_concurrency,omitempty"`
+	UploadDiskConcurrency int `json:"upload_disk_concurrency,omitempty" yaml:"upload_disk_concurrency,omitempty" mapstructure:"upload_disk_concurrency,omitempty"`
 
 	// Verify WAL checksums during backup
-	WalVerifyChecksum bool `yaml:"wal_verify_checksum,omitempty" mapstructure:"wal_verify_checksum,omitempty"`
+	WalVerifyChecksum bool `json:"wal_verify_checksum,omitempty" yaml:"wal_verify_checksum,omitempty" mapstructure:"wal_verify_checksum,omitempty"`
 }
 
 type WalgConfCompressionMethod string

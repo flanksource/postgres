@@ -59,11 +59,11 @@ func TestConfigurationIntegration(t *testing.T) {
 		if conf.Postgres == nil {
 			t.Error("Postgres configuration should be loaded")
 		} else {
-			if conf.Postgres.Port != 5432 {
-				t.Errorf("Expected port 5432, got %d", conf.Postgres.Port)
+			if conf.Postgres.Port == nil || *conf.Postgres.Port != 5432 {
+				t.Errorf("Expected port 5432, got %v", conf.Postgres.Port)
 			}
-			if conf.Postgres.MaxConnections != 100 {
-				t.Errorf("Expected max_connections 100, got %d", conf.Postgres.MaxConnections)
+			if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 100 {
+				t.Errorf("Expected max_connections 100, got %v", conf.Postgres.MaxConnections)
 			}
 		}
 
@@ -78,8 +78,8 @@ func TestConfigurationIntegration(t *testing.T) {
 		if conf.Walg == nil {
 			t.Error("WAL-G configuration should be loaded")
 		} else {
-			if conf.Walg.S3Prefix != "s3://my-backups/path" {
-				t.Errorf("Expected S3 prefix 's3://my-backups/path', got %s", conf.Walg.S3Prefix)
+			if conf.Walg.S3Prefix == nil || *conf.Walg.S3Prefix != "s3://my-backups/path" {
+				t.Errorf("Expected S3 prefix 's3://my-backups/path', got %v", conf.Walg.S3Prefix)
 			}
 		}
 	})
@@ -175,8 +175,8 @@ func TestConfigurationIntegration(t *testing.T) {
 		}
 
 		// Environment variable should override the default
-		if conf.Postgres.MaxConnections != 150 {
-			t.Errorf("Expected max_connections from env var (150), got %d", conf.Postgres.MaxConnections)
+		if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 150 {
+			t.Errorf("Expected max_connections from env var (150), got %v", conf.Postgres.MaxConnections)
 		}
 	})
 
@@ -205,17 +205,17 @@ func TestConfigurationIntegration(t *testing.T) {
 		}
 
 		// Verify defaults are applied
-		if conf.Postgres.Port != 5433 {
-			t.Errorf("Expected custom port 5433, got %d", conf.Postgres.Port)
+		if conf.Postgres.Port == nil || *conf.Postgres.Port != 5433 {
+			t.Errorf("Expected custom port 5433, got %v", conf.Postgres.Port)
 		}
 
 		// Check that defaults are applied for unspecified fields
-		if conf.Postgres.MaxConnections == 0 {
-			t.Error("Expected default max_connections to be applied, got 0")
+		if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections == 0 {
+			t.Error("Expected default max_connections to be applied, got nil or 0")
 		}
 
-		if conf.Postgres.SharedBuffers == "" {
-			t.Error("Expected default shared_buffers to be applied, got empty string")
+		if conf.Postgres.SharedBuffers == nil || *conf.Postgres.SharedBuffers == 0 {
+			t.Error("Expected default shared_buffers to be applied, got nil or 0")
 		}
 	})
 }
