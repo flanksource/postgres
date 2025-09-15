@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
-	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/embedded"
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 func main() {
@@ -21,20 +23,27 @@ func main() {
 		version = os.Args[1]
 	}
 
-	fmt.Printf("Generating schema from PostgreSQL %s CSV files...\n", version)
+	fmt.Printf("Generating schema from PostgreSQL %s using describe-config...\n", version)
 
-	// Load parameters from CSV files
-	params, err := pkg.LoadParametersForVersion(version)
+	// Use embedded postgres to get parameters via describe-config
+	embeddedPG, err := embedded.NewEmbeddedPostgres("17.6.0")
 	if err != nil {
-		fmt.Printf("Error loading parameters from CSV: %v\n", err)
+		fmt.Printf("Error creating embedded postgres: %v\n", err)
+		os.Exit(1)
+	}
+	defer embeddedPG.Cleanup()
+
+	params, err := embeddedPG.DescribeConfig()
+	if err != nil {
+		fmt.Printf("Error getting parameters from describe-config: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("Loaded %d parameters from CSV files\n", len(params))
+	fmt.Printf("Loaded %d parameters from describe-config\n", len(params))
 
 	// Add critical configuration parameters that must be included
-	// These are often missing from the CSV files but are essential
-	criticalParams := []pkg.Param{
+	// These are often missing from describe-config output but are essential
+	criticalParams := []schemas.Param{
 		{
 			Name:      "listen_addresses",
 			Context:   "postmaster",
@@ -89,8 +98,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Run the schema generator with the describe-config output
-	cmd = exec.Command("./schema/generate_schema", describeOutput)
+	// Write describe-config output to temporary file
+	tmpFile, err := os.CreateTemp("", "postgres-describe-config-*.txt")
+	if err != nil {
+		fmt.Printf("Error creating temporary file: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.WriteString(describeOutput); err != nil {
+		fmt.Printf("Error writing to temporary file: %v\n", err)
+		os.Exit(1)
+	}
+	tmpFile.Close() // Close file before passing to command
+
+	// Run the schema generator with the describe-config output file
+	cmd = exec.Command("./schema/generate_schema", tmpFile.Name())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -101,13 +125,14 @@ func main() {
 	fmt.Println("✅ Schema and Go struct generation complete!")
 }
 
-// formatDescribeOutput formats the parameter list as pipe-separated values
-func formatDescribeOutput(params []pkg.Param) string {
+// formatDescribeOutput formats the parameter list as tab-separated values
+func formatDescribeOutput(params []schemas.Param) string {
 	var output string
-	
-	// Add header
-	output = "name|setting|unit|category|short_desc|extra_desc|context|vartype|source|min_val|max_val|enumvals|boot_val|reset_val|sourcefile|sourceline|pending_restart\n"
-	
+
+	// Add header (tab-separated to match ParseDescribeConfig expected format)
+	// Expected: name, context, category, vartype, boot_val, min_val, max_val, short_desc, extra_desc
+	output = "name\tcontext\tcategory\tvartype\tboot_val\tmin_val\tmax_val\tshort_desc\textra_desc\n"
+
 	// Add each parameter
 	for _, param := range params {
 		// Format enum values as {val1,val2,val3} or empty
@@ -123,18 +148,31 @@ func formatDescribeOutput(params []pkg.Param) string {
 			enumvals += "}"
 		}
 
-		// Format pending restart as t/f (not available in pkg.Param, default to f)
-		pendingRestart := "f"
-		
-		// Handle empty values - pkg.Param fields are different
-		setting := "\\N" // Not available in pkg.Param
-		unit := param.Unit
-		if unit == "" {
-			unit = "\\N"
+		// Handle empty values properly
+		name := param.Name
+		context := param.Context
+		if context == "" {
+			context = "\\N"
 		}
 		category := param.Category
 		if category == "" {
 			category = "\\N"
+		}
+		vartype := strings.ToUpper(param.VarType) // Convert to uppercase to match postgres format
+		if vartype == "" {
+			vartype = "\\N"
+		}
+		bootVal := param.BootVal
+		if bootVal == "" {
+			bootVal = "\\N"
+		}
+		minVal := fmt.Sprintf("%.0f", param.MinVal)
+		if minVal == "0" {
+			minVal = ""
+		}
+		maxVal := fmt.Sprintf("%.0f", param.MaxVal) 
+		if maxVal == "0" {
+			maxVal = ""
 		}
 		shortDesc := param.ShortDesc
 		if shortDesc == "" {
@@ -144,41 +182,13 @@ func formatDescribeOutput(params []pkg.Param) string {
 		if extraDesc == "" {
 			extraDesc = "\\N"
 		}
-		context := param.Context
-		if context == "" {
-			context = "\\N"
-		}
-		vartype := param.VarType
-		if vartype == "" {
-			vartype = "\\N"
-		}
-		source := "\\N" // Not available in pkg.Param
-		minVal := fmt.Sprintf("%.0f", param.MinVal)
-		if minVal == "0" {
-			minVal = "\\N"
-		}
-		maxVal := fmt.Sprintf("%.0f", param.MaxVal)
-		if maxVal == "0" {
-			maxVal = "\\N"
-		}
-		if enumvals == "" {
-			enumvals = "\\N"
-		}
-		bootVal := param.BootVal
-		if bootVal == "" {
-			bootVal = "\\N"
-		}
-		resetVal := "\\N" // Not available in pkg.Param
-		sourceFile := "\\N" // Not available in pkg.Param
-		sourceLine := "\\N" // Not available in pkg.Param
-		
-		line := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",
-			param.Name, setting, unit, category, shortDesc, extraDesc,
-			context, vartype, source, minVal, maxVal, enumvals,
-			bootVal, resetVal, sourceFile, sourceLine, pendingRestart)
-		
+
+		// Format: name, context, category, vartype, boot_val, min_val, max_val, short_desc, extra_desc
+		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			name, context, category, vartype, bootVal, minVal, maxVal, shortDesc, extraDesc)
+
 		output += line
 	}
-	
+
 	return output
 }

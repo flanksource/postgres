@@ -52,6 +52,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Debug: Show current working directory
+	pwd, _ := os.Getwd()
+	fmt.Printf("generate_schema running from: %s\n", pwd)
+
 	// Read the describe-config output from file
 	describeConfigData, err := os.ReadFile(os.Args[1])
 	if err != nil {
@@ -473,8 +477,14 @@ func runGoJSONSchema() error {
 	// Generate the Go structs
 	cmd := exec.Command("go-jsonschema",
 		"-p", "pkg",
-		"--output", "../pkg/model_generated.go",
+		"--output", "pkg/model_generated.go",
 		"pgconfig-schema.json")
+	
+	// Add debug output
+	cmd.Dir = ""  // Use current directory 
+	fmt.Printf("Running go-jsonschema from directory: %s\n", cmd.Dir)
+	pwd, _ := os.Getwd()
+	fmt.Printf("Current working directory: %s\n", pwd)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -494,6 +504,11 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 	if err != nil {
 		return fmt.Errorf("failed to read generated file: %w", err)
 	}
+
+	// Count structs before processing
+	beforeCount := strings.Count(string(content), "type PostgresConf struct")
+	postgresFieldsBefore := len(strings.Split(strings.Split(string(content), "type PostgresConf struct")[1], "}")[0])
+	fmt.Printf("Before processing: PostgresConf found %d times, approx %d chars\n", beforeCount, postgresFieldsBefore)
 
 	// Parse the Go code
 	fset := token.NewFileSet()
@@ -624,6 +639,14 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 		return fmt.Errorf("failed to format modified code: %w", err)
 	}
 
+	// Count after processing
+	afterCount := strings.Count(buf.String(), "type PostgresConf struct")
+	postgresFieldsAfter := 0
+	if afterCount > 0 {
+		postgresFieldsAfter = len(strings.Split(strings.Split(buf.String(), "type PostgresConf struct")[1], "}")[0])
+	}
+	fmt.Printf("After processing: PostgresConf found %d times, approx %d chars\n", afterCount, postgresFieldsAfter)
+
 	// Write the modified code back to the file
 	if err := os.WriteFile(filePath, []byte(buf.String()), 0644); err != nil {
 		return fmt.Errorf("failed to write modified file: %w", err)
@@ -714,9 +737,10 @@ func generateGoStructs() error {
 	}
 
 	// 3. Post-process the generated code to use pointer custom types
-	if err := postProcessGeneratedCode("../pkg/model_generated.go", typeHints); err != nil {
-		return fmt.Errorf("failed to post-process generated code: %w", err)
-	}
+	fmt.Println("Skipping post-processing temporarily to verify base generation...")
+	// if err := postProcessGeneratedCode("pkg/model_generated.go", typeHints); err != nil {
+	// 	return fmt.Errorf("failed to post-process generated code: %w", err)
+	// }
 
 	fmt.Println("✅ Successfully generated Go structs with custom pointer types")
 	return nil

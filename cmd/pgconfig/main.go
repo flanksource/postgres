@@ -194,7 +194,7 @@ func handleSchemaCommand() {
 	}
 
 	subcommand := os.Args[2]
-	
+
 	switch subcommand {
 	case "generate":
 		if err := generateSchema(nil, os.Args[3:]); err != nil {
