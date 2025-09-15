@@ -3,7 +3,7 @@ package generators
 import (
 	"testing"
 
-	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 func TestDetectXType_SizeParameters(t *testing.T) {
@@ -11,13 +11,13 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 
 	sizeTestCases := []struct {
 		name     string
-		param    pkg.Param
+		param    schemas.Param
 		expected string
 	}{
 		// Unit-based detection
 		{
 			name: "shared_buffers with 8kB unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "shared_buffers",
 				VarType: "integer",
 				Unit:    "8kB",
@@ -26,7 +26,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "work_mem with kB unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "work_mem",
 				VarType: "integer",
 				Unit:    "kB",
@@ -35,7 +35,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "maintenance_work_mem with kB unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "maintenance_work_mem",
 				VarType: "integer",
 				Unit:    "kB",
@@ -46,7 +46,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		// Name-based exact matches (no unit)
 		{
 			name: "effective_cache_size without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "effective_cache_size",
 				VarType: "integer",
 			},
@@ -54,7 +54,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "logical_decoding_work_mem without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "logical_decoding_work_mem",
 				VarType: "integer",
 			},
@@ -62,7 +62,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "max_stack_depth without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "max_stack_depth",
 				VarType: "integer",
 			},
@@ -70,7 +70,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "vacuum_buffer_usage_limit without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "vacuum_buffer_usage_limit",
 				VarType: "integer",
 			},
@@ -78,7 +78,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "backend_flush_after without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "backend_flush_after",
 				VarType: "integer",
 			},
@@ -86,7 +86,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "gin_pending_list_limit without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "gin_pending_list_limit",
 				VarType: "integer",
 			},
@@ -94,7 +94,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "log_rotation_size without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "log_rotation_size",
 				VarType: "integer",
 			},
@@ -102,7 +102,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "temp_file_limit without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "temp_file_limit",
 				VarType: "integer",
 			},
@@ -110,7 +110,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "max_slot_wal_keep_size without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "max_slot_wal_keep_size",
 				VarType: "integer",
 			},
@@ -118,7 +118,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "wal_keep_size without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "wal_keep_size",
 				VarType: "integer",
 			},
@@ -128,7 +128,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		// Pattern-based matches
 		{
 			name: "custom_buffer parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "custom_buffer_size",
 				VarType: "integer",
 			},
@@ -136,7 +136,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "memory limit parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "query_mem_limit",
 				VarType: "integer",
 			},
@@ -144,7 +144,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "cache size parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "index_cache_size",
 				VarType: "integer",
 			},
@@ -154,7 +154,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		// Parameters that should NOT be Size
 		{
 			name: "max_connections (not size)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "max_connections",
 				VarType: "integer",
 			},
@@ -162,7 +162,7 @@ func TestDetectXType_SizeParameters(t *testing.T) {
 		},
 		{
 			name: "port (not size)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "port",
 				VarType: "integer",
 			},
@@ -185,13 +185,13 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 
 	durationTestCases := []struct {
 		name     string
-		param    pkg.Param
+		param    schemas.Param
 		expected string
 	}{
 		// Unit-based detection
 		{
 			name: "statement_timeout with ms unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "statement_timeout",
 				VarType: "integer",
 				Unit:    "ms",
@@ -200,7 +200,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "lock_timeout with ms unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "lock_timeout",
 				VarType: "integer",
 				Unit:    "ms",
@@ -209,7 +209,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "checkpoint_timeout with s unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "checkpoint_timeout",
 				VarType: "integer",
 				Unit:    "s",
@@ -220,7 +220,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		// Name-based exact matches (no unit)
 		{
 			name: "authentication_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "authentication_timeout",
 				VarType: "integer",
 			},
@@ -228,7 +228,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "archive_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "archive_timeout",
 				VarType: "integer",
 			},
@@ -236,7 +236,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "deadlock_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "deadlock_timeout",
 				VarType: "integer",
 			},
@@ -244,7 +244,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "idle_in_transaction_session_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "idle_in_transaction_session_timeout",
 				VarType: "integer",
 			},
@@ -252,7 +252,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "idle_session_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "idle_session_timeout",
 				VarType: "integer",
 			},
@@ -260,7 +260,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "transaction_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "transaction_timeout",
 				VarType: "integer",
 			},
@@ -268,7 +268,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "log_autovacuum_min_duration without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "log_autovacuum_min_duration",
 				VarType: "integer",
 			},
@@ -276,7 +276,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "log_min_duration_statement without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "log_min_duration_statement",
 				VarType: "integer",
 			},
@@ -284,7 +284,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "log_rotation_age without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "log_rotation_age",
 				VarType: "integer",
 			},
@@ -292,7 +292,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "client_connection_check_interval without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "client_connection_check_interval",
 				VarType: "integer",
 			},
@@ -300,7 +300,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "tcp_keepalives_idle without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "tcp_keepalives_idle",
 				VarType: "integer",
 			},
@@ -308,7 +308,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "tcp_keepalives_interval without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "tcp_keepalives_interval",
 				VarType: "integer",
 			},
@@ -316,7 +316,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "wal_receiver_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "wal_receiver_timeout",
 				VarType: "integer",
 			},
@@ -324,7 +324,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "wal_sender_timeout without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "wal_sender_timeout",
 				VarType: "integer",
 			},
@@ -332,7 +332,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "autovacuum_vacuum_cost_delay without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "autovacuum_vacuum_cost_delay",
 				VarType: "real",
 			},
@@ -340,7 +340,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "vacuum_cost_delay without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "vacuum_cost_delay",
 				VarType: "real",
 			},
@@ -348,7 +348,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "bgwriter_delay without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "bgwriter_delay",
 				VarType: "integer",
 			},
@@ -356,7 +356,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "wal_writer_delay without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "wal_writer_delay",
 				VarType: "integer",
 			},
@@ -364,7 +364,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "checkpoint_warning without unit",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "checkpoint_warning",
 				VarType: "integer",
 			},
@@ -374,7 +374,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		// Pattern-based matches
 		{
 			name: "custom timeout parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "custom_query_timeout",
 				VarType: "integer",
 			},
@@ -382,7 +382,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "interval parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "backup_interval",
 				VarType: "integer",
 			},
@@ -390,7 +390,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "delay parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "replication_delay",
 				VarType: "integer",
 			},
@@ -400,7 +400,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		// Parameters that should NOT be Duration
 		{
 			name: "max_connections (not duration)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "max_connections",
 				VarType: "integer",
 			},
@@ -408,7 +408,7 @@ func TestDetectXType_DurationParameters(t *testing.T) {
 		},
 		{
 			name: "shared_buffers (not duration)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "shared_buffers",
 				VarType: "integer",
 			},
@@ -432,13 +432,13 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 	// Test cases based on actual PostgreSQL parameters from config.txt
 	realWorldTestCases := []struct {
 		name     string
-		param    pkg.Param
+		param    schemas.Param
 		expected string
 	}{
 		// From config.txt line 22: autovacuum_work_mem
 		{
 			name: "autovacuum_work_mem",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "autovacuum_work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt
@@ -450,7 +450,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 16: autovacuum_vacuum_cost_delay
 		{
 			name: "autovacuum_vacuum_cost_delay",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "autovacuum_vacuum_cost_delay",
 				VarType: "real",
 				Unit:    "", // No unit in config.txt
@@ -462,7 +462,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 35: checkpoint_timeout
 		{
 			name: "checkpoint_timeout",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "checkpoint_timeout",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt
@@ -474,7 +474,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 69: effective_cache_size
 		{
 			name: "effective_cache_size",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "effective_cache_size",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but represents 8kB pages
@@ -486,7 +486,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 177: maintenance_work_mem
 		{
 			name: "maintenance_work_mem",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "maintenance_work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is kB
@@ -498,7 +498,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 240: shared_buffers
 		{
 			name: "shared_buffers",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "shared_buffers",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is 8kB blocks
@@ -510,7 +510,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 325: work_mem
 		{
 			name: "work_mem",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "work_mem",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is kB
@@ -522,7 +522,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// From config.txt line 307: wal_buffers
 		{
 			name: "wal_buffers",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "wal_buffers",
 				VarType: "integer",
 				Unit:    "", // No unit in config.txt but is 8kB blocks
@@ -534,7 +534,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// Boolean parameters should not be typed
 		{
 			name: "fsync (boolean)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "fsync",
 				VarType: "bool",
 				Unit:    "",
@@ -544,7 +544,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// String parameters should not be typed
 		{
 			name: "application_name (string)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "application_name",
 				VarType: "string",
 				Unit:    "",
@@ -554,7 +554,7 @@ func TestDetectXType_RealWorldParameters(t *testing.T) {
 		// Enum parameters should not be typed
 		{
 			name: "wal_level (enum)",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:     "wal_level",
 				VarType:  "string",
 				Unit:     "",
@@ -579,13 +579,13 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 
 	edgeCases := []struct {
 		name     string
-		param    pkg.Param
+		param    schemas.Param
 		expected string
 	}{
 		// Empty parameter name
 		{
 			name: "empty parameter name",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "",
 				VarType: "integer",
 			},
@@ -594,7 +594,7 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 		// Parameter name with mixed case
 		{
 			name: "mixed case timeout parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "Connection_Timeout",
 				VarType: "integer",
 			},
@@ -602,7 +602,7 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 		},
 		{
 			name: "mixed case buffer parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "Shared_Buffers",
 				VarType: "integer",
 			},
@@ -611,7 +611,7 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 		// Real type parameters can also be durations
 		{
 			name: "real type delay parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "custom_delay",
 				VarType: "real",
 			},
@@ -620,7 +620,7 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 		// String type parameters with relevant names should not be typed
 		{
 			name: "string timeout parameter",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "connection_timeout_str",
 				VarType: "string",
 			},
@@ -629,7 +629,7 @@ func TestDetectXType_EdgeCases(t *testing.T) {
 		// Units should take priority over name patterns
 		{
 			name: "parameter with conflicting unit and name",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:    "timeout_setting", // name suggests Duration
 				VarType: "integer",
 				Unit:    "kB", // unit suggests Size
@@ -653,13 +653,13 @@ func TestParameterTypeOverrides(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		param         pkg.Param
+		param         schemas.Param
 		expectedType  string
 		expectedXType string
 	}{
 		{
 			name: "lock_timeout should be string with Duration x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "lock_timeout",
 				VarType:   "integer", // PostgreSQL reports as INTEGER
 				Unit:      "",
@@ -671,7 +671,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "deadlock_timeout should be string with Duration x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "deadlock_timeout",
 				VarType:   "integer", // PostgreSQL reports as INTEGER
 				Unit:      "",
@@ -683,7 +683,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "huge_page_size should be string with Size x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "huge_page_size",
 				VarType:   "integer", // PostgreSQL reports as INTEGER
 				Unit:      "",
@@ -695,7 +695,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "enable_bitmapscan should be boolean with no x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "enable_bitmapscan",
 				VarType:   "bool", // PostgreSQL reports as BOOLEAN
 				Unit:      "",
@@ -707,7 +707,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "shared_buffers should be string with Size x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "shared_buffers",
 				VarType:   "integer", // PostgreSQL reports as INTEGER with unit
 				Unit:      "8kB",
@@ -719,7 +719,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "authentication_timeout should be string with Duration x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "authentication_timeout",
 				VarType:   "integer", // PostgreSQL reports as INTEGER with unit
 				Unit:      "s",
@@ -731,7 +731,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "max_connections should remain integer with no x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "max_connections",
 				VarType:   "integer",
 				Unit:      "",
@@ -743,7 +743,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "max_parallel_workers should remain integer with no x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "max_parallel_workers",
 				VarType:   "integer",
 				Unit:      "",
@@ -755,7 +755,7 @@ func TestParameterTypeOverrides(t *testing.T) {
 		},
 		{
 			name: "max_parallel_workers_per_gather should remain integer with no x-type",
-			param: pkg.Param{
+			param: schemas.Param{
 				Name:      "max_parallel_workers_per_gather",
 				VarType:   "integer",
 				Unit:      "",

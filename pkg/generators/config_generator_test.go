@@ -12,10 +12,10 @@ import (
 )
 
 // Test helper functions
-func intPtr(i int) *int { return &i }
+func intPtr(i int) *int                { return &i }
 func sizePtr(bytes uint64) *types.Size { val := types.Size(bytes); return &val }
-func float64Ptr(f float64) *float64 { return &f }
-func stringPtr(s string) *string { return &s }
+func float64Ptr(f float64) *float64    { return &f }
+func stringPtr(s string) *string       { return &s }
 
 func TestConfigGenerator_GenerateFullYAML(t *testing.T) {
 	tests := []struct {
@@ -318,7 +318,7 @@ func TestConfigGenerator_SensitiveFieldHandling(t *testing.T) {
 	adminPassword := string(utils.SensitiveString("auth_user"))
 	s3AccessKey := string(utils.SensitiveString("access_key"))
 	s3SecretKey := string(utils.SensitiveString("secret_key"))
-	
+
 	conf := &pkg.PostgreSQLConfiguration{
 		Postgres: &pkg.PostgresConf{
 			// SuperuserPassword field doesn't exist in generated struct

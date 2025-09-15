@@ -432,7 +432,7 @@ func TestSensitiveFieldsUseSensitiveString(t *testing.T) {
 		val := s.Value()
 		return &val
 	}
-	
+
 	config := &PostgreSQLConfiguration{
 		Postgres: &PostgresConf{
 			// Note: SuperuserPassword doesn't exist in current schema, using another field for testing

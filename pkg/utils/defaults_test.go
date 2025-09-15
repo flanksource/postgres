@@ -263,24 +263,24 @@ func TestResolveFloat64Default(t *testing.T) {
 
 func TestGetSchemaDefaults(t *testing.T) {
 	defaults := GetSchemaDefaults()
-	
+
 	// Test a few key defaults to ensure they're present
 	expectedKeys := []string{
 		"postgres.port",
-		"postgres.max_connections", 
+		"postgres.max_connections",
 		"postgres.shared_buffers",
 		"pgbouncer.listen_port",
 		"postgrest.server_port",
 		"walg.enabled",
 		"pgaudit.log",
 	}
-	
+
 	for _, key := range expectedKeys {
 		if _, exists := defaults[key]; !exists {
 			t.Errorf("GetSchemaDefaults() missing expected key: %s", key)
 		}
 	}
-	
+
 	// Test that postgres.port has the expected format
 	if portDefault, exists := defaults["postgres.port"]; exists {
 		expected := "${POSTGRES_PORT:-5432}"

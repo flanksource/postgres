@@ -1,11 +1,11 @@
 package pkg
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"io/ioutil"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -71,9 +71,9 @@ postgrest:
 func TestLoadConfigWithEnvVars(t *testing.T) {
 	// Set environment variables
 	envVars := map[string]string{
-		"POSTGRES_PORT":           "8888",
+		"POSTGRES_PORT":            "8888",
 		"POSTGRES_MAX_CONNECTIONS": "200",
-		"PGBOUNCER_LISTEN_PORT":   "5555",
+		"PGBOUNCER_LISTEN_PORT":    "5555",
 	}
 
 	// Set environment variables and defer cleanup
@@ -123,7 +123,7 @@ func TestLoadConfigDefaults(t *testing.T) {
 	// Test loading with only defaults (no file, no env vars)
 	conf, err := LoadConfig("")
 	if err != nil {
-		// Expected error due to missing schema file  
+		// Expected error due to missing schema file
 		if !strings.Contains(err.Error(), "schema") {
 			t.Errorf("Expected schema-related error, got: %v", err)
 		}
@@ -151,10 +151,10 @@ func TestLoadConfigDefaults(t *testing.T) {
 func TestBackwardCompatibility(t *testing.T) {
 	// Test that the old Conf type alias works
 	var conf Conf
-	
+
 	// This should compile without error, proving the alias works
 	_ = &conf
-	
+
 	// Test that PostgreSQLConfiguration and Conf are the same type
 	var pgConf PostgreSQLConfiguration
 	conf = pgConf // This should work due to the alias

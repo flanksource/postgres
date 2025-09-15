@@ -17,9 +17,9 @@ type PostgreSQLConfigGenerator struct {
 	SystemInfo     *sysinfo.SystemInfo
 	TunedParams    *pgtune.TunedParameters
 	CustomSettings map[string]string
-	config         *pkg.PostgresConf // Store generated config for template use
+	config         *pkg.PostgresConf              // Store generated config for template use
 	extensions     map[string]pkg.ExtensionConfig // Store extensions
-	pgauditConf    *pkg.PGAuditConf // Store PGAudit config
+	pgauditConf    *pkg.PGAuditConf               // Store PGAudit config
 }
 
 // NewPostgreSQLConfigGenerator creates a new PostgreSQL configuration generator
@@ -48,7 +48,7 @@ func (g *PostgreSQLConfigGenerator) GenerateConfig() *pkg.PostgresConf {
 	intPtr := func(i int) *int { return &i }
 	strPtr := func(s string) *string { return &s }
 	sizePtr := func(kb uint64) *types.Size { val := types.Size(utils.KBToBytes(kb)); return &val }
-	
+
 	config := &pkg.PostgresConf{
 		// Connection settings (using actual field names from schema)
 		Port:           intPtr(5432),
@@ -60,11 +60,11 @@ func (g *PostgreSQLConfigGenerator) GenerateConfig() *pkg.PostgresConf {
 
 		// Security settings
 		PasswordEncryption: "md5",
-		
+
 		// SSL settings
 		SslCertFile: strPtr("/etc/ssl/certs/server.crt"),
 		SslKeyFile:  strPtr("/etc/ssl/private/server.key"),
-		
+
 		// Logging settings
 		LogStatement: "none",
 	}
@@ -150,7 +150,7 @@ func (g *PostgreSQLConfigGenerator) generateHeader() string {
 
 func (g *PostgreSQLConfigGenerator) generateConnectionSection() string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(`# -----------------------------
 # CONNECTIONS AND AUTHENTICATION
 # -----------------------------
@@ -194,7 +194,7 @@ func (g *PostgreSQLConfigGenerator) generateConnectionSection() string {
 
 func (g *PostgreSQLConfigGenerator) generateResourceSection() string {
 	var sb strings.Builder
-	
+
 	sb.WriteString(fmt.Sprintf(`# -----------------------------
 # RESOURCE USAGE (MEMORY)
 # -----------------------------
@@ -373,13 +373,13 @@ log_disconnections = %s		# Log disconnections
 func (g *PostgreSQLConfigGenerator) generateSSLSection() string {
 	sslEnabled := "off"
 	// Note: Ssl field not available in current schema
-	
+
 	// Safely dereference pointer fields
 	sslCertFile := ""
 	if g.config.SslCertFile != nil {
 		sslCertFile = *g.config.SslCertFile
 	}
-	
+
 	sslKeyFile := ""
 	if g.config.SslKeyFile != nil {
 		sslKeyFile = *g.config.SslKeyFile
@@ -467,15 +467,15 @@ func getEffectiveIoConcurrency(value *int) int {
 // generateExtensionSection generates the extension configuration section
 func (g *PostgreSQLConfigGenerator) generateExtensionSection() string {
 	var sb strings.Builder
-	
+
 	// Only generate section if extensions are configured or shared libraries are needed
 	sharedLibs := g.generateSharedPreloadLibraries()
 	includes := g.generateIncludeFiles()
-	
+
 	if sharedLibs == "" && includes == "" && len(g.extensions) == 0 {
 		return ""
 	}
-	
+
 	sb.WriteString(`# -----------------------------
 # EXTENSIONS
 # -----------------------------
@@ -517,7 +517,7 @@ func (g *PostgreSQLConfigGenerator) generateExtensionSection() string {
 // generateSharedPreloadLibraries generates the shared_preload_libraries setting based on enabled extensions
 func (g *PostgreSQLConfigGenerator) generateSharedPreloadLibraries() string {
 	var libraries []string
-	
+
 	// Check enabled extensions that need to be preloaded
 	for _, ext := range g.extensions {
 		if ext.Enabled {
@@ -535,18 +535,18 @@ func (g *PostgreSQLConfigGenerator) generateSharedPreloadLibraries() string {
 			}
 		}
 	}
-	
+
 	if len(libraries) == 0 {
 		return ""
 	}
-	
+
 	return strings.Join(libraries, ",")
 }
 
 // generateIncludeFiles generates the include directive for extension config files
 func (g *PostgreSQLConfigGenerator) generateIncludeFiles() string {
 	var includes []string
-	
+
 	// Check for PGAudit configuration
 	if g.pgauditConf != nil {
 		pgauditGen := NewPGAuditConfigGenerator(g.pgauditConf)
@@ -554,17 +554,17 @@ func (g *PostgreSQLConfigGenerator) generateIncludeFiles() string {
 			includes = append(includes, "postgres.pgaudit.conf")
 		}
 	}
-	
+
 	// Check for other extensions that need config files
 	for _, ext := range g.extensions {
 		if ext.Enabled && ext.ConfigFile != nil && *ext.ConfigFile != "" {
 			includes = append(includes, *ext.ConfigFile)
 		}
 	}
-	
+
 	if len(includes) == 0 {
 		return ""
 	}
-	
+
 	return strings.Join(includes, ",")
 }

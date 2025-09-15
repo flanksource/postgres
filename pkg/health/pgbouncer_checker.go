@@ -27,7 +27,7 @@ func (p *PgBouncerChecker) Status() (interface{}, error) {
 			"error":  "service not configured",
 		}, fmt.Errorf("PgBouncer service not configured")
 	}
-	
+
 	err := p.pgbouncer.Health()
 	if err != nil {
 		return "unhealthy", err

@@ -59,7 +59,7 @@ func (g *PostgRESTConfigGenerator) GenerateConfig() (*pkg.PostgrestConf, error) 
 		DbPool:    dbPool,
 
 		// JWT authentication
-		JwtSecret: &jwtSecret,
+		JwtSecret:     &jwtSecret,
 		JwtAud:        "",
 		AdminRole:     "postgres",
 		AnonymousRole: "anon",

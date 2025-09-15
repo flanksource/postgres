@@ -20,25 +20,25 @@ type TuningConfig struct {
 // TunedParameters contains the calculated PostgreSQL parameters
 type TunedParameters struct {
 	SharedBuffers                 uint64
-	EffectiveCacheSize           uint64
-	MaintenanceWorkMem           uint64
-	WorkMem                      uint64
-	WalBuffers                   uint64
-	MinWalSize                   uint64
-	MaxWalSize                   uint64
-	CheckpointCompletionTarget   float64
-	RandomPageCost               float64
-	EffectiveIoConcurrency       *int
-	DefaultStatisticsTarget      int
-	MaxWorkerProcesses           int
-	MaxParallelWorkers           int
-	MaxParallelWorkersPerGather  int
+	EffectiveCacheSize            uint64
+	MaintenanceWorkMem            uint64
+	WorkMem                       uint64
+	WalBuffers                    uint64
+	MinWalSize                    uint64
+	MaxWalSize                    uint64
+	CheckpointCompletionTarget    float64
+	RandomPageCost                float64
+	EffectiveIoConcurrency        *int
+	DefaultStatisticsTarget       int
+	MaxWorkerProcesses            int
+	MaxParallelWorkers            int
+	MaxParallelWorkersPerGather   int
 	MaxParallelMaintenanceWorkers *int
-	WalLevel                     string
-	MaxWalSenders                *int
-	MaxConnections               int
-	HugePages                    string
-	Warnings                     []string
+	WalLevel                      string
+	MaxWalSenders                 *int
+	MaxConnections                int
+	HugePages                     string
+	Warnings                      []string
 }
 
 // CalculateOptimalConfig is a stub that returns an error when pgtune is disabled

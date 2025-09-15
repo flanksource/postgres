@@ -197,7 +197,7 @@ func FormatConfigComment(fieldPath string, commentPrefix string) string {
 			lines = append(lines, commentPrefix)
 		}
 	}
-	
+
 	return joinLines(lines)
 }
 
@@ -211,7 +211,7 @@ func splitDescription(desc string) []string {
 func splitLines(text string) []string {
 	lines := []string{}
 	current := ""
-	
+
 	for _, char := range text {
 		if char == '\n' {
 			lines = append(lines, current)
@@ -220,11 +220,11 @@ func splitLines(text string) []string {
 			current += string(char)
 		}
 	}
-	
+
 	if current != "" {
 		lines = append(lines, current)
 	}
-	
+
 	return lines
 }
 

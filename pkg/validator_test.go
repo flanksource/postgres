@@ -6,7 +6,7 @@ import (
 
 func TestValidateBoolean(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		input    string
 		expected string
@@ -17,7 +17,7 @@ func TestValidateBoolean(t *testing.T) {
 		{"off", "off", false},
 		{"ON", "on", false},
 		{"OFF", "off", false},
-		
+
 		// Alternative boolean representations
 		{"true", "on", false},
 		{"false", "off", false},
@@ -31,7 +31,7 @@ func TestValidateBoolean(t *testing.T) {
 		{"n", "off", false},
 		{"1", "on", false},
 		{"0", "off", false},
-		
+
 		// Invalid values
 		{"invalid", "", true},
 		{"2", "", true},
@@ -54,7 +54,7 @@ func TestValidateBoolean(t *testing.T) {
 
 func TestParseInteger(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		input    string
 		expected int64
@@ -65,19 +65,19 @@ func TestParseInteger(t *testing.T) {
 		{"0", 0, false},
 		{"-100", -100, false},
 		{"+100", 100, false},
-		
+
 		// Hexadecimal values
 		{"0xFF", 255, false},
 		{"0xff", 255, false},
 		{"0xFFFF", 65535, false},
 		{"-0xA", -10, false},
-		
+
 		// Octal values
 		{"0377", 255, false},
 		{"0640", 416, false},
 		{"0777", 511, false},
 		{"-0100", -64, false},
-		
+
 		// Invalid values
 		{"0xFFPF", 0, true},
 		{"invalid", 0, true},
@@ -100,7 +100,7 @@ func TestParseInteger(t *testing.T) {
 
 func TestIsCustomOption(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		input    string
 		expected bool
@@ -109,7 +109,7 @@ func TestIsCustomOption(t *testing.T) {
 		{"auto_explain.log_min_duration", true},
 		{"custom.option", true},
 		{"extension.parameter.nested", true},
-		
+
 		// Invalid custom options
 		{"regular_parameter", false},
 		{".starts_with_dot", false},
@@ -129,7 +129,7 @@ func TestIsCustomOption(t *testing.T) {
 
 func TestIsOctalParam(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		input    string
 		expected bool
@@ -152,7 +152,7 @@ func TestIsOctalParam(t *testing.T) {
 
 func TestValidateIntegerWithOctalFormatting(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		paramName string
 		input     string
@@ -164,7 +164,7 @@ func TestValidateIntegerWithOctalFormatting(t *testing.T) {
 		{"unix_socket_permissions", "0640", "0640", false},
 		{"unix_socket_permissions", "416", "0640", false},
 		{"unix_socket_permissions", "0", "0000", false},
-		
+
 		// Regular integer parameter (should format as decimal)
 		{"max_connections", "100", "100", false},
 		{"max_connections", "0xFF", "255", false},
@@ -191,7 +191,7 @@ func TestValidateIntegerWithOctalFormatting(t *testing.T) {
 
 func TestParseMemoryValue(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		input        string
 		expectedVal  int64
@@ -203,19 +203,19 @@ func TestParseMemoryValue(t *testing.T) {
 		{"1GB", 1, "GB", false},
 		{"512KB", 512, "KB", false},
 		{"2TB", 2, "TB", false},
-		
+
 		// Values without units (default to kB)
 		{"1024", 1024, "kB", false},
-		
+
 		// Values with spaces
 		{"128 MB", 128, "MB", false},
 		{"1 GB", 1, "GB", false},
-		
+
 		// Case variations
 		{"128mb", 128, "MB", false},
 		{"1gb", 1, "GB", false},
 		{"512kb", 512, "KB", false},
-		
+
 		// Invalid values
 		{"invalid", 0, "", true},
 		{"", 0, "", true},
@@ -242,7 +242,7 @@ func TestParseMemoryValue(t *testing.T) {
 
 func TestNormalizeMemory(t *testing.T) {
 	v := &Validator{}
-	
+
 	tests := []struct {
 		bytes        int64
 		expectedVal  int64
@@ -253,11 +253,11 @@ func TestNormalizeMemory(t *testing.T) {
 		{1024 * 1024, 1, "MB"},
 		{1024 * 1024 * 1024, 1, "GB"},
 		{1024 * 1024 * 1024 * 1024, 1, "TB"},
-		
+
 		// Should stay in bytes if not exact
 		{1023, 1023, "B"},
 		{1025, 1025, "B"},
-		
+
 		// Larger values
 		{2 * 1024 * 1024, 2, "MB"},
 		{512 * 1024, 512, "KB"},
@@ -278,7 +278,7 @@ func TestNormalizeMemory(t *testing.T) {
 
 func TestValidateEnum(t *testing.T) {
 	v := &Validator{}
-	
+
 	param := &Param{
 		Name:     "log_statement",
 		VarType:  "enum",
@@ -298,7 +298,7 @@ func TestValidateEnum(t *testing.T) {
 		{"NONE", "none", false},
 		{"DDL", "ddl", false},
 		{"All", "all", false},
-		
+
 		// Invalid values
 		{"invalid", "", true},
 		{"", "", true},

@@ -1,0 +1,104 @@
+{
+  "additionalProperties": false,
+  "description": "PostgREST API server configuration",
+  "properties": {
+    "admin_role": {
+      "default": "postgres",
+      "description": "Database role with admin privileges",
+      "type": "string"
+    },
+    "anonymous_role": {
+      "default": "anon",
+      "description": "Database role for anonymous access",
+      "type": "string"
+    },
+    "db_pool": {
+      "default": 10,
+      "description": "Database connection pool size",
+      "maximum": 1000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "db_pool_timeout": {
+      "default": 10,
+      "description": "Database connection pool timeout in seconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "db_schemas": {
+      "default": "public",
+      "description": "Database schemas to expose via API",
+      "type": "string"
+    },
+    "db_uri": {
+      "description": "Database connection URI",
+      "pattern": "^postgres(ql)?://.*",
+      "type": "string"
+    },
+    "jwt_aud": {
+      "default": "",
+      "description": "JWT audience claim",
+      "type": "string"
+    },
+    "jwt_secret": {
+      "description": "JWT secret for authentication",
+      "type": "string",
+      "x-sensitive": true
+    },
+    "jwt_secret_is_base64": {
+      "default": false,
+      "description": "Whether JWT secret is base64 encoded",
+      "type": "boolean"
+    },
+    "log_level": {
+      "default": "error",
+      "description": "Logging level",
+      "enum": [
+        "crit",
+        "error",
+        "warn",
+        "info",
+        "debug"
+      ],
+      "type": "string"
+    },
+    "max_rows": {
+      "description": "Maximum rows returned in a single response",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "pre_request": {
+      "default": "",
+      "description": "Pre-request function to call",
+      "type": "string"
+    },
+    "role_claim_key": {
+      "default": "role",
+      "description": "JWT claim key for role",
+      "type": "string"
+    },
+    "server_host": {
+      "default": "0.0.0.0",
+      "description": "Server host address",
+      "type": "string"
+    },
+    "server_port": {
+      "default": 3000,
+      "description": "Server port",
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "server_ssl_cert": {
+      "default": "",
+      "description": "Path to SSL certificate file",
+      "type": "string"
+    },
+    "server_ssl_key": {
+      "default": "",
+      "description": "Path to SSL private key file",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

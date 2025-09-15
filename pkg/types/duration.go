@@ -19,12 +19,12 @@ func ParseDuration(s string) (Duration, error) {
 	if s == "" || s == "0" {
 		return Duration(0), nil
 	}
-	
+
 	d, err := utils.ParseDuration(s)
 	if err != nil {
 		return Duration(0), fmt.Errorf("invalid duration format: %w", err)
 	}
-	
+
 	return Duration(d), nil
 }
 
@@ -96,12 +96,12 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 		*d = Duration(time.Duration(num) * time.Millisecond)
 		return nil
 	}
-	
+
 	parsed, err := ParseDuration(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*d = parsed
 	return nil
 }
@@ -123,12 +123,12 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		*d = Duration(time.Duration(num) * time.Millisecond)
 		return nil
 	}
-	
+
 	parsed, err := ParseDuration(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*d = parsed
 	return nil
 }
@@ -145,18 +145,18 @@ func (d *Duration) UnmarshalText(text []byte) error {
 		*d = Duration(0)
 		return nil
 	}
-	
+
 	// Handle plain numbers (assume milliseconds for PostgreSQL compatibility)
 	if num, err := strconv.ParseInt(str, 10, 64); err == nil {
 		*d = Duration(time.Duration(num) * time.Millisecond)
 		return nil
 	}
-	
+
 	parsed, err := ParseDuration(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*d = parsed
 	return nil
 }

@@ -32,7 +32,7 @@ func (w *WalgChecker) Status() (interface{}, error) {
 			"error":     "service not configured",
 		}, fmt.Errorf("WAL-G service not configured")
 	}
-	
+
 	err := w.walg.Health()
 	if err != nil {
 		return map[string]interface{}{
@@ -41,7 +41,7 @@ func (w *WalgChecker) Status() (interface{}, error) {
 			"service":   "walg",
 		}, err
 	}
-	
+
 	return map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now(),

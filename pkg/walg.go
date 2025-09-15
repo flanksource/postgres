@@ -35,9 +35,9 @@ func (w *WalG) Health() error {
 	}
 
 	// Check if storage configuration is present
-	if (w.Config.S3Prefix == nil || *w.Config.S3Prefix == "") && 
+	if (w.Config.S3Prefix == nil || *w.Config.S3Prefix == "") &&
 		(w.Config.GsPrefix == nil || *w.Config.GsPrefix == "") &&
-		(w.Config.AzPrefix == nil || *w.Config.AzPrefix == "") && 
+		(w.Config.AzPrefix == nil || *w.Config.AzPrefix == "") &&
 		(w.Config.FilePrefix == nil || *w.Config.FilePrefix == "") {
 		return fmt.Errorf("WAL-G storage configuration required (S3Prefix, GsPrefix, AzPrefix, or FilePrefix)")
 	}

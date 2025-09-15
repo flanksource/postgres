@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/flanksource/postgres/pkg/schemas"
@@ -18,286 +17,73 @@ import (
 
 // SchemaProperty represents a JSON schema property
 type SchemaProperty struct {
-	Type        string                     `json:"type,omitempty"`
-	Description string                     `json:"description,omitempty"`
-	Default     interface{}                `json:"default,omitempty"`
-	Enum        []interface{}              `json:"enum,omitempty"`
-	Pattern     string                     `json:"pattern,omitempty"`
-	Minimum     *float64                   `json:"minimum,omitempty"`
-	Maximum     *float64                   `json:"maximum,omitempty"`
-	XType       string                     `json:"x-type,omitempty"`
-	XSensitive  bool                       `json:"x-sensitive,omitempty"`
-	Properties  map[string]*SchemaProperty `json:"properties,omitempty"`
-	Items       *SchemaProperty            `json:"items,omitempty"`
+	Type           interface{} `json:"type,omitempty"`
+	Description    string      `json:"description"`
+	Default        interface{} `json:"default,omitempty"`
+	Minimum        interface{} `json:"minimum,omitempty"`
+	Maximum        interface{} `json:"maximum,omitempty"`
+	Pattern        string      `json:"pattern,omitempty"`
+	Enum           []string    `json:"enum,omitempty"`
+	Documentation  string      `json:"x-documentation,omitempty"`
+	Recommendation string      `json:"x-recommendation,omitempty"`
+	Units          string      `json:"x-units,omitempty"`
+	Sensitive      bool        `json:"x-sensitive,omitempty"`
+	XType          string      `json:"x-type,omitempty"`
 }
 
-// Param represents a PostgreSQL parameter from describe-config
-type Param struct {
-	Name           string
-	Setting        string
-	Unit           string
-	Category       string
-	Description    string
-	ShortDesc      string
-	ExtraDesc      string
-	Context        string
-	Vartype        string
-	Source         string
-	MinVal         string
-	MaxVal         string
-	EnumVals       []string
-	BootVal        string
-	ResetVal       string
-	SourceFile     string
-	SourceLine     string
-	PendingRestart bool
+// SchemaGenerator is a minimal struct to hold parameters
+type SchemaGenerator struct {
+	params  []schemas.Param
+	version string
 }
 
-// parseDescribeConfigOutput parses the describe-config output string into parameters
-func parseDescribeConfigOutput(output string) ([]Param, error) {
-	var params []Param
-
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) < 2 {
-		return nil, fmt.Errorf("invalid describe-config output: missing header or data")
-	}
-
-	// Skip the header line
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-
-		// Parse the pipe-separated values
-		parts := strings.Split(line, "|")
-		if len(parts) < 16 {
-			continue // Skip incomplete lines
-		}
-
-		// Parse enum values if present
-		var enumVals []string
-		if strings.TrimSpace(parts[10]) != "" {
-			enumStr := strings.TrimSpace(parts[10])
-			if enumStr != "" && enumStr != "\\N" {
-				// Parse enum values like {val1,val2,val3}
-				enumStr = strings.Trim(enumStr, "{}")
-				if enumStr != "" {
-					enumVals = strings.Split(enumStr, ",")
-					for j, val := range enumVals {
-						enumVals[j] = strings.TrimSpace(val)
-					}
-				}
-			}
-		}
-
-		param := Param{
-			Name:           strings.TrimSpace(parts[0]),
-			Setting:        strings.TrimSpace(parts[1]),
-			Unit:           strings.TrimSpace(parts[2]),
-			Category:       strings.TrimSpace(parts[3]),
-			Description:    strings.TrimSpace(parts[4]) + " " + strings.TrimSpace(parts[5]),
-			ShortDesc:      strings.TrimSpace(parts[4]),
-			ExtraDesc:      strings.TrimSpace(parts[5]),
-			Context:        strings.TrimSpace(parts[6]),
-			Vartype:        strings.TrimSpace(parts[7]),
-			Source:         strings.TrimSpace(parts[8]),
-			MinVal:         strings.TrimSpace(parts[9]),
-			MaxVal:         strings.TrimSpace(parts[10]),
-			EnumVals:       enumVals,
-			BootVal:        strings.TrimSpace(parts[11]),
-			ResetVal:       strings.TrimSpace(parts[12]),
-			SourceFile:     strings.TrimSpace(parts[13]),
-			SourceLine:     strings.TrimSpace(parts[14]),
-			PendingRestart: strings.TrimSpace(parts[15]) == "t",
-		}
-
-		params = append(params, param)
-	}
-
-	return params, nil
-}
-
-// convertParamToProperty converts a PostgreSQL parameter to a JSON schema property
-func convertParamToProperty(param Param) *SchemaProperty {
-	// Combine short description with extra documentation
-	description := param.ShortDesc
-	if param.ExtraDesc != "" && param.ExtraDesc != "\\N" {
-		if description != "" {
-			description += " " + param.ExtraDesc
-		} else {
-			description = param.ExtraDesc
-		}
-	}
-
-	prop := &SchemaProperty{
-		Description: description,
-	}
-
-	// Handle different parameter types
-	switch param.Vartype {
-	case "bool":
-		prop.Type = "boolean"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			if param.BootVal == "on" || param.BootVal == "true" {
-				prop.Default = true
-			} else {
-				prop.Default = false
-			}
-		}
-
-	case "integer":
-		prop.Type = "integer"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			if val, err := strconv.Atoi(param.BootVal); err == nil {
-				prop.Default = val
-			}
-		}
-		if param.MinVal != "" && param.MinVal != "\\N" {
-			if val, err := strconv.ParseFloat(param.MinVal, 64); err == nil {
-				prop.Minimum = &val
-			}
-		}
-		if param.MaxVal != "" && param.MaxVal != "\\N" {
-			if val, err := strconv.ParseFloat(param.MaxVal, 64); err == nil {
-				prop.Maximum = &val
-			}
-		}
-
-	case "real":
-		prop.Type = "number"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			if val, err := strconv.ParseFloat(param.BootVal, 64); err == nil {
-				prop.Default = val
-			}
-		}
-		if param.MinVal != "" && param.MinVal != "\\N" {
-			if val, err := strconv.ParseFloat(param.MinVal, 64); err == nil {
-				prop.Minimum = &val
-			}
-		}
-		if param.MaxVal != "" && param.MaxVal != "\\N" {
-			if val, err := strconv.ParseFloat(param.MaxVal, 64); err == nil {
-				prop.Maximum = &val
-			}
-		}
-
-	case "string":
-		prop.Type = "string"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			prop.Default = param.BootVal
-		}
-
-		// Handle enum values
-		if len(param.EnumVals) > 0 {
-			for _, val := range param.EnumVals {
-				prop.Enum = append(prop.Enum, val)
-			}
-		}
-
-	case "enum":
-		prop.Type = "string"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			prop.Default = param.BootVal
-		}
-		if len(param.EnumVals) > 0 {
-			for _, val := range param.EnumVals {
-				prop.Enum = append(prop.Enum, val)
-			}
-		}
-
-	default:
-		prop.Type = "string"
-		if param.BootVal != "" && param.BootVal != "\\N" {
-			prop.Default = param.BootVal
-		}
-	}
-
-	// Handle special types based on parameter name or unit
-	if isMemoryParam(param) || param.Unit == "kB" || param.Unit == "8kB" {
-		prop.XType = "Size"
-		prop.Pattern = "^[0-9]+[kMGT]?B?$"
-		prop.Type = "string" // Represent memory sizes as strings
-	}
-
-	if isTimeParam(param.Name) || param.Unit == "ms" || param.Unit == "s" || param.Unit == "min" {
-		prop.XType = "Duration"
-		prop.Type = "string"
-	}
-
-	if isPasswordParam(param.Name) {
-		prop.XSensitive = true
-	}
-
-	return prop
-}
-
-// isMemoryParam checks if a parameter is memory-related
-func isMemoryParam(p Param) bool {
-
-	if p.Category == "Resource Usage / Memory" && p.Vartype == "integer" {
-		return true
-	}
-	if strings.Contains(strings.ToLower(p.Name), "in bytes") {
-		return true
-	}
-	return false
-}
-
-// isTimeParam checks if a parameter is time-related
-func isTimeParam(name string) bool {
-	timeParams := []string{
-		"statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
-		"checkpoint_timeout", "wal_receiver_timeout", "wal_sender_timeout",
-	}
-	for _, param := range timeParams {
-		if param == name {
-			return true
-		}
-	}
-	return false
-}
-
-// isPasswordParam checks if a parameter is password-related
-func isPasswordParam(name string) bool {
-	return strings.Contains(strings.ToLower(name), "password")
-}
-
-// generatePostgresSchema generates the PostgreSQL schema from describe-config output
-func generatePostgresSchema(describeConfigOutput string) (map[string]*SchemaProperty, error) {
-	params, err := parseDescribeConfigOutput(describeConfigOutput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse describe-config output: %w", err)
-	}
-
-	properties := make(map[string]*SchemaProperty)
-
-	for _, param := range params {
-		prop := convertParamToProperty(param)
-		if prop != nil {
-			properties[param.Name] = prop
-		}
-	}
-
-	return properties, nil
+// NewSchemaGenerator creates a new schema generator
+func NewSchemaGenerator(params []schemas.Param, version string) (*SchemaGenerator, error) {
+	return &SchemaGenerator{
+		params:  params,
+		version: version,
+	}, nil
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Printf("Usage: %s <describe-config-output>\n", os.Args[0])
+		fmt.Printf("Usage: %s <describe-config-output-file>\n", os.Args[0])
 		fmt.Println("The describe-config-output should be the raw output from PostgreSQL's describe-config command")
 		os.Exit(1)
 	}
 
-	describeConfigOutput := os.Args[1]
+	// Read the describe-config output from file
+	describeConfigData, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Printf("Error reading describe-config output file: %v\n", err)
+		os.Exit(1)
+	}
 
 	fmt.Println("Generating JSON schema from PostgreSQL describe-config...")
 
-	// Generate PostgreSQL configuration schema from the provided output
-	postgresSchema, err := generatePostgresSchema(describeConfigOutput)
+	// Parse the describe-config output using the unified parser
+	params, err := schemas.ParseDescribeConfig(string(describeConfigData))
 	if err != nil {
-		fmt.Printf("Error generating PostgreSQL schema: %v\n", err)
+		fmt.Printf("Error parsing describe-config output: %v\n", err)
 		os.Exit(1)
+	}
+
+	fmt.Printf("Parsed %d parameters from describe-config\n", len(params))
+
+	// Create a schema generator with the parsed parameters
+	generator, err := NewSchemaGenerator(params, "17.0.0")
+	if err != nil {
+		fmt.Printf("Error creating schema generator: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Generate PostgreSQL configuration schema
+	postgresProps := make(map[string]*SchemaProperty)
+	for _, param := range params {
+		prop := convertParamToSchemaProperty(generator, param)
+		if prop != nil {
+			postgresProps[param.Name] = prop
+		}
 	}
 
 	// Get schemas from embedded JSON files
@@ -348,7 +134,7 @@ func main() {
 				"type":                 "object",
 				"additionalProperties": false,
 				"description":          "Main PostgreSQL server configuration",
-				"properties":           postgresSchema,
+				"properties":           postgresProps,
 			},
 			"PgBouncerConf":  pgbouncerSchema,
 			"DatabaseConfig": databaseConfigSchema,
@@ -386,7 +172,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	schemaPath := "schema/pgconfig-schema.json"
+	schemaPath := "pgconfig-schema.json"
 	if err := os.WriteFile(schemaPath, schemaBytes, 0644); err != nil {
 		fmt.Printf("Error writing schema to %s: %v\n", schemaPath, err)
 		os.Exit(1)
@@ -402,7 +188,7 @@ func main() {
 	})
 
 	fmt.Printf("✅ Successfully generated schema: %s\n", schemaPath)
-	fmt.Printf("   PostgreSQL properties: %d\n", len(postgresSchema))
+	fmt.Printf("   PostgreSQL properties: %d\n", len(postgresProps))
 	fmt.Printf("   Service definitions: PostgresConf, PgBouncerConf, PostgrestConf, WalgConf, PGAuditConf, PgHBAConf, DatabaseConfig\n")
 
 	// Generate Go structs from the schema
@@ -410,6 +196,204 @@ func main() {
 	if err := generateGoStructs(); err != nil {
 		fmt.Printf("Error generating Go structs: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+// convertParamToSchemaProperty converts a Param to SchemaProperty using the generator's logic
+func convertParamToSchemaProperty(sg *SchemaGenerator, param schemas.Param) *SchemaProperty {
+	// Combine short description with extra documentation
+	description := param.ShortDesc
+	if description == "\\N" {
+		description = ""
+	}
+	if param.ExtraDesc != "" && param.ExtraDesc != "\\N" {
+		if description != "" {
+			description = description + " " + param.ExtraDesc
+		} else {
+			description = param.ExtraDesc
+		}
+	}
+
+	prop := &SchemaProperty{
+		Description: description,
+	}
+
+	// Detect x-type based on unit
+	xType := detectXType(param)
+	if xType != "" {
+		prop.XType = xType
+	}
+
+	// Handle parameter types - Size and Duration parameters should always be strings
+	if xType == "Size" || xType == "Duration" {
+		prop.Type = "string"
+		// Set default value as string for Size/Duration parameters
+		if param.BootVal != "" {
+			prop.Default = param.BootVal
+		}
+		// Add patterns for Size/Duration parameters
+		prop.Pattern = getPatternForXType(xType, param.Name, param.Unit)
+	} else {
+		// Set default value with proper type parsing for non-Size/Duration parameters
+		if param.BootVal != "" {
+			prop.Default = parseDefaultValue(param.BootVal, param.VarType)
+		}
+
+		// Handle different parameter types
+		switch param.VarType {
+		case "bool", "boolean":
+			prop.Type = "boolean"
+
+		case "integer":
+			prop.Type = "integer"
+			if param.MinVal != 0 {
+				prop.Minimum = param.MinVal
+			}
+			if param.MaxVal != 0 {
+				prop.Maximum = param.MaxVal
+			}
+
+		case "real":
+			prop.Type = "number"
+			if param.MinVal != 0 {
+				prop.Minimum = param.MinVal
+			}
+			if param.MaxVal != 0 {
+				prop.Maximum = param.MaxVal
+			}
+
+		case "string":
+			prop.Type = "string"
+
+			// Handle enum values
+			if len(param.EnumVals) > 0 {
+				prop.Enum = param.EnumVals
+			}
+
+		case "enum":
+			prop.Type = "string"
+			if len(param.EnumVals) > 0 {
+				prop.Enum = param.EnumVals
+			}
+
+		default:
+			// Default to string for unknown types
+			prop.Type = "string"
+		}
+	}
+
+	// Add units information
+	if param.Unit != "" {
+		prop.Units = getUnitsDescription(param.Unit)
+	}
+
+	// Mark sensitive parameters
+	if isSensitiveParam(param.Name) {
+		prop.Sensitive = true
+	}
+
+	return prop
+}
+
+// detectXType determines if a parameter should be treated as a special type based on PostgreSQL metadata
+func detectXType(param schemas.Param) string {
+	// First check the unit field from describe-config - this is the most reliable indicator
+	switch param.Unit {
+	case "kB", "MB", "GB", "TB":
+		return "Size"
+	case "8kB": // PostgreSQL block size units
+		return "Size"
+	case "ms", "s", "min", "h", "d":
+		return "Duration"
+	}
+
+	// Also check if it's a memory parameter based on category
+	if param.Category == "Resource Usage / Memory" && param.VarType == "integer" {
+		return "Size"
+	}
+
+	// Check parameter names for time-related parameters
+	timeParams := []string{
+		"statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
+		"checkpoint_timeout", "wal_receiver_timeout", "wal_sender_timeout",
+		"deadlock_timeout", "authentication_timeout",
+	}
+	for _, tp := range timeParams {
+		if param.Name == tp {
+			return "Duration"
+		}
+	}
+
+	return ""
+}
+
+// getPatternForXType returns regex pattern based on x-type
+func getPatternForXType(xType, name, unit string) string {
+	switch xType {
+	case "Size":
+		return "^[0-9]+[kMGT]?B$"
+	case "Duration":
+		return "^[0-9]+(us|ms|s|min|h|d)?$"
+	default:
+		return ""
+	}
+}
+
+// getUnitsDescription returns user-friendly units description
+func getUnitsDescription(unit string) string {
+	switch unit {
+	case "kB", "MB", "GB", "TB":
+		return "B, kB, MB, GB, TB (1024 multiplier)"
+	case "ms":
+		return "us, ms, s, min, h, d"
+	case "s":
+		return "s, min, h, d"
+	default:
+		return unit
+	}
+}
+
+// isSensitiveParam returns true if parameter contains sensitive information
+func isSensitiveParam(name string) bool {
+	sensitivePatterns := []string{
+		"password",
+		"secret",
+		"key",
+		"token",
+		"credential",
+	}
+
+	lowerName := strings.ToLower(name)
+	for _, pattern := range sensitivePatterns {
+		if strings.Contains(lowerName, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// parseDefaultValue parses the default value based on the parameter type
+func parseDefaultValue(bootVal, varType string) interface{} {
+	if bootVal == "" || bootVal == "\\N" {
+		return nil
+	}
+
+	switch varType {
+	case "bool", "boolean":
+		return bootVal == "on" || bootVal == "true" || bootVal == "yes" || bootVal == "1"
+	case "integer":
+		// Try to parse as integer
+		var val int
+		fmt.Sscanf(bootVal, "%d", &val)
+		return val
+	case "real":
+		// Try to parse as float
+		var val float64
+		fmt.Sscanf(bootVal, "%f", &val)
+		return val
+	default:
+		return bootVal
 	}
 }
 
@@ -422,7 +406,7 @@ func writeComponentSchemas(schemas map[string]interface{}) {
 			continue
 		}
 
-		filePath := fmt.Sprintf("schema/%s-schema.json", name)
+		filePath := fmt.Sprintf("%s-schema.json", name)
 		if err := os.WriteFile(filePath, schemaBytes, 0644); err != nil {
 			fmt.Printf("Warning: Error writing %s schema to %s: %v\n", name, filePath, err)
 		} else {
@@ -450,7 +434,7 @@ func extractTypeHints(schemaPath string) (map[string]string, error) {
 	}
 
 	typeHints := make(map[string]string)
-	
+
 	// Navigate through all definitions to find x-type annotations
 	if definitions, ok := schema["definitions"].(map[string]interface{}); ok {
 		for defName, definition := range definitions {
@@ -475,7 +459,7 @@ func extractTypeHints(schemaPath string) (map[string]string, error) {
 // runGoJSONSchema executes go-jsonschema to generate the initial struct definitions
 func runGoJSONSchema() error {
 	fmt.Println("Running go-jsonschema...")
-	
+
 	// Check if go-jsonschema is available
 	if _, err := exec.LookPath("go-jsonschema"); err != nil {
 		// Try to install it
@@ -489,8 +473,8 @@ func runGoJSONSchema() error {
 	// Generate the Go structs
 	cmd := exec.Command("go-jsonschema",
 		"-p", "pkg",
-		"--output", "pkg/model_generated.go",
-		"schema/pgconfig-schema.json")
+		"--output", "../pkg/model_generated.go",
+		"pgconfig-schema.json")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -529,10 +513,10 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 				if len(field.Names) == 0 {
 					continue // Skip embedded fields
 				}
-				
+
 				fieldName := field.Names[0].Name
 				jsonTag := getJSONTag(field.Tag)
-				
+
 				// Check if this field should use a custom type
 				if xType, exists := typeHints[jsonTag]; exists {
 					var newType string
@@ -546,7 +530,7 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 					default:
 						continue // Unknown type, skip
 					}
-					
+
 					// Replace the type with pointer to custom type
 					field.Type = &ast.StarExpr{
 						X: &ast.SelectorExpr{
@@ -554,7 +538,7 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 							Sel: &ast.Ident{Name: strings.TrimPrefix(strings.TrimPrefix(newType, "*"), "types.")},
 						},
 					}
-					
+
 					fmt.Printf("  Converted field %s (%s) to %s\n", fieldName, jsonTag, newType)
 				}
 			}
@@ -567,7 +551,7 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 						if selectorExpr, ok := starExpr.X.(*ast.SelectorExpr); ok {
 							// Only convert for custom types (field names that have type hints)
 							fieldName := selectorExpr.Sel.Name
-							
+
 							// Check if this field has a custom type hint
 							hasCustomType := false
 							for jsonTag, xType := range typeHints {
@@ -578,7 +562,7 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 									break
 								}
 							}
-							
+
 							if hasCustomType {
 								// This looks like *plain.CustomField - convert string(*plain.CustomField) to plain.CustomField.String()
 								node.Fun = &ast.SelectorExpr{
@@ -587,6 +571,40 @@ func postProcessGeneratedCode(filePath string, typeHints map[string]string) erro
 								}
 								node.Args = nil // Remove arguments since String() takes no args
 							}
+						}
+					}
+				}
+			}
+		case *ast.AssignStmt:
+			// Fix assignments to custom type fields
+			if len(node.Lhs) == 1 && len(node.Rhs) == 1 {
+				if selectorExpr, ok := node.Lhs[0].(*ast.SelectorExpr); ok {
+					fieldName := selectorExpr.Sel.Name
+					// Check if this field should use a custom type
+					for jsonTag, xType := range typeHints {
+						expectedFieldName := convertToFieldName(jsonTag)
+						if fieldName == expectedFieldName && (xType == "Size" || xType == "Duration") {
+							// Check if we're assigning a string literal
+							if basicLit, ok := node.Rhs[0].(*ast.BasicLit); ok && basicLit.Kind.String() == "STRING" {
+								// Convert assignment from plain.Field = "value" to plain.Field = types.ParseSize("value") or types.ParseDuration("value")
+								var parseFunc string
+								switch xType {
+								case "Size":
+									parseFunc = "ParseSize"
+								case "Duration":
+									parseFunc = "ParseDuration"
+								}
+								if parseFunc != "" {
+									node.Rhs[0] = &ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "types"},
+											Sel: &ast.Ident{Name: parseFunc},
+										},
+										Args: []ast.Expr{basicLit},
+									}
+								}
+							}
+							break
 						}
 					}
 				}
@@ -620,17 +638,17 @@ func getJSONTag(tag *ast.BasicLit) string {
 	if tag == nil {
 		return ""
 	}
-	
+
 	// Remove surrounding backticks
 	tagValue := strings.Trim(tag.Value, "`")
-	
+
 	// Use regex to extract json tag
 	re := regexp.MustCompile(`json:"([^,"]+)`)
 	matches := re.FindStringSubmatch(tagValue)
 	if len(matches) >= 2 {
 		return matches[1]
 	}
-	
+
 	return ""
 }
 
@@ -683,7 +701,7 @@ func addImport(file *ast.File, importPath string) {
 // generateGoStructs generates Go structs from the JSON schema
 func generateGoStructs() error {
 	// 1. Extract type hints from the schema
-	typeHints, err := extractTypeHints("schema/pgconfig-schema.json")
+	typeHints, err := extractTypeHints("pgconfig-schema.json")
 	if err != nil {
 		return fmt.Errorf("failed to extract type hints: %w", err)
 	}
@@ -696,7 +714,7 @@ func generateGoStructs() error {
 	}
 
 	// 3. Post-process the generated code to use pointer custom types
-	if err := postProcessGeneratedCode("pkg/model_generated.go", typeHints); err != nil {
+	if err := postProcessGeneratedCode("../pkg/model_generated.go", typeHints); err != nil {
 		return fmt.Errorf("failed to post-process generated code: %w", err)
 	}
 

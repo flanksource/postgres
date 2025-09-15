@@ -174,7 +174,7 @@ func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 		SystemInfo:     sysInfo,
 		MaxConnections: maxConn,
 		DBType:         sysinfo.DBTypeMixed, // Default to mixed workload
-		DiskType:       nil, // Use detected disk type
+		DiskType:       nil,                 // Use detected disk type
 	}
 
 	// Calculate optimal parameters
@@ -187,10 +187,10 @@ func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 	pgConf.MaxConnections = &params.MaxConnections
 	sharedBuffersSize := types.Size(utils.KBToBytes(params.SharedBuffers))
 	pgConf.SharedBuffers = &sharedBuffersSize
-	
+
 	// Only set fields that exist in the new PostgresConf struct
 	// The rest will be handled by the generators when creating config files
-	
+
 	return nil
 }
 

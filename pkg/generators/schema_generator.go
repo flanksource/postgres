@@ -9,25 +9,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 // SchemaGenerator generates JSON schema from PostgreSQL describe-config output
 type SchemaGenerator struct {
-	postgres *pkg.Postgres
-	version  string
+	params  []schemas.Param
+	version string
 }
 
 // NewSchemaGenerator creates a new schema generator
-func NewSchemaGenerator(version string) (*SchemaGenerator, error) {
-	postgres, err := pkg.NewEmbeddedPostgres(version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create embedded postgres: %w", err)
-	}
-
+func NewSchemaGenerator(params []schemas.Param, version string) (*SchemaGenerator, error) {
 	return &SchemaGenerator{
-		postgres: postgres,
-		version:  version,
+		params:  params,
+		version: version,
 	}, nil
 }
 
@@ -49,10 +44,7 @@ type SchemaProperty struct {
 
 // GeneratePostgresSchema generates PostgreSQL configuration schema from describe-config
 func (sg *SchemaGenerator) GeneratePostgresSchema() (map[string]*SchemaProperty, error) {
-	params, err := sg.postgres.DescribeConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get postgres describe-config: %w", err)
-	}
+	params := sg.params
 
 	properties := make(map[string]*SchemaProperty)
 
@@ -67,7 +59,7 @@ func (sg *SchemaGenerator) GeneratePostgresSchema() (map[string]*SchemaProperty,
 }
 
 // convertParamToProperty converts a PostgreSQL parameter to a JSON schema property
-func (sg *SchemaGenerator) convertParamToProperty(param pkg.Param) *SchemaProperty {
+func (sg *SchemaGenerator) convertParamToProperty(param schemas.Param) *SchemaProperty {
 	// Combine short description with extra documentation
 	description := param.ShortDesc
 	if param.ExtraDesc != "" {
@@ -203,7 +195,7 @@ func (sg *SchemaGenerator) isSensitiveParam(name string) bool {
 }
 
 // detectXType determines if a parameter should be treated as a special type based on PostgreSQL metadata
-func (sg *SchemaGenerator) detectXType(param pkg.Param) string {
+func (sg *SchemaGenerator) detectXType(param schemas.Param) string {
 
 	// First check the unit field from describe-config - this is the most reliable indicator
 	switch param.Unit {
@@ -286,10 +278,7 @@ func (sg *SchemaGenerator) WriteSchemaFile(outputPath string) error {
 
 // GenerateParameterReport generates a report of all PostgreSQL parameters
 func (sg *SchemaGenerator) GenerateParameterReport() (string, error) {
-	params, err := sg.postgres.DescribeConfig()
-	if err != nil {
-		return "", fmt.Errorf("failed to get postgres describe-config: %w", err)
-	}
+	params := sg.params
 
 	// Sort parameters by category and name
 	sort.Slice(params, func(i, j int) bool {

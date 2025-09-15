@@ -18,9 +18,9 @@ type Extension struct {
 	Available   bool    `json:"available"`   // Whether extension files are available
 	Installed   bool    `json:"installed"`   // Whether extension is installed in database
 
-	Install     func(p *pkg.Postgres) error
-	IsInstalled func(p *pkg.Postgres) bool
-	Health      func(p *pkg.Postgres) error
+	Install     func(p pkg.Postgres) error
+	IsInstalled func(p pkg.Postgres) bool
+	Health      func(p pkg.Postgres) error
 }
 
 // Registry holds the extension registry

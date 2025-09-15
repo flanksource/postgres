@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 func TestNewSchemaGenerator(t *testing.T) {
@@ -30,27 +30,27 @@ func TestSchemaProperty_BasicTypes(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		param    pkg.Param
+		param    schemas.Param
 		expected string // expected type
 	}{
 		{
 			name:     "boolean parameter",
-			param:    pkg.Param{Name: "test_bool", VarType: "bool", BootVal: "on"},
+			param:    schemas.Param{Name: "test_bool", VarType: "bool", BootVal: "on"},
 			expected: "boolean",
 		},
 		{
 			name:     "integer parameter",
-			param:    pkg.Param{Name: "test_int", VarType: "integer", BootVal: "100", MinVal: 1, MaxVal: 1000},
+			param:    schemas.Param{Name: "test_int", VarType: "integer", BootVal: "100", MinVal: 1, MaxVal: 1000},
 			expected: "integer",
 		},
 		{
 			name:     "real parameter",
-			param:    pkg.Param{Name: "test_real", VarType: "real", BootVal: "4.0", MinVal: 0.0, MaxVal: 100.0},
+			param:    schemas.Param{Name: "test_real", VarType: "real", BootVal: "4.0", MinVal: 0.0, MaxVal: 100.0},
 			expected: "number",
 		},
 		{
 			name:     "string parameter",
-			param:    pkg.Param{Name: "test_string", VarType: "string", BootVal: "default_value"},
+			param:    schemas.Param{Name: "test_string", VarType: "string", BootVal: "default_value"},
 			expected: "string",
 		},
 	}
@@ -73,7 +73,7 @@ func TestSchemaProperty_BasicTypes(t *testing.T) {
 func TestSchemaProperty_EnumValues(t *testing.T) {
 	generator := &SchemaGenerator{version: "16.1.0"}
 
-	param := pkg.Param{
+	param := schemas.Param{
 		Name:     "wal_level",
 		VarType:  "string",
 		BootVal:  "replica",
@@ -101,7 +101,7 @@ func TestSchemaProperty_EnumValues(t *testing.T) {
 func TestSchemaProperty_EnvironmentVariables(t *testing.T) {
 	generator := &SchemaGenerator{version: "16.1.0"}
 
-	param := pkg.Param{
+	param := schemas.Param{
 		Name:    "max_connections",
 		VarType: "integer",
 		BootVal: "100",
@@ -242,7 +242,7 @@ func TestGenerateParameterReport(t *testing.T) {
 	}
 
 	// Create a fake postgres that returns mock parameters
-	mockParams := []pkg.Param{
+	mockParams := []schemas.Param{
 		{
 			Name:      "max_connections",
 			VarType:   "integer",
@@ -345,7 +345,7 @@ func TestLoadExistingSchema(t *testing.T) {
 }
 
 // Helper function for testing report generation
-func generateReportFromParams(version string, params []pkg.Param) string {
+func generateReportFromParams(version string, params []schemas.Param) string {
 	var report strings.Builder
 	report.WriteString("# PostgreSQL " + version + " Configuration Parameters\n\n")
 	report.WriteString("Generated from postgres --describe-config output\n\n")

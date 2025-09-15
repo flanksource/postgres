@@ -22,10 +22,10 @@ func NewSupervisorChecker(enabledServices []string) *SupervisorChecker {
 // Status implements the health.ICheckable interface
 func (c *SupervisorChecker) Status() (interface{}, error) {
 	status := map[string]interface{}{
-		"timestamp":        time.Now(),
+		"timestamp":          time.Now(),
 		"supervisor_running": false,
-		"processes":        []map[string]interface{}{},
-		"enabled_services": c.EnabledServices,
+		"processes":          []map[string]interface{}{},
+		"enabled_services":   c.EnabledServices,
 	}
 
 	// Check if supervisorctl is available

@@ -80,7 +80,7 @@ func (g *PgBouncerConfigGenerator) GenerateConfig() *pkg.PgBouncerIni {
 	password := ""
 	poolSize := defaultPoolSize
 	connectQuery := ""
-	
+
 	config.Databases[g.DatabaseName] = pkg.DatabaseConfig{
 		Host:         host,
 		Port:         port,
@@ -163,7 +163,7 @@ func (g *PgBouncerConfigGenerator) generateDatabasesSection() string {
 		host := "localhost"
 		port := 5432
 		dbname := name
-		
+
 		if config.Host != "" {
 			host = config.Host
 		}
@@ -173,7 +173,7 @@ func (g *PgBouncerConfigGenerator) generateDatabasesSection() string {
 		if config.Dbname != nil {
 			dbname = *config.Dbname
 		}
-		
+
 		sb.WriteString(fmt.Sprintf("%s = host=%s port=%d dbname=%s",
 			name, host, port, dbname))
 
@@ -252,7 +252,6 @@ func (g *PgBouncerConfigGenerator) generatePgBouncerSection() string {
 			sb.WriteString(fmt.Sprintf("%s = %s\n", key, value))
 		}
 	}
-
 
 	sb.WriteString("\n")
 	return sb.String()

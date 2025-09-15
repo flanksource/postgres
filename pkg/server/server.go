@@ -851,7 +851,7 @@ func (s *HealthServer) initializeHealthChecker() {
 	s.LoadServiceConfigs()
 
 	// Create service instances from configurations
-	var postgresService *pkg.Postgres
+	var postgresService *Postgres
 	var pgbouncerService *pkg.PgBouncer
 	var postgrestURL string
 	var walgService *pkg.WalG
@@ -943,8 +943,8 @@ func (s *HealthServer) LoadServiceConfigs() {
 	port := 5432
 	s.PostgresConfig = &pkg.PostgresConf{
 		ListenAddresses: &listenAddr,
-		Port:           &port,
-		MaxConnections: &s.MaxConn,
+		Port:            &port,
+		MaxConnections:  &s.MaxConn,
 		// Other defaults will be set by struct tags
 	}
 
@@ -960,7 +960,7 @@ func (s *HealthServer) LoadServiceConfigs() {
 		}
 	}
 
-	// PostgREST configuration - load if enabled  
+	// PostgREST configuration - load if enabled
 	postgrestEnabled := os.Getenv("POSTGREST_ENABLED") == "true"
 	if postgrestEnabled {
 		dbUri := "postgresql://postgres@localhost:5432/postgres"
@@ -982,12 +982,12 @@ func (s *HealthServer) LoadServiceConfigs() {
 		if dataDir == "" {
 			dataDir = "/var/lib/postgresql/data"
 		}
-		
+
 		s.WalgConfig = &pkg.WalgConf{
 			Enabled:           true,
 			PostgresqlDataDir: dataDir,
 		}
-		
+
 		// Set storage prefixes from env vars if they exist
 		if s3Prefix := os.Getenv("WALG_S3_PREFIX"); s3Prefix != "" {
 			s.WalgConfig.S3Prefix = &s3Prefix

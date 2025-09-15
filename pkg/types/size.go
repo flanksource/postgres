@@ -18,12 +18,12 @@ func ParseSize(s string) (Size, error) {
 	if s == "" {
 		return Size(0), nil
 	}
-	
+
 	bytes, err := utils.ParseSize(s)
 	if err != nil {
 		return Size(0), fmt.Errorf("invalid size format: %w", err)
 	}
-	
+
 	return Size(bytes), nil
 }
 
@@ -37,7 +37,7 @@ func (s Size) KB() uint64 {
 	return uint64(s) / utils.KB
 }
 
-// MB returns the size in megabytes  
+// MB returns the size in megabytes
 func (s Size) MB() uint64 {
 	return uint64(s) / utils.MB
 }
@@ -80,12 +80,12 @@ func (s *Size) UnmarshalJSON(data []byte) error {
 		*s = Size(num)
 		return nil
 	}
-	
+
 	parsed, err := ParseSize(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*s = parsed
 	return nil
 }
@@ -95,7 +95,7 @@ func (s Size) MarshalYAML() (interface{}, error) {
 	return s.String(), nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler interface  
+// UnmarshalYAML implements yaml.Unmarshaler interface
 func (s *Size) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 	if err := unmarshal(&str); err != nil {
@@ -107,12 +107,12 @@ func (s *Size) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		*s = Size(num)
 		return nil
 	}
-	
+
 	parsed, err := ParseSize(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*s = parsed
 	return nil
 }
@@ -129,18 +129,18 @@ func (s *Size) UnmarshalText(text []byte) error {
 		*s = Size(0)
 		return nil
 	}
-	
+
 	// Handle plain numbers (assume bytes)
 	if num, err := strconv.ParseUint(str, 10, 64); err == nil {
 		*s = Size(num)
 		return nil
 	}
-	
+
 	parsed, err := ParseSize(str)
 	if err != nil {
 		return err
 	}
-	
+
 	*s = parsed
 	return nil
 }

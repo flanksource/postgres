@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 // Validator provides Java-compatible PostgreSQL parameter validation
 type Validator struct {
-	params map[string]*Param
+	params  map[string]*schemas.Param
 	version PgVersion
 }
 
@@ -107,7 +109,7 @@ func (v *Validator) validateCustomOption(name, value string) (*ValidatedParam, e
 }
 
 // validateValue validates a parameter value based on its type
-func (v *Validator) validateValue(param *Param, value string) (string, error) {
+func (v *Validator) validateValue(param *schemas.Param, value string) (string, error) {
 	switch param.VarType {
 	case "bool", "boolean":
 		return v.validateBoolean(value)
@@ -129,7 +131,7 @@ func (v *Validator) validateValue(param *Param, value string) (string, error) {
 // Returns: on/off (normalized form)
 func (v *Validator) validateBoolean(value string) (string, error) {
 	lower := strings.ToLower(value)
-	
+
 	switch lower {
 	case "on", "true", "t", "yes", "y", "1":
 		return "on", nil
@@ -141,7 +143,7 @@ func (v *Validator) validateBoolean(value string) (string, error) {
 }
 
 // validateInteger validates integer values with support for hex/octal notation
-func (v *Validator) validateInteger(param *Param, value string) (string, error) {
+func (v *Validator) validateInteger(param *schemas.Param, value string) (string, error) {
 	// Handle empty value
 	if value == "" {
 		return "", fmt.Errorf("invalid integer value: empty string")
@@ -172,7 +174,7 @@ func (v *Validator) validateInteger(param *Param, value string) (string, error) 
 func (v *Validator) parseInteger(value string) (int64, error) {
 	// Remove any whitespace
 	value = strings.TrimSpace(value)
-	
+
 	// Handle negative numbers
 	negative := false
 	if strings.HasPrefix(value, "-") {
@@ -219,7 +221,7 @@ func (v *Validator) isOctalParam(name string) bool {
 }
 
 // validateReal validates real/float values
-func (v *Validator) validateReal(param *Param, value string) (string, error) {
+func (v *Validator) validateReal(param *schemas.Param, value string) (string, error) {
 	// Parse the float value
 	floatVal, err := strconv.ParseFloat(value, 64)
 	if err != nil {
@@ -246,7 +248,7 @@ func (v *Validator) validateReal(param *Param, value string) (string, error) {
 }
 
 // validateEnum validates enum values (case-insensitive)
-func (v *Validator) validateEnum(param *Param, value string) (string, error) {
+func (v *Validator) validateEnum(param *schemas.Param, value string) (string, error) {
 	// Case-insensitive comparison for enum values
 	for _, enumVal := range param.EnumVals {
 		if strings.EqualFold(value, enumVal) {
@@ -254,7 +256,7 @@ func (v *Validator) validateEnum(param *Param, value string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("invalid enum value '%s' for parameter '%s', valid values: %v", 
+	return "", fmt.Errorf("invalid enum value '%s' for parameter '%s', valid values: %v",
 		value, param.Name, param.EnumVals)
 }
 
@@ -263,7 +265,7 @@ func (v *Validator) ParseMemoryValue(value string) (int64, string, error) {
 	// Regular expression to match number with optional unit
 	re := regexp.MustCompile(`^(\d+(?:\.\d+)?)\s*([kKmMgGtT]?[bB]?)$`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(value))
-	
+
 	if matches == nil {
 		// Try parsing as plain number
 		if num, err := strconv.ParseInt(value, 10, 64); err == nil {

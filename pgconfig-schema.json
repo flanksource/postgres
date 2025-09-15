@@ -1,0 +1,2614 @@
+{
+  "$id": "https://github.com/flanksource/postgres/schema/pgconfig.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "definitions": {
+    "DatabaseConfig": {
+      "additionalProperties": false,
+      "description": "Database connection configuration for PgBouncer",
+      "properties": {
+        "connect_query": {
+          "description": "Query to run on new connections",
+          "type": "string"
+        },
+        "dbname": {
+          "description": "Database name",
+          "type": "string"
+        },
+        "host": {
+          "default": "localhost",
+          "description": "Database host",
+          "type": "string"
+        },
+        "password": {
+          "description": "Database password",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "pool_size": {
+          "description": "Pool size for this database",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "port": {
+          "default": 5432,
+          "description": "Database port",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "user": {
+          "description": "Database user",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PGAuditConf": {
+      "additionalProperties": false,
+      "description": "PGAudit extension configuration for PostgreSQL audit logging",
+      "properties": {
+        "filter_using_role": {
+          "default": "off",
+          "description": "Specifies whether audit logging should be filtered using role-based access control",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log": {
+          "default": "none",
+          "description": "Specifies which classes of statements will be logged by session audit logging",
+          "enum": [
+            "none",
+            "read",
+            "write",
+            "function",
+            "role",
+            "ddl",
+            "misc",
+            "misc_set",
+            "all"
+          ],
+          "type": "string"
+        },
+        "log_catalog": {
+          "default": "on",
+          "description": "Specifies that session logging should be enabled in the case where all relations in a statement are in pg_catalog",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_client": {
+          "default": "off",
+          "description": "Specifies whether log messages will be visible to a client process",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_level": {
+          "default": "log",
+          "description": "Specifies the log level that will be used for log entries",
+          "enum": [
+            "debug5",
+            "debug4",
+            "debug3",
+            "debug2",
+            "debug1",
+            "info",
+            "notice",
+            "warning",
+            "log"
+          ],
+          "type": "string"
+        },
+        "log_parameter": {
+          "default": "off",
+          "description": "Specifies that audit logging should include the parameters that were passed with the statement",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_parameter_max_size": {
+          "default": "0",
+          "description": "Sets the maximum size of a parameter value that will be logged",
+          "pattern": "^[0-9]+[kMGT]?B?$",
+          "type": "string"
+        },
+        "log_relation": {
+          "default": "off",
+          "description": "Specifies whether session audit logging should create a separate log entry for each relation referenced in a SELECT or DML statement",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_statement": {
+          "default": "on",
+          "description": "Specifies whether logging will include the statement text and parameters (if enabled)",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_statement_once": {
+          "default": "off",
+          "description": "Specifies whether logging will include the statement text and parameters (if enabled) with the first log entry for a statement/substatement combination or with every log entry",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "max_stack_depth": {
+          "description": "Sets the maximum stack depth for audit logging to prevent infinite recursion",
+          "pattern": "^[0-9]+[kMGT]?B?$",
+          "type": "string"
+        },
+        "object_log": {
+          "default": "none",
+          "description": "Specifies which classes of statements will be logged by object audit logging",
+          "enum": [
+            "none",
+            "read",
+            "write",
+            "function",
+            "role",
+            "ddl",
+            "misc",
+            "misc_set",
+            "all"
+          ],
+          "type": "string"
+        },
+        "object_log_catalog": {
+          "default": "on",
+          "description": "Specifies that object logging should be enabled in the case where all relations in a statement are in pg_catalog",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "role": {
+          "description": "Specifies the master role to use for object audit logging",
+          "type": "string"
+        },
+        "session_log_statement_name": {
+          "default": "off",
+          "description": "Specifies whether the statement name, if provided, should be included in the session log",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PgBouncerConf": {
+      "additionalProperties": false,
+      "description": "PgBouncer connection pooler configuration",
+      "properties": {
+        "admin_password": {
+          "description": "Administrative password for PgBouncer",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "admin_user": {
+          "description": "Administrative user for PgBouncer",
+          "type": "string"
+        },
+        "auth_file": {
+          "default": "userlist.txt",
+          "description": "Path to authentication file",
+          "type": "string"
+        },
+        "auth_query": {
+          "default": "SELECT usename, passwd FROM pg_shadow WHERE usename=$1",
+          "description": "Query to authenticate users",
+          "type": "string"
+        },
+        "auth_type": {
+          "default": "md5",
+          "description": "Authentication type for PgBouncer",
+          "enum": [
+            "any",
+            "trust",
+            "plain",
+            "md5",
+            "scram-sha-256",
+            "cert",
+            "hba",
+            "pam"
+          ],
+          "type": "string"
+        },
+        "client_idle_timeout": {
+          "default": "0",
+          "description": "Maximum idle time for client connections",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "databases": {
+          "additionalProperties": {
+            "$ref": "#/definitions/DatabaseConfig"
+          },
+          "description": "Database connection configurations",
+          "type": "object"
+        },
+        "default_pool_size": {
+          "default": 25,
+          "description": "Default pool size for databases",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "listen_address": {
+          "default": "0.0.0.0",
+          "description": "Specifies the address to listen on",
+          "type": "string"
+        },
+        "listen_port": {
+          "default": 6432,
+          "description": "Specifies the port to listen on",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_client_conn": {
+          "default": 100,
+          "description": "Maximum number of client connections allowed",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_pool_size": {
+          "default": 0,
+          "description": "Minimum pool size",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pool_mode": {
+          "default": "transaction",
+          "description": "Pooling mode to use",
+          "enum": [
+            "session",
+            "transaction",
+            "statement"
+          ],
+          "type": "string"
+        },
+        "query_timeout": {
+          "default": "0",
+          "description": "Query timeout",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "reserve_pool_size": {
+          "description": "Reserved pool size",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "server_idle_timeout": {
+          "default": "600s",
+          "description": "Maximum idle time for server connections",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "server_lifetime": {
+          "default": "3600s",
+          "description": "Maximum lifetime of a server connection",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "server_reset_query": {
+          "default": "DISCARD ALL",
+          "description": "Query to run on server connection before returning to pool",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PgHBAConf": {
+      "additionalProperties": false,
+      "description": "PostgreSQL host-based authentication configuration",
+      "properties": {
+        "rules": {
+          "description": "List of host-based authentication rules",
+          "items": {
+            "properties": {
+              "address": {
+                "description": "Client IP address, hostname, or CIDR range",
+                "type": "string"
+              },
+              "database": {
+                "default": "all",
+                "description": "Database name or 'all'",
+                "type": "string"
+              },
+              "method": {
+                "description": "Authentication method",
+                "enum": [
+                  "trust",
+                  "reject",
+                  "md5",
+                  "password",
+                  "scram-sha-256",
+                  "gss",
+                  "sspi",
+                  "ident",
+                  "peer",
+                  "ldap",
+                  "radius",
+                  "cert",
+                  "pam",
+                  "bsd"
+                ],
+                "type": "string"
+              },
+              "options": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Additional authentication options",
+                "type": "object"
+              },
+              "type": {
+                "description": "Connection type",
+                "enum": [
+                  "local",
+                  "host",
+                  "hostssl",
+                  "hostnossl",
+                  "hostgssenc",
+                  "hostnogssenc"
+                ],
+                "type": "string"
+              },
+              "user": {
+                "default": "all",
+                "description": "Username or 'all'",
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "database",
+              "user",
+              "method"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PostgresConf": {
+      "additionalProperties": false,
+      "description": "Main PostgreSQL server configuration",
+      "properties": {
+        "DateStyle": {
+          "type": "string",
+          "description": "Sets the display format for date and time values. Also controls interpretation of ambiguous date inputs.",
+          "default": "ISO, MDY"
+        },
+        "IntervalStyle": {
+          "type": "string",
+          "description": "Sets the display format for interval values.",
+          "default": "postgres"
+        },
+        "TimeZone": {
+          "type": "string",
+          "description": "Sets the time zone for displaying and interpreting time stamps.",
+          "default": "GMT"
+        },
+        "allow_alter_system": {
+          "type": "boolean",
+          "description": "Allows running the ALTER SYSTEM command. Can be set to off for environments where global configuration changes should be made using a different method.",
+          "default": false
+        },
+        "archive_cleanup_command": {
+          "type": "string",
+          "description": "Sets the shell command that will be executed at every restart point."
+        },
+        "archive_command": {
+          "type": "string",
+          "description": "Sets the shell command that will be called to archive a WAL file. This is used only if \"archive_library\" is not set."
+        },
+        "archive_library": {
+          "type": "string",
+          "description": "Sets the library that will be called to archive a WAL file. An empty string indicates that \"archive_command\" should be used."
+        },
+        "archive_mode": {
+          "type": "string",
+          "description": "Allows archiving of WAL files using \"archive_command\".",
+          "default": "off",
+          "enum": [
+            "off",
+            "on",
+            "always"
+          ]
+        },
+        "archive_timeout": {
+          "type": "integer",
+          "description": "Sets the amount of time to wait before forcing a switch to the next WAL file.",
+          "default": 0,
+          "maximum": 1073741823
+        },
+        "array_nulls": {
+          "type": "boolean",
+          "description": "Enable input of NULL elements in arrays. When turned on, unquoted NULL in an array input value means a null value; otherwise it is taken literally.",
+          "default": false
+        },
+        "authentication_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed time to complete client authentication.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-type": "Duration"
+        },
+        "autovacuum": {
+          "type": "boolean",
+          "description": "Starts the autovacuum subprocess.",
+          "default": false
+        },
+        "autovacuum_analyze_scale_factor": {
+          "type": "number",
+          "description": "Number of tuple inserts, updates, or deletes prior to analyze as a fraction of reltuples.",
+          "default": 0,
+          "maximum": 100
+        },
+        "autovacuum_analyze_threshold": {
+          "type": "integer",
+          "description": "Minimum number of tuple inserts, updates, or deletes prior to analyze.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "autovacuum_freeze_max_age": {
+          "type": "integer",
+          "description": "Age at which to autovacuum a table to prevent transaction ID wraparound.",
+          "default": 0,
+          "minimum": 100000,
+          "maximum": 2000000000
+        },
+        "autovacuum_max_workers": {
+          "type": "integer",
+          "description": "Sets the maximum number of simultaneously running autovacuum worker processes.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 262143
+        },
+        "autovacuum_multixact_freeze_max_age": {
+          "type": "integer",
+          "description": "Multixact age at which to autovacuum a table to prevent multixact wraparound.",
+          "default": 0,
+          "minimum": 10000,
+          "maximum": 2000000000
+        },
+        "autovacuum_naptime": {
+          "type": "integer",
+          "description": "Time to sleep between autovacuum runs.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483
+        },
+        "autovacuum_vacuum_cost_delay": {
+          "type": "string",
+          "description": "Vacuum cost delay in milliseconds, for autovacuum.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "autovacuum_vacuum_cost_limit": {
+          "type": "integer",
+          "description": "Vacuum cost amount available before napping, for autovacuum.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 10000
+        },
+        "autovacuum_vacuum_insert_scale_factor": {
+          "type": "number",
+          "description": "Number of tuple inserts prior to vacuum as a fraction of reltuples.",
+          "default": 0,
+          "maximum": 100
+        },
+        "autovacuum_vacuum_insert_threshold": {
+          "type": "integer",
+          "description": "Minimum number of tuple inserts prior to vacuum, or -1 to disable insert vacuums.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "autovacuum_vacuum_scale_factor": {
+          "type": "number",
+          "description": "Number of tuple updates or deletes prior to vacuum as a fraction of reltuples.",
+          "default": 0,
+          "maximum": 100
+        },
+        "autovacuum_vacuum_threshold": {
+          "type": "integer",
+          "description": "Minimum number of tuple updates or deletes prior to vacuum.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "autovacuum_work_mem": {
+          "type": "string",
+          "description": "Sets the maximum memory to be used by each autovacuum worker process.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "backend_flush_after": {
+          "type": "integer",
+          "description": "Number of pages after which previously performed writes are flushed to disk.",
+          "default": 0,
+          "maximum": 256
+        },
+        "backslash_quote": {
+          "type": "string",
+          "description": "Sets whether \"\\'\" is allowed in string literals.",
+          "default": "safe_encoding"
+        },
+        "bgwriter_delay": {
+          "type": "integer",
+          "description": "Background writer sleep time between rounds.",
+          "default": 0,
+          "minimum": 10,
+          "maximum": 10000
+        },
+        "bgwriter_flush_after": {
+          "type": "integer",
+          "description": "Number of pages after which previously performed writes are flushed to disk.",
+          "default": 0,
+          "maximum": 256
+        },
+        "bgwriter_lru_maxpages": {
+          "type": "integer",
+          "description": "Background writer maximum number of LRU pages to flush per round.",
+          "default": 0,
+          "maximum": 1073741823
+        },
+        "bgwriter_lru_multiplier": {
+          "type": "number",
+          "description": "Multiple of the average buffer usage to free per round.",
+          "default": 0,
+          "maximum": 10
+        },
+        "bonjour": {
+          "type": "boolean",
+          "description": "Enables advertising the server via Bonjour.",
+          "default": false
+        },
+        "bonjour_name": {
+          "type": "string",
+          "description": "Sets the Bonjour service name."
+        },
+        "bytea_output": {
+          "type": "string",
+          "description": "Sets the output format for bytea.",
+          "default": "hex"
+        },
+        "check_function_bodies": {
+          "type": "boolean",
+          "description": "Check routine bodies during CREATE FUNCTION and CREATE PROCEDURE.",
+          "default": false
+        },
+        "checkpoint_completion_target": {
+          "type": "number",
+          "description": "Time spent flushing dirty buffers during checkpoint, as fraction of checkpoint interval.",
+          "default": 0,
+          "maximum": 1
+        },
+        "checkpoint_flush_after": {
+          "type": "integer",
+          "description": "Number of pages after which previously performed writes are flushed to disk.",
+          "default": 0,
+          "maximum": 256
+        },
+        "checkpoint_timeout": {
+          "type": "string",
+          "description": "Sets the maximum time between automatic WAL checkpoints.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-type": "Duration"
+        },
+        "checkpoint_warning": {
+          "type": "integer",
+          "description": "Sets the maximum time before warning if checkpoints triggered by WAL volume happen too frequently. Write a message to the server log if checkpoints caused by the filling of WAL segment files happen more frequently than this amount of time. Zero turns off the warning.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "client_connection_check_interval": {
+          "type": "integer",
+          "description": "Sets the time interval between checks for disconnection while running queries.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "client_encoding": {
+          "type": "string",
+          "description": "Sets the client's character set encoding.",
+          "default": "SQL_ASCII"
+        },
+        "client_min_messages": {
+          "type": "string",
+          "description": "Sets the message levels that are sent to the client. Each level includes all the levels that follow it. The later the level, the fewer messages are sent.",
+          "default": "notice",
+          "enum": [
+            "debug5",
+            "debug4",
+            "debug3",
+            "debug2",
+            "debug1",
+            "log",
+            "notice",
+            "warning",
+            "error"
+          ]
+        },
+        "cluster_name": {
+          "type": "string",
+          "description": "Sets the name of the cluster, which is included in the process title."
+        },
+        "commit_delay": {
+          "type": "integer",
+          "description": "Sets the delay in microseconds between transaction commit and flushing WAL to disk.",
+          "default": 0,
+          "maximum": 100000
+        },
+        "commit_siblings": {
+          "type": "integer",
+          "description": "Sets the minimum number of concurrent open transactions required before performing \"commit_delay\".",
+          "default": 0,
+          "maximum": 1000
+        },
+        "commit_timestamp_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the commit timestamp cache. Specify 0 to have this value determined as a fraction of shared_buffers.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "compute_query_id": {
+          "type": "string",
+          "description": "Enables in-core computation of query identifiers.",
+          "default": "auto",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        "constraint_exclusion": {
+          "type": "string",
+          "description": "Enables the planner to use constraints to optimize queries. Table scans will be skipped if their constraints guarantee that no rows match the query.",
+          "default": "partition",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        "cpu_index_tuple_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of processing each index entry during an index scan.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "cpu_operator_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of processing each operator or function call.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "cpu_tuple_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of processing each tuple (row).",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "createrole_self_grant": {
+          "type": "string",
+          "description": "Sets whether a CREATEROLE user automatically grants the role to themselves, and with which options."
+        },
+        "cursor_tuple_fraction": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the fraction of a cursor's rows that will be retrieved.",
+          "default": 0,
+          "maximum": 1
+        },
+        "data_directory": {
+          "type": "string",
+          "description": "Sets the server's data directory."
+        },
+        "data_sync_retry": {
+          "type": "boolean",
+          "description": "Whether to continue running after a failure to sync data files.",
+          "default": false
+        },
+        "deadlock_timeout": {
+          "type": "string",
+          "description": "Sets the time to wait on a lock before checking for deadlock.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-type": "Duration"
+        },
+        "debug_pretty_print": {
+          "type": "boolean",
+          "description": "Indents parse and plan tree displays.",
+          "default": false
+        },
+        "debug_print_parse": {
+          "type": "boolean",
+          "description": "Logs each query's parse tree.",
+          "default": false
+        },
+        "debug_print_plan": {
+          "type": "boolean",
+          "description": "Logs each query's execution plan.",
+          "default": false
+        },
+        "debug_print_rewritten": {
+          "type": "boolean",
+          "description": "Logs each query's rewritten parse tree.",
+          "default": false
+        },
+        "default_statistics_target": {
+          "type": "integer",
+          "description": "Sets the default statistics target. This applies to table columns that have not had a column-specific target set via ALTER TABLE SET STATISTICS.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "default_table_access_method": {
+          "type": "string",
+          "description": "Sets the default table access method for new tables.",
+          "default": "heap"
+        },
+        "default_tablespace": {
+          "type": "string",
+          "description": "Sets the default tablespace to create tables and indexes in. An empty string selects the database's default tablespace."
+        },
+        "default_text_search_config": {
+          "type": "string",
+          "description": "Sets default text search configuration.",
+          "default": "pg_catalog.simple"
+        },
+        "default_toast_compression": {
+          "type": "string",
+          "description": "Sets the default compression method for compressible values.",
+          "default": "pglz"
+        },
+        "default_transaction_deferrable": {
+          "type": "boolean",
+          "description": "Sets the default deferrable status of new transactions.",
+          "default": false
+        },
+        "default_transaction_isolation": {
+          "type": "string",
+          "description": "Sets the transaction isolation level of each new transaction.",
+          "default": "read committed",
+          "enum": [
+            "serializable",
+            "repeatable read",
+            "read committed",
+            "read uncommitted"
+          ]
+        },
+        "default_transaction_read_only": {
+          "type": "boolean",
+          "description": "Sets the default read-only status of new transactions.",
+          "default": false
+        },
+        "dynamic_library_path": {
+          "type": "string",
+          "description": "Sets the path for dynamically loadable modules. If a dynamically loadable module needs to be opened and the specified name does not have a directory component (i.e., the name does not contain a slash), the system will search this path for the specified file.",
+          "default": "$libdir"
+        },
+        "dynamic_shared_memory_type": {
+          "type": "string",
+          "description": "Selects the dynamic shared memory implementation used.",
+          "default": "posix"
+        },
+        "effective_cache_size": {
+          "type": "integer",
+          "description": "Sets the planner's assumption about the total size of the data caches. That is, the total size of the caches (kernel cache and shared buffers) used for PostgreSQL data files. This is measured in disk pages, which are normally 8 kB each.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "effective_io_concurrency": {
+          "type": "integer",
+          "description": "Number of simultaneous requests that can be handled efficiently by the disk subsystem.",
+          "default": 0,
+          "maximum": 1000
+        },
+        "enable_async_append": {
+          "type": "boolean",
+          "description": "Enables the planner's use of async append plans.",
+          "default": false
+        },
+        "enable_bitmapscan": {
+          "type": "boolean",
+          "description": "Enables the planner's use of bitmap-scan plans.",
+          "default": false
+        },
+        "enable_gathermerge": {
+          "type": "boolean",
+          "description": "Enables the planner's use of gather merge plans.",
+          "default": false
+        },
+        "enable_group_by_reordering": {
+          "type": "boolean",
+          "description": "Enables reordering of GROUP BY keys.",
+          "default": false
+        },
+        "enable_hashagg": {
+          "type": "boolean",
+          "description": "Enables the planner's use of hashed aggregation plans.",
+          "default": false
+        },
+        "enable_hashjoin": {
+          "type": "boolean",
+          "description": "Enables the planner's use of hash join plans.",
+          "default": false
+        },
+        "enable_incremental_sort": {
+          "type": "boolean",
+          "description": "Enables the planner's use of incremental sort steps.",
+          "default": false
+        },
+        "enable_indexonlyscan": {
+          "type": "boolean",
+          "description": "Enables the planner's use of index-only-scan plans.",
+          "default": false
+        },
+        "enable_indexscan": {
+          "type": "boolean",
+          "description": "Enables the planner's use of index-scan plans.",
+          "default": false
+        },
+        "enable_material": {
+          "type": "boolean",
+          "description": "Enables the planner's use of materialization.",
+          "default": false
+        },
+        "enable_memoize": {
+          "type": "boolean",
+          "description": "Enables the planner's use of memoization.",
+          "default": false
+        },
+        "enable_mergejoin": {
+          "type": "boolean",
+          "description": "Enables the planner's use of merge join plans.",
+          "default": false
+        },
+        "enable_nestloop": {
+          "type": "boolean",
+          "description": "Enables the planner's use of nested-loop join plans.",
+          "default": false
+        },
+        "enable_parallel_append": {
+          "type": "boolean",
+          "description": "Enables the planner's use of parallel append plans.",
+          "default": false
+        },
+        "enable_parallel_hash": {
+          "type": "boolean",
+          "description": "Enables the planner's use of parallel hash plans.",
+          "default": false
+        },
+        "enable_partition_pruning": {
+          "type": "boolean",
+          "description": "Enables plan-time and execution-time partition pruning. Allows the query planner and executor to compare partition bounds to conditions in the query to determine which partitions must be scanned.",
+          "default": false
+        },
+        "enable_partitionwise_aggregate": {
+          "type": "boolean",
+          "description": "Enables partitionwise aggregation and grouping.",
+          "default": false
+        },
+        "enable_partitionwise_join": {
+          "type": "boolean",
+          "description": "Enables partitionwise join.",
+          "default": false
+        },
+        "enable_presorted_aggregate": {
+          "type": "boolean",
+          "description": "Enables the planner's ability to produce plans that provide presorted input for ORDER BY / DISTINCT aggregate functions. Allows the query planner to build plans that provide presorted input for aggregate functions with an ORDER BY / DISTINCT clause.  When disabled, implicit sorts are always performed during execution.",
+          "default": false
+        },
+        "enable_seqscan": {
+          "type": "boolean",
+          "description": "Enables the planner's use of sequential-scan plans.",
+          "default": false
+        },
+        "enable_sort": {
+          "type": "boolean",
+          "description": "Enables the planner's use of explicit sort steps.",
+          "default": false
+        },
+        "enable_tidscan": {
+          "type": "boolean",
+          "description": "Enables the planner's use of TID scan plans.",
+          "default": false
+        },
+        "escape_string_warning": {
+          "type": "boolean",
+          "description": "Warn about backslash escapes in ordinary string literals.",
+          "default": false
+        },
+        "event_source": {
+          "type": "string",
+          "description": "Sets the application name used to identify PostgreSQL messages in the event log.",
+          "default": "PostgreSQL"
+        },
+        "event_triggers": {
+          "type": "boolean",
+          "description": "Enables event triggers. When enabled, event triggers will fire for all applicable statements.",
+          "default": false
+        },
+        "exit_on_error": {
+          "type": "boolean",
+          "description": "Terminate session on any error.",
+          "default": false
+        },
+        "external_pid_file": {
+          "type": "string",
+          "description": "Writes the postmaster PID to the specified file."
+        },
+        "extra_float_digits": {
+          "type": "integer",
+          "description": "Sets the number of digits displayed for floating-point values. This affects real, double precision, and geometric data types. A zero or negative parameter value is added to the standard number of digits (FLT_DIG or DBL_DIG as appropriate). Any value greater than zero selects precise output mode.",
+          "default": 0,
+          "minimum": -15,
+          "maximum": 3
+        },
+        "from_collapse_limit": {
+          "type": "integer",
+          "description": "Sets the FROM-list size beyond which subqueries are not collapsed. The planner will merge subqueries into upper queries if the resulting FROM list would have no more than this many items.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "fsync": {
+          "type": "boolean",
+          "description": "Forces synchronization of updates to disk. The server will use the fsync() system call in several places to make sure that updates are physically written to disk. This ensures that a database cluster will recover to a consistent state after an operating system or hardware crash.",
+          "default": false
+        },
+        "full_page_writes": {
+          "type": "boolean",
+          "description": "Writes full pages to WAL when first modified after a checkpoint. A page write in process during an operating system crash might be only partially written to disk.  During recovery, the row changes stored in WAL are not enough to recover.  This option writes pages when first modified after a checkpoint to WAL so full recovery is possible.",
+          "default": false
+        },
+        "geqo": {
+          "type": "boolean",
+          "description": "Enables genetic query optimization. This algorithm attempts to do planning without exhaustive searching.",
+          "default": false
+        },
+        "geqo_effort": {
+          "type": "integer",
+          "description": "GEQO: effort is used to set the default for other GEQO parameters.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 10
+        },
+        "geqo_generations": {
+          "type": "integer",
+          "description": "GEQO: number of iterations of the algorithm. Zero selects a suitable default value.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "geqo_pool_size": {
+          "type": "integer",
+          "description": "GEQO: number of individuals in the population. Zero selects a suitable default value.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "geqo_seed": {
+          "type": "number",
+          "description": "GEQO: seed for random path selection.",
+          "default": 0,
+          "maximum": 1
+        },
+        "geqo_selection_bias": {
+          "type": "number",
+          "description": "GEQO: selective pressure within the population.",
+          "default": 0,
+          "minimum": 2,
+          "maximum": 2
+        },
+        "geqo_threshold": {
+          "type": "integer",
+          "description": "Sets the threshold of FROM items beyond which GEQO is used.",
+          "default": 0,
+          "minimum": 2,
+          "maximum": 2147483647
+        },
+        "gin_fuzzy_search_limit": {
+          "type": "integer",
+          "description": "Sets the maximum allowed result for exact search by GIN.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "gin_pending_list_limit": {
+          "type": "integer",
+          "description": "Sets the maximum size of the pending list for GIN index.",
+          "default": 0,
+          "minimum": 64,
+          "maximum": 2147483647
+        },
+        "gss_accept_delegation": {
+          "type": "boolean",
+          "description": "Sets whether GSSAPI delegation should be accepted from the client.",
+          "default": false
+        },
+        "hash_mem_multiplier": {
+          "type": "number",
+          "description": "Multiple of \"work_mem\" to use for hash tables.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "hba_file": {
+          "type": "string",
+          "description": "Sets the server's \"hba\" configuration file."
+        },
+        "hot_standby": {
+          "type": "boolean",
+          "description": "Allows connections and queries during recovery.",
+          "default": false
+        },
+        "hot_standby_feedback": {
+          "type": "boolean",
+          "description": "Allows feedback from a hot standby to the primary that will avoid query conflicts.",
+          "default": false
+        },
+        "huge_page_size": {
+          "type": "string",
+          "description": "The size of huge page that should be requested.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "huge_pages": {
+          "type": "string",
+          "description": "Use of huge pages on Linux or Windows.",
+          "default": "try"
+        },
+        "icu_validation_level": {
+          "type": "string",
+          "description": "Log level for reporting invalid ICU locale strings.",
+          "default": "warning"
+        },
+        "ident_file": {
+          "type": "string",
+          "description": "Sets the server's \"ident\" configuration file."
+        },
+        "idle_in_transaction_session_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed idle time between queries, when in a transaction. A value of 0 turns off the timeout.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "idle_session_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed idle time between queries, when not in a transaction. A value of 0 turns off the timeout.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "io_combine_limit": {
+          "type": "integer",
+          "description": "Limit on the size of data reads and writes.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 32
+        },
+        "jit": {
+          "type": "boolean",
+          "description": "Allow JIT compilation.",
+          "default": false
+        },
+        "jit_above_cost": {
+          "type": "number",
+          "description": "Perform JIT compilation if query is more expensive. -1 disables JIT compilation.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 1.79769e+308
+        },
+        "jit_inline_above_cost": {
+          "type": "number",
+          "description": "Perform JIT inlining if query is more expensive. -1 disables inlining.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 1.79769e+308
+        },
+        "jit_optimize_above_cost": {
+          "type": "number",
+          "description": "Optimize JIT-compiled functions if query is more expensive. -1 disables optimization.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 1.79769e+308
+        },
+        "jit_provider": {
+          "type": "string",
+          "description": "JIT provider to use.",
+          "default": "llvmjit"
+        },
+        "join_collapse_limit": {
+          "type": "integer",
+          "description": "Sets the FROM-list size beyond which JOIN constructs are not flattened. The planner will flatten explicit JOIN constructs into lists of FROM items whenever a list of no more than this many items would result.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "krb_caseins_users": {
+          "type": "boolean",
+          "description": "Sets whether Kerberos and GSSAPI user names should be treated as case-insensitive.",
+          "default": false
+        },
+        "krb_server_keyfile": {
+          "type": "string",
+          "description": "Sets the location of the Kerberos server key file.",
+          "default": "FILE:/opt/pginstaller_17.auto/server/staging_cache/osx/etc/postgresql/krb5.keytab",
+          "x-sensitive": true
+        },
+        "lc_messages": {
+          "type": "string",
+          "description": "Sets the language in which messages are displayed."
+        },
+        "lc_monetary": {
+          "type": "string",
+          "description": "Sets the locale for formatting monetary amounts.",
+          "default": "C"
+        },
+        "lc_numeric": {
+          "type": "string",
+          "description": "Sets the locale for formatting numbers.",
+          "default": "C"
+        },
+        "lc_time": {
+          "type": "string",
+          "description": "Sets the locale for formatting date and time values.",
+          "default": "C"
+        },
+        "listen_addresses": {
+          "type": "string",
+          "description": "Sets the host name or IP address(es) to listen to.",
+          "default": "localhost"
+        },
+        "lo_compat_privileges": {
+          "type": "boolean",
+          "description": "Enables backward compatibility mode for privilege checks on large objects. Skips privilege checks when reading or modifying large objects, for compatibility with PostgreSQL releases prior to 9.0.",
+          "default": false
+        },
+        "local_preload_libraries": {
+          "type": "string",
+          "description": "Lists unprivileged shared libraries to preload into each backend."
+        },
+        "lock_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed duration of any wait for a lock. A value of 0 turns off the timeout.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "log_autovacuum_min_duration": {
+          "type": "integer",
+          "description": "Sets the minimum execution time above which autovacuum actions will be logged. Zero prints all actions. -1 turns autovacuum logging off.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "log_checkpoints": {
+          "type": "boolean",
+          "description": "Logs each checkpoint.",
+          "default": false
+        },
+        "log_connections": {
+          "type": "boolean",
+          "description": "Logs each successful connection.",
+          "default": false
+        },
+        "log_destination": {
+          "type": "string",
+          "description": "Sets the destination for server log output. Valid values are combinations of \"stderr\", \"syslog\", \"csvlog\", \"jsonlog\", and \"eventlog\", depending on the platform.",
+          "default": "stderr"
+        },
+        "log_directory": {
+          "type": "string",
+          "description": "Sets the destination directory for log files. Can be specified as relative to the data directory or as absolute path.",
+          "default": "log"
+        },
+        "log_disconnections": {
+          "type": "boolean",
+          "description": "Logs end of a session, including duration.",
+          "default": false
+        },
+        "log_duration": {
+          "type": "boolean",
+          "description": "Logs the duration of each completed SQL statement.",
+          "default": false
+        },
+        "log_error_verbosity": {
+          "type": "string",
+          "description": "Sets the verbosity of logged messages.",
+          "default": "default"
+        },
+        "log_executor_stats": {
+          "type": "boolean",
+          "description": "Writes executor performance statistics to the server log.",
+          "default": false
+        },
+        "log_file_mode": {
+          "type": "integer",
+          "description": "Sets the file permissions for log files. The parameter value is expected to be a numeric mode specification in the form accepted by the chmod and umask system calls. (To use the customary octal format the number must start with a 0 (zero).)",
+          "default": 0,
+          "maximum": 511
+        },
+        "log_filename": {
+          "type": "string",
+          "description": "Sets the file name pattern for log files.",
+          "default": "postgresql-%Y-%m-%d_%H%M%S.log"
+        },
+        "log_hostname": {
+          "type": "boolean",
+          "description": "Logs the host name in the connection logs. By default, connection logs only show the IP address of the connecting host. If you want them to show the host name you can turn this on, but depending on your host name resolution setup it might impose a non-negligible performance penalty.",
+          "default": false
+        },
+        "log_line_prefix": {
+          "type": "string",
+          "description": "Controls information prefixed to each log line. If blank, no prefix is used.",
+          "default": "%m [%p] "
+        },
+        "log_lock_waits": {
+          "type": "boolean",
+          "description": "Logs long lock waits.",
+          "default": false
+        },
+        "log_min_duration_sample": {
+          "type": "integer",
+          "description": "Sets the minimum execution time above which a sample of statements will be logged. Sampling is determined by log_statement_sample_rate. Zero logs a sample of all queries. -1 turns this feature off.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "log_min_duration_statement": {
+          "type": "integer",
+          "description": "Sets the minimum execution time above which all statements will be logged. Zero prints all queries. -1 turns this feature off.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "log_min_error_statement": {
+          "type": "string",
+          "description": "Causes all statements generating error at or above this level to be logged. Each level includes all the levels that follow it. The later the level, the fewer messages are sent.",
+          "default": "error"
+        },
+        "log_min_messages": {
+          "type": "string",
+          "description": "Sets the message levels that are logged. Each level includes all the levels that follow it. The later the level, the fewer messages are sent.",
+          "default": "warning",
+          "enum": [
+            "debug5",
+            "debug4",
+            "debug3",
+            "debug2",
+            "debug1",
+            "info",
+            "notice",
+            "warning",
+            "error",
+            "log",
+            "fatal",
+            "panic"
+          ]
+        },
+        "log_parameter_max_length": {
+          "type": "integer",
+          "description": "Sets the maximum length in bytes of data logged for bind parameter values when logging statements. -1 to print values in full.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 1073741823,
+          "x-units": "B"
+        },
+        "log_parameter_max_length_on_error": {
+          "type": "integer",
+          "description": "Sets the maximum length in bytes of data logged for bind parameter values when logging statements, on error. -1 to print values in full.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 1073741823,
+          "x-units": "B"
+        },
+        "log_parser_stats": {
+          "type": "boolean",
+          "description": "Writes parser performance statistics to the server log.",
+          "default": false
+        },
+        "log_planner_stats": {
+          "type": "boolean",
+          "description": "Writes planner performance statistics to the server log.",
+          "default": false
+        },
+        "log_recovery_conflict_waits": {
+          "type": "boolean",
+          "description": "Logs standby recovery conflict waits.",
+          "default": false
+        },
+        "log_replication_commands": {
+          "type": "boolean",
+          "description": "Logs each replication command.",
+          "default": false
+        },
+        "log_rotation_age": {
+          "type": "integer",
+          "description": "Sets the amount of time to wait before forcing log file rotation.",
+          "default": 0,
+          "maximum": 35791394
+        },
+        "log_rotation_size": {
+          "type": "integer",
+          "description": "Sets the maximum size a log file can reach before being rotated.",
+          "default": 0,
+          "maximum": 2097151
+        },
+        "log_startup_progress_interval": {
+          "type": "integer",
+          "description": "Time between progress updates for long-running startup operations. 0 turns this feature off.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "log_statement": {
+          "type": "string",
+          "description": "Sets the type of statements logged.",
+          "default": "none",
+          "enum": [
+            "none",
+            "ddl",
+            "mod",
+            "all"
+          ]
+        },
+        "log_statement_sample_rate": {
+          "type": "number",
+          "description": "Fraction of statements exceeding \"log_min_duration_sample\" to be logged. Use a value between 0.0 (never log) and 1.0 (always log).",
+          "default": 0,
+          "maximum": 1
+        },
+        "log_statement_stats": {
+          "type": "boolean",
+          "description": "Writes cumulative performance statistics to the server log.",
+          "default": false
+        },
+        "log_temp_files": {
+          "type": "string",
+          "description": "Log the use of temporary files larger than this number of kilobytes. Zero logs all files. The default is -1 (turning this feature off).",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "log_timezone": {
+          "type": "string",
+          "description": "Sets the time zone to use in log messages.",
+          "default": "GMT"
+        },
+        "log_transaction_sample_rate": {
+          "type": "number",
+          "description": "Sets the fraction of transactions from which to log all statements. Use a value between 0.0 (never log) and 1.0 (log all statements for all transactions).",
+          "default": 0,
+          "maximum": 1
+        },
+        "log_truncate_on_rotation": {
+          "type": "boolean",
+          "description": "Truncate existing log files of same name during log rotation.",
+          "default": false
+        },
+        "logging_collector": {
+          "type": "boolean",
+          "description": "Start a subprocess to capture stderr, csvlog and/or jsonlog into log files.",
+          "default": false
+        },
+        "logical_decoding_work_mem": {
+          "type": "string",
+          "description": "Sets the maximum memory to be used for logical decoding. This much memory can be used by each internal reorder buffer before spilling to disk.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "maintenance_io_concurrency": {
+          "type": "integer",
+          "description": "A variant of \"effective_io_concurrency\" that is used for maintenance work.",
+          "default": 0,
+          "maximum": 1000
+        },
+        "maintenance_work_mem": {
+          "type": "string",
+          "description": "Sets the maximum memory to be used for maintenance operations. This includes operations such as VACUUM and CREATE INDEX.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "max_connections": {
+          "type": "integer",
+          "description": "Sets the maximum number of concurrent connections.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 262143
+        },
+        "max_files_per_process": {
+          "type": "integer",
+          "description": "Sets the maximum number of simultaneously open files for each server process.",
+          "default": 0,
+          "minimum": 64,
+          "maximum": 2147483647
+        },
+        "max_locks_per_transaction": {
+          "type": "integer",
+          "description": "Sets the maximum number of locks per transaction. The shared lock table is sized on the assumption that at most \"max_locks_per_transaction\" objects per server process or prepared transaction will need to be locked at any one time.",
+          "default": 0,
+          "minimum": 10,
+          "maximum": 2147483647
+        },
+        "max_logical_replication_workers": {
+          "type": "integer",
+          "description": "Maximum number of logical replication worker processes.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "max_notify_queue_pages": {
+          "type": "integer",
+          "description": "Sets the maximum number of allocated pages for NOTIFY / LISTEN queue.",
+          "default": 0,
+          "minimum": 64,
+          "maximum": 2147483647
+        },
+        "max_parallel_apply_workers_per_subscription": {
+          "type": "integer",
+          "description": "Maximum number of parallel apply workers per subscription.",
+          "default": 0,
+          "maximum": 1024
+        },
+        "max_parallel_maintenance_workers": {
+          "type": "integer",
+          "description": "Sets the maximum number of parallel processes per maintenance operation.",
+          "default": 0,
+          "maximum": 1024
+        },
+        "max_parallel_workers": {
+          "type": "integer",
+          "description": "Sets the maximum number of parallel workers that can be active at one time.",
+          "default": 0,
+          "maximum": 1024
+        },
+        "max_parallel_workers_per_gather": {
+          "type": "integer",
+          "description": "Sets the maximum number of parallel processes per executor node.",
+          "default": 0,
+          "maximum": 1024
+        },
+        "max_pred_locks_per_page": {
+          "type": "integer",
+          "description": "Sets the maximum number of predicate-locked tuples per page. If more than this number of tuples on the same page are locked by a connection, those locks are replaced by a page-level lock.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "max_pred_locks_per_relation": {
+          "type": "integer",
+          "description": "Sets the maximum number of predicate-locked pages and tuples per relation. If more than this total of pages and tuples in the same relation are locked by a connection, those locks are replaced by a relation-level lock.",
+          "default": 0,
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "max_pred_locks_per_transaction": {
+          "type": "integer",
+          "description": "Sets the maximum number of predicate locks per transaction. The shared predicate lock table is sized on the assumption that at most \"max_pred_locks_per_transaction\" objects per server process or prepared transaction will need to be locked at any one time.",
+          "default": 0,
+          "minimum": 10,
+          "maximum": 2147483647
+        },
+        "max_prepared_transactions": {
+          "type": "string",
+          "description": "Sets the maximum number of simultaneously prepared transactions.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "max_replication_slots": {
+          "type": "integer",
+          "description": "Sets the maximum number of simultaneously defined replication slots.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "max_slot_wal_keep_size": {
+          "type": "integer",
+          "description": "Sets the maximum WAL size that can be reserved by replication slots. Replication slots will be marked as failed, and segments released for deletion or recycling, if this much space is occupied by WAL on disk.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "max_stack_depth": {
+          "type": "string",
+          "description": "Sets the maximum stack depth, in kilobytes.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "max_standby_archive_delay": {
+          "type": "integer",
+          "description": "Sets the maximum delay before canceling queries when a hot standby server is processing archived WAL data.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "max_standby_streaming_delay": {
+          "type": "integer",
+          "description": "Sets the maximum delay before canceling queries when a hot standby server is processing streamed WAL data.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "max_sync_workers_per_subscription": {
+          "type": "integer",
+          "description": "Maximum number of table synchronization workers per subscription.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "max_wal_senders": {
+          "type": "integer",
+          "description": "Sets the maximum number of simultaneously running WAL sender processes.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "max_wal_size": {
+          "type": "integer",
+          "description": "Sets the WAL size that triggers a checkpoint.",
+          "default": 0,
+          "minimum": 2,
+          "maximum": 2147483647
+        },
+        "max_worker_processes": {
+          "type": "integer",
+          "description": "Maximum number of concurrent worker processes.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "min_dynamic_shared_memory": {
+          "type": "string",
+          "description": "Amount of dynamic shared memory reserved at startup.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "min_parallel_index_scan_size": {
+          "type": "integer",
+          "description": "Sets the minimum amount of index data for a parallel scan. If the planner estimates that it will read a number of index pages too small to reach this limit, a parallel scan will not be considered.",
+          "default": 0,
+          "maximum": 715827882
+        },
+        "min_parallel_table_scan_size": {
+          "type": "integer",
+          "description": "Sets the minimum amount of table data for a parallel scan. If the planner estimates that it will read a number of table pages too small to reach this limit, a parallel scan will not be considered.",
+          "default": 0,
+          "maximum": 715827882
+        },
+        "min_wal_size": {
+          "type": "integer",
+          "description": "Sets the minimum size to shrink the WAL to.",
+          "default": 0,
+          "minimum": 2,
+          "maximum": 2147483647
+        },
+        "multixact_member_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the MultiXact member cache.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "multixact_offset_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the MultiXact offset cache.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "name": {
+          "type": "string",
+          "description": "short_desc extra_desc",
+          "default": "boot_val"
+        },
+        "notify_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the LISTEN/NOTIFY message cache.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "parallel_leader_participation": {
+          "type": "boolean",
+          "description": "Controls whether Gather and Gather Merge also run subplans. Should gather nodes also run subplans or just gather tuples?",
+          "default": false
+        },
+        "parallel_setup_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of starting up worker processes for parallel query.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "parallel_tuple_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of passing each tuple (row) from worker to leader backend.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "password_encryption": {
+          "type": "string",
+          "description": "Chooses the algorithm for encrypting passwords.",
+          "default": "scram-sha-256",
+          "enum": [
+            "md5",
+            "scram-sha-256"
+          ],
+          "x-sensitive": true
+        },
+        "plan_cache_mode": {
+          "type": "string",
+          "description": "Controls the planner's selection of custom or generic plan. Prepared statements can have custom and generic plans, and the planner will attempt to choose which is better.  This can be set to override the default behavior.",
+          "default": "auto"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Sets the TCP port the server listens on.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "primary_conninfo": {
+          "type": "string",
+          "description": "Sets the connection string to be used to connect to the sending server."
+        },
+        "primary_slot_name": {
+          "type": "string",
+          "description": "Sets the name of the replication slot to use on the sending server."
+        },
+        "quote_all_identifiers": {
+          "type": "boolean",
+          "description": "When generating SQL fragments, quote all identifiers.",
+          "default": false
+        },
+        "random_page_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of a nonsequentially fetched disk page.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "recovery_end_command": {
+          "type": "string",
+          "description": "Sets the shell command that will be executed once at the end of recovery."
+        },
+        "recovery_init_sync_method": {
+          "type": "string",
+          "description": "Sets the method for synchronizing the data directory before crash recovery.",
+          "default": "fsync"
+        },
+        "recovery_min_apply_delay": {
+          "type": "integer",
+          "description": "Sets the minimum delay for applying changes during recovery.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "recovery_prefetch": {
+          "type": "string",
+          "description": "Prefetch referenced blocks during recovery. Look ahead in the WAL to find references to uncached data.",
+          "default": "try"
+        },
+        "recovery_target": {
+          "type": "string",
+          "description": "Set to \"immediate\" to end recovery as soon as a consistent state is reached."
+        },
+        "recovery_target_action": {
+          "type": "string",
+          "description": "Sets the action to perform upon reaching the recovery target.",
+          "default": "pause"
+        },
+        "recovery_target_inclusive": {
+          "type": "boolean",
+          "description": "Sets whether to include or exclude transaction with recovery target.",
+          "default": false
+        },
+        "recovery_target_lsn": {
+          "type": "string",
+          "description": "Sets the LSN of the write-ahead log location up to which recovery will proceed."
+        },
+        "recovery_target_name": {
+          "type": "string",
+          "description": "Sets the named restore point up to which recovery will proceed."
+        },
+        "recovery_target_time": {
+          "type": "string",
+          "description": "Sets the time stamp up to which recovery will proceed."
+        },
+        "recovery_target_timeline": {
+          "type": "string",
+          "description": "Specifies the timeline to recover into.",
+          "default": "latest"
+        },
+        "recovery_target_xid": {
+          "type": "string",
+          "description": "Sets the transaction ID up to which recovery will proceed."
+        },
+        "recursive_worktable_factor": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the average size of a recursive query's working table.",
+          "default": 0,
+          "maximum": 1000000
+        },
+        "reserved_connections": {
+          "type": "integer",
+          "description": "Sets the number of connection slots reserved for roles with privileges of pg_use_reserved_connections.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "restart_after_crash": {
+          "type": "boolean",
+          "description": "Reinitialize server after backend crash.",
+          "default": false
+        },
+        "restore_command": {
+          "type": "string",
+          "description": "Sets the shell command that will be called to retrieve an archived WAL file."
+        },
+        "row_security": {
+          "type": "boolean",
+          "description": "Enable row security. When enabled, row security will be applied to all users.",
+          "default": false
+        },
+        "scram_iterations": {
+          "type": "integer",
+          "description": "Sets the iteration count for SCRAM secret generation.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "search_path": {
+          "type": "string",
+          "description": "Sets the schema search order for names that are not schema-qualified.",
+          "default": "\"$user\", public"
+        },
+        "seq_page_cost": {
+          "type": "number",
+          "description": "Sets the planner's estimate of the cost of a sequentially fetched disk page.",
+          "default": 0,
+          "maximum": 1.79769e+308
+        },
+        "serializable_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the serializable transaction cache.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "session_preload_libraries": {
+          "type": "string",
+          "description": "Lists shared libraries to preload into each backend."
+        },
+        "session_replication_role": {
+          "type": "string",
+          "description": "Sets the session's behavior for triggers and rewrite rules.",
+          "default": "origin"
+        },
+        "shared_buffers": {
+          "type": "string",
+          "description": "Sets the number of shared memory buffers used by the server.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "shared_memory_type": {
+          "type": "string",
+          "description": "Selects the shared memory implementation used for the main shared memory region.",
+          "default": "mmap"
+        },
+        "shared_preload_libraries": {
+          "type": "string",
+          "description": "Lists shared libraries to preload into server."
+        },
+        "ssl": {
+          "type": "boolean",
+          "description": "Enables SSL connections.",
+          "default": false
+        },
+        "ssl_ca_file": {
+          "type": "string",
+          "description": "Location of the SSL certificate authority file."
+        },
+        "ssl_cert_file": {
+          "type": "string",
+          "description": "Location of the SSL server certificate file.",
+          "default": "server.crt"
+        },
+        "ssl_ciphers": {
+          "type": "string",
+          "description": "Sets the list of allowed SSL ciphers.",
+          "default": "HIGH:MEDIUM:+3DES:!aNULL"
+        },
+        "ssl_crl_dir": {
+          "type": "string",
+          "description": "Location of the SSL certificate revocation list directory."
+        },
+        "ssl_crl_file": {
+          "type": "string",
+          "description": "Location of the SSL certificate revocation list file."
+        },
+        "ssl_dh_params_file": {
+          "type": "string",
+          "description": "Location of the SSL DH parameters file."
+        },
+        "ssl_ecdh_curve": {
+          "type": "string",
+          "description": "Sets the curve to use for ECDH.",
+          "default": "prime256v1"
+        },
+        "ssl_key_file": {
+          "type": "string",
+          "description": "Location of the SSL server private key file.",
+          "default": "server.key",
+          "x-sensitive": true
+        },
+        "ssl_max_protocol_version": {
+          "type": "string",
+          "description": "Sets the maximum SSL/TLS protocol version to use."
+        },
+        "ssl_min_protocol_version": {
+          "type": "string",
+          "description": "Sets the minimum SSL/TLS protocol version to use.",
+          "default": "TLSv1.2"
+        },
+        "ssl_passphrase_command": {
+          "type": "string",
+          "description": "Command to obtain passphrases for SSL."
+        },
+        "ssl_passphrase_command_supports_reload": {
+          "type": "boolean",
+          "description": "Controls whether \"ssl_passphrase_command\" is called during server reload.",
+          "default": false
+        },
+        "ssl_prefer_server_ciphers": {
+          "type": "boolean",
+          "description": "Give priority to server ciphersuite order.",
+          "default": false
+        },
+        "standard_conforming_strings": {
+          "type": "boolean",
+          "description": "Causes '...' strings to treat backslashes literally.",
+          "default": false
+        },
+        "statement_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed duration of any statement. A value of 0 turns off the timeout.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "stats_fetch_consistency": {
+          "type": "string",
+          "description": "Sets the consistency of accesses to statistics data.",
+          "default": "cache"
+        },
+        "subtransaction_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the subtransaction cache. Specify 0 to have this value determined as a fraction of shared_buffers.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "summarize_wal": {
+          "type": "boolean",
+          "description": "Starts the WAL summarizer process to enable incremental backup.",
+          "default": false
+        },
+        "superuser_reserved_connections": {
+          "type": "integer",
+          "description": "Sets the number of connection slots reserved for superusers.",
+          "default": 0,
+          "maximum": 262143
+        },
+        "sync_replication_slots": {
+          "type": "boolean",
+          "description": "Enables a physical standby to synchronize logical failover replication slots from the primary server.",
+          "default": false
+        },
+        "synchronize_seqscans": {
+          "type": "boolean",
+          "description": "Enable synchronized sequential scans.",
+          "default": false
+        },
+        "synchronized_standby_slots": {
+          "type": "string",
+          "description": "Lists streaming replication standby server replication slot names that logical WAL sender processes will wait for. Logical WAL sender processes will send decoded changes to output plugins only after the specified replication slots have confirmed receiving WAL."
+        },
+        "synchronous_commit": {
+          "type": "string",
+          "description": "Sets the current transaction's synchronization level.",
+          "default": "on",
+          "enum": [
+            "off",
+            "local",
+            "remote_write",
+            "remote_apply",
+            "on"
+          ]
+        },
+        "synchronous_standby_names": {
+          "type": "string",
+          "description": "Number of synchronous standbys and list of names of potential synchronous ones."
+        },
+        "syslog_facility": {
+          "type": "string",
+          "description": "Sets the syslog \"facility\" to be used when syslog enabled.",
+          "default": "local0",
+          "enum": [
+            "on",
+            "off"
+          ]
+        },
+        "syslog_ident": {
+          "type": "string",
+          "description": "Sets the program name used to identify PostgreSQL messages in syslog.",
+          "default": "postgres"
+        },
+        "syslog_sequence_numbers": {
+          "type": "boolean",
+          "description": "Add sequence number to syslog messages to avoid duplicate suppression.",
+          "default": false
+        },
+        "syslog_split_messages": {
+          "type": "boolean",
+          "description": "Split messages sent to syslog by lines and to fit into 1024 bytes.",
+          "default": false,
+          "x-units": "B"
+        },
+        "tcp_keepalives_count": {
+          "type": "integer",
+          "description": "Maximum number of TCP keepalive retransmits. Number of consecutive keepalive retransmits that can be lost before a connection is considered dead. A value of 0 uses the system default.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "tcp_keepalives_idle": {
+          "type": "integer",
+          "description": "Time between issuing TCP keepalives. A value of 0 uses the system default.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "tcp_keepalives_interval": {
+          "type": "integer",
+          "description": "Time between TCP keepalive retransmits. A value of 0 uses the system default.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "tcp_user_timeout": {
+          "type": "string",
+          "description": "TCP user timeout. A value of 0 uses the system default.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "temp_buffers": {
+          "type": "string",
+          "description": "Sets the maximum number of temporary buffers used by each session.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "temp_file_limit": {
+          "type": "integer",
+          "description": "Limits the total size of all temporary files used by each process. -1 means no limit.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 2147483647
+        },
+        "temp_tablespaces": {
+          "type": "string",
+          "description": "Sets the tablespace(s) to use for temporary tables and sort files."
+        },
+        "timezone_abbreviations": {
+          "type": "string",
+          "description": "Selects a file of time zone abbreviations."
+        },
+        "track_activities": {
+          "type": "boolean",
+          "description": "Collects information about executing commands. Enables the collection of information on the currently executing command of each session, along with the time at which that command began execution.",
+          "default": false
+        },
+        "track_activity_query_size": {
+          "type": "integer",
+          "description": "Sets the size reserved for pg_stat_activity.query, in bytes.",
+          "default": 0,
+          "minimum": 100,
+          "maximum": 1048576,
+          "x-units": "B"
+        },
+        "track_commit_timestamp": {
+          "type": "boolean",
+          "description": "Collects transaction commit time.",
+          "default": false
+        },
+        "track_counts": {
+          "type": "boolean",
+          "description": "Collects statistics on database activity.",
+          "default": false
+        },
+        "track_functions": {
+          "type": "string",
+          "description": "Collects function-level statistics on database activity.",
+          "default": "none"
+        },
+        "track_io_timing": {
+          "type": "boolean",
+          "description": "Collects timing statistics for database I/O activity.",
+          "default": false
+        },
+        "track_wal_io_timing": {
+          "type": "boolean",
+          "description": "Collects timing statistics for WAL I/O activity.",
+          "default": false
+        },
+        "transaction_buffers": {
+          "type": "string",
+          "description": "Sets the size of the dedicated buffer pool used for the transaction status cache. Specify 0 to have this value determined as a fraction of shared_buffers.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "transaction_timeout": {
+          "type": "string",
+          "description": "Sets the maximum allowed duration of any transaction within a session (not a prepared transaction). A value of 0 turns off the timeout.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "transform_null_equals": {
+          "type": "boolean",
+          "description": "Treats \"expr=NULL\" as \"expr IS NULL\". When turned on, expressions of the form expr = NULL (or NULL = expr) are treated as expr IS NULL, that is, they return true if expr evaluates to the null value, and false otherwise. The correct behavior of expr = NULL is to always return null (unknown).",
+          "default": false
+        },
+        "unix_socket_directories": {
+          "type": "string",
+          "description": "Sets the directories where Unix-domain sockets will be created.",
+          "default": "/tmp"
+        },
+        "unix_socket_group": {
+          "type": "string",
+          "description": "Sets the owning group of the Unix-domain socket. The owning user of the socket is always the user that starts the server."
+        },
+        "unix_socket_permissions": {
+          "type": "integer",
+          "description": "Sets the access permissions of the Unix-domain socket. Unix-domain sockets use the usual Unix file system permission set. The parameter value is expected to be a numeric mode specification in the form accepted by the chmod and umask system calls. (To use the customary octal format the number must start with a 0 (zero).)",
+          "default": 0,
+          "maximum": 511
+        },
+        "update_process_title": {
+          "type": "boolean",
+          "description": "Updates the process title to show the active SQL command. Enables updating of the process title every time a new SQL command is received by the server.",
+          "default": false
+        },
+        "vacuum_buffer_usage_limit": {
+          "type": "string",
+          "description": "Sets the buffer pool size for VACUUM, ANALYZE, and autovacuum.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "vacuum_cost_delay": {
+          "type": "string",
+          "description": "Vacuum cost delay in milliseconds.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-units": "us, ms, s, min, h, d",
+          "x-type": "Duration"
+        },
+        "vacuum_cost_limit": {
+          "type": "integer",
+          "description": "Vacuum cost amount available before napping.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "vacuum_cost_page_dirty": {
+          "type": "integer",
+          "description": "Vacuum cost for a page dirtied by vacuum.",
+          "default": 0,
+          "maximum": 10000
+        },
+        "vacuum_cost_page_hit": {
+          "type": "integer",
+          "description": "Vacuum cost for a page found in the buffer cache.",
+          "default": 0,
+          "maximum": 10000
+        },
+        "vacuum_cost_page_miss": {
+          "type": "integer",
+          "description": "Vacuum cost for a page not found in the buffer cache.",
+          "default": 0,
+          "maximum": 10000
+        },
+        "vacuum_failsafe_age": {
+          "type": "integer",
+          "description": "Age at which VACUUM should trigger failsafe to avoid a wraparound outage.",
+          "default": 0,
+          "maximum": 2100000000
+        },
+        "vacuum_freeze_min_age": {
+          "type": "integer",
+          "description": "Minimum age at which VACUUM should freeze a table row.",
+          "default": 0,
+          "maximum": 1000000000
+        },
+        "vacuum_freeze_table_age": {
+          "type": "integer",
+          "description": "Age at which VACUUM should scan whole table to freeze tuples.",
+          "default": 0,
+          "maximum": 2000000000
+        },
+        "vacuum_multixact_failsafe_age": {
+          "type": "integer",
+          "description": "Multixact age at which VACUUM should trigger failsafe to avoid a wraparound outage.",
+          "default": 0,
+          "maximum": 2100000000
+        },
+        "vacuum_multixact_freeze_min_age": {
+          "type": "integer",
+          "description": "Minimum age at which VACUUM should freeze a MultiXactId in a table row.",
+          "default": 0,
+          "maximum": 1000000000
+        },
+        "vacuum_multixact_freeze_table_age": {
+          "type": "integer",
+          "description": "Multixact age at which VACUUM should scan whole table to freeze tuples.",
+          "default": 0,
+          "maximum": 2000000000
+        },
+        "wal_buffers": {
+          "type": "integer",
+          "description": "Sets the number of disk-page buffers in shared memory for WAL. Specify -1 to have this value determined as a fraction of shared_buffers.",
+          "default": 0,
+          "minimum": -1,
+          "maximum": 262143
+        },
+        "wal_compression": {
+          "type": "string",
+          "description": "Compresses full-page writes written in WAL file with specified method.",
+          "default": "off",
+          "enum": [
+            "off",
+            "on",
+            "pglz",
+            "lz4",
+            "zstd"
+          ]
+        },
+        "wal_decode_buffer_size": {
+          "type": "integer",
+          "description": "Buffer size for reading ahead in the WAL during recovery. Maximum distance to read ahead in the WAL to prefetch referenced data blocks.",
+          "default": 0,
+          "minimum": 65536,
+          "maximum": 1073741823
+        },
+        "wal_init_zero": {
+          "type": "boolean",
+          "description": "Writes zeroes to new WAL files before first use.",
+          "default": false
+        },
+        "wal_keep_size": {
+          "type": "integer",
+          "description": "Sets the size of WAL files held for standby servers.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "wal_level": {
+          "type": "string",
+          "description": "Sets the level of information written to the WAL.",
+          "default": "replica",
+          "enum": [
+            "minimal",
+            "replica",
+            "logical"
+          ]
+        },
+        "wal_log_hints": {
+          "type": "boolean",
+          "description": "Writes full pages to WAL when first modified after a checkpoint, even for a non-critical modification.",
+          "default": false
+        },
+        "wal_receiver_create_temp_slot": {
+          "type": "boolean",
+          "description": "Sets whether a WAL receiver should create a temporary replication slot if no permanent slot is configured.",
+          "default": false
+        },
+        "wal_receiver_status_interval": {
+          "type": "integer",
+          "description": "Sets the maximum interval between WAL receiver status reports to the sending server.",
+          "default": 0,
+          "maximum": 2147483
+        },
+        "wal_receiver_timeout": {
+          "type": "string",
+          "description": "Sets the maximum wait time to receive data from the sending server.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-type": "Duration"
+        },
+        "wal_recycle": {
+          "type": "boolean",
+          "description": "Recycles WAL files by renaming them.",
+          "default": false
+        },
+        "wal_retrieve_retry_interval": {
+          "type": "integer",
+          "description": "Sets the time to wait before retrying to retrieve WAL after a failed attempt.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "wal_sender_timeout": {
+          "type": "string",
+          "description": "Sets the maximum time to wait for WAL replication.",
+          "default": "0",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "x-type": "Duration"
+        },
+        "wal_skip_threshold": {
+          "type": "integer",
+          "description": "Minimum size of new file to fsync instead of writing WAL.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "wal_summary_keep_time": {
+          "type": "integer",
+          "description": "Time for which WAL summary files should be kept.",
+          "default": 0,
+          "maximum": 35791394
+        },
+        "wal_sync_method": {
+          "type": "string",
+          "description": "Selects the method used for forcing WAL updates to disk.",
+          "default": "open_datasync"
+        },
+        "wal_writer_delay": {
+          "type": "integer",
+          "description": "Time between WAL flushes performed in the WAL writer.",
+          "default": 0,
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "wal_writer_flush_after": {
+          "type": "integer",
+          "description": "Amount of WAL written out by WAL writer that triggers a flush.",
+          "default": 0,
+          "maximum": 2147483647
+        },
+        "work_mem": {
+          "type": "string",
+          "description": "Sets the maximum memory to be used for query workspaces. This much memory can be used by each internal sort operation and hash table before switching to temporary disk files.",
+          "default": "0",
+          "pattern": "^[0-9]+[kMGT]?B$",
+          "x-units": "B, kB, MB, GB, TB (1024 multiplier)",
+          "x-type": "Size"
+        },
+        "xmlbinary": {
+          "type": "string",
+          "description": "Sets how binary values are to be encoded in XML.",
+          "default": "base64"
+        },
+        "xmloption": {
+          "type": "string",
+          "description": "Sets whether XML data in implicit parsing and serialization operations is to be considered as documents or content fragments.",
+          "default": "content"
+        }
+      },
+      "type": "object"
+    },
+    "PostgrestConf": {
+      "additionalProperties": false,
+      "description": "PostgREST API server configuration",
+      "properties": {
+        "admin_role": {
+          "default": "postgres",
+          "description": "Database role with admin privileges",
+          "type": "string"
+        },
+        "anonymous_role": {
+          "default": "anon",
+          "description": "Database role for anonymous access",
+          "type": "string"
+        },
+        "db_pool": {
+          "default": 10,
+          "description": "Database connection pool size",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "db_pool_timeout": {
+          "default": 10,
+          "description": "Database connection pool timeout in seconds",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "db_schemas": {
+          "default": "public",
+          "description": "Database schemas to expose via API",
+          "type": "string"
+        },
+        "db_uri": {
+          "description": "Database connection URI",
+          "pattern": "^postgres(ql)?://.*",
+          "type": "string"
+        },
+        "jwt_aud": {
+          "default": "",
+          "description": "JWT audience claim",
+          "type": "string"
+        },
+        "jwt_secret": {
+          "description": "JWT secret for authentication",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "jwt_secret_is_base64": {
+          "default": false,
+          "description": "Whether JWT secret is base64 encoded",
+          "type": "boolean"
+        },
+        "log_level": {
+          "default": "error",
+          "description": "Logging level",
+          "enum": [
+            "crit",
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ],
+          "type": "string"
+        },
+        "max_rows": {
+          "description": "Maximum rows returned in a single response",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "pre_request": {
+          "default": "",
+          "description": "Pre-request function to call",
+          "type": "string"
+        },
+        "role_claim_key": {
+          "default": "role",
+          "description": "JWT claim key for role",
+          "type": "string"
+        },
+        "server_host": {
+          "default": "0.0.0.0",
+          "description": "Server host address",
+          "type": "string"
+        },
+        "server_port": {
+          "default": 3000,
+          "description": "Server port",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "server_ssl_cert": {
+          "default": "",
+          "description": "Path to SSL certificate file",
+          "type": "string"
+        },
+        "server_ssl_key": {
+          "default": "",
+          "description": "Path to SSL private key file",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "WalgConf": {
+      "additionalProperties": false,
+      "description": "WAL-G backup and archiving configuration",
+      "properties": {
+        "az_account_key": {
+          "description": "Azure storage account key",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "az_account_name": {
+          "description": "Azure storage account name",
+          "type": "string"
+        },
+        "az_prefix": {
+          "description": "Azure Storage prefix",
+          "type": "string"
+        },
+        "backup_retain_count": {
+          "default": 7,
+          "description": "Number of backups to retain",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "backup_schedule": {
+          "default": "0 2 * * *",
+          "description": "Backup schedule in cron format",
+          "type": "string"
+        },
+        "compression_level": {
+          "default": 1,
+          "description": "Compression level (0-9)",
+          "maximum": 9,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "compression_method": {
+          "default": "lz4",
+          "description": "Compression method for backups",
+          "enum": [
+            "lz4",
+            "lzma",
+            "brotli",
+            "zstd"
+          ],
+          "type": "string"
+        },
+        "delta_max_steps": {
+          "default": 32,
+          "description": "Maximum steps for delta backups",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable or disable WAL-G",
+          "type": "boolean"
+        },
+        "file_prefix": {
+          "description": "Local file system prefix for backups",
+          "type": "string"
+        },
+        "gs_prefix": {
+          "description": "Google Cloud Storage prefix (e.g., gs://bucket/path/to/folder)",
+          "pattern": "^gs://.*",
+          "type": "string"
+        },
+        "gs_project_id": {
+          "description": "Google Cloud project ID",
+          "type": "string"
+        },
+        "gs_service_account_key": {
+          "description": "Google Cloud service account key JSON",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "postgresql_data_dir": {
+          "default": "/var/lib/postgresql/data",
+          "description": "PostgreSQL data directory path",
+          "type": "string"
+        },
+        "s3_access_key": {
+          "description": "AWS S3 access key ID",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "s3_endpoint": {
+          "description": "Custom S3 endpoint URL",
+          "type": "string"
+        },
+        "s3_prefix": {
+          "description": "S3 storage prefix (e.g., s3://bucket/path/to/folder)",
+          "pattern": "^s3://.*",
+          "type": "string"
+        },
+        "s3_region": {
+          "default": "us-east-1",
+          "description": "AWS S3 region",
+          "type": "string"
+        },
+        "s3_secret_key": {
+          "description": "AWS S3 secret access key",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "s3_session_token": {
+          "description": "AWS S3 session token (for temporary credentials)",
+          "type": "string",
+          "x-sensitive": true
+        },
+        "s3_use_ssl": {
+          "default": true,
+          "description": "Use SSL for S3 connections",
+          "type": "boolean"
+        },
+        "stream_create_command": {
+          "description": "Command to create WAL stream",
+          "type": "string"
+        },
+        "stream_restore_command": {
+          "description": "Command to restore from WAL stream",
+          "type": "string"
+        },
+        "upload_concurrency": {
+          "default": 16,
+          "description": "Number of concurrent uploads",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "upload_disk_concurrency": {
+          "default": 1,
+          "description": "Number of concurrent disk operations",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "wal_verify_checksum": {
+          "default": true,
+          "description": "Verify WAL checksums during backup",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "pgaudit": {
+      "$ref": "#/definitions/PGAuditConf"
+    },
+    "pgbouncer": {
+      "$ref": "#/definitions/PgBouncerConf"
+    },
+    "pghba": {
+      "$ref": "#/definitions/PgHBAConf"
+    },
+    "postgres": {
+      "$ref": "#/definitions/PostgresConf"
+    },
+    "postgrest": {
+      "$ref": "#/definitions/PostgrestConf"
+    },
+    "walg": {
+      "$ref": "#/definitions/WalgConf"
+    }
+  },
+  "type": "object"
+}

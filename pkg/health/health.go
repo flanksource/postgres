@@ -35,8 +35,8 @@ type Config struct {
 	BackupLocation string
 
 	// Supervisor configuration
-	SupervisorEnabled   bool     // Whether to monitor supervisor
-	EnabledServices     []string // Services that should be running
+	SupervisorEnabled bool     // Whether to monitor supervisor
+	EnabledServices   []string // Services that should be running
 
 	// Thresholds
 	DiskSpaceThreshold   float64 // Percentage (e.g., 90.0 for 90%)
@@ -50,7 +50,7 @@ func NewHealthChecker(config *Config) (*HealthChecker, error) {
 	if config == nil {
 		return nil, fmt.Errorf("configuration cannot be nil")
 	}
-	
+
 	h := health.New()
 	h.DisableLogging() // We'll handle logging ourselves
 
@@ -71,7 +71,7 @@ func (hc *HealthChecker) setupChecks() error {
 	if hc == nil || hc.config == nil {
 		return fmt.Errorf("health checker or configuration is nil")
 	}
-	
+
 	// PostgreSQL database connectivity check
 	if hc.config.PostgresService != nil {
 		if err := hc.addPostgreSQLCheck(hc.config.PostgresService); err != nil {
@@ -275,7 +275,7 @@ func (hc *HealthChecker) addSupervisorCheck() error {
 		Name:     "supervisor",
 		Checker:  checker,
 		Interval: 60 * time.Second, // Check every minute
-		Fatal:    false, // Supervisor issues shouldn't be fatal
+		Fatal:    false,            // Supervisor issues shouldn't be fatal
 	})
 }
 

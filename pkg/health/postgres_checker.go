@@ -27,7 +27,7 @@ func (p *PostgreSQLChecker) Status() (interface{}, error) {
 			"error":  "service not configured",
 		}, fmt.Errorf("PostgreSQL service not configured")
 	}
-	
+
 	_, err := p.postgres.SQL("SELECT 1")
 	if err != nil {
 		return "unhealthy", err

@@ -130,7 +130,7 @@ func (i *Installer) runTask(taskName string, vars map[string]string) error {
 	executor := task.NewExecutor(
 		task.WithDir(tempDir),
 		task.WithEntrypoint(taskfilePath),
-		task.WithColor(false), // Disable colors for now
+		task.WithColor(false),  // Disable colors for now
 		task.WithVerbose(true), // Enable verbose for debugging
 	)
 
@@ -193,41 +193,41 @@ func (i *Installer) GetDefaultVersion(binaryName string) string {
 	if info, exists := BinaryRegistry[binaryName]; exists {
 		return info.DefaultVersion
 	}
-	
+
 	// Default versions for commons deps binaries
 	commonVersions := map[string]string{
 		"postgrest": "v13.0.5", // From commons deps
-		"wal-g":     "v3.0.5",   // From commons deps
+		"wal-g":     "v3.0.5",  // From commons deps
 	}
-	
+
 	if version, exists := commonVersions[binaryName]; exists {
 		return version
 	}
-	
+
 	return ""
 }
 
 // ListSupportedBinaries returns a list of all supported binaries
 func (i *Installer) ListSupportedBinaries() []string {
 	binarySet := make(map[string]bool)
-	
+
 	// Add binaries from local registry
 	for name := range BinaryRegistry {
 		binarySet[name] = true
 	}
-	
+
 	// Add commons binaries (avoiding duplicates)
-	commonsBinaries := []string{"postgrest", "wal-g"} 
+	commonsBinaries := []string{"postgrest", "wal-g"}
 	for _, name := range commonsBinaries {
 		binarySet[name] = true
 	}
-	
+
 	// Convert to slice
 	binaries := make([]string, 0, len(binarySet))
 	for name := range binarySet {
 		binaries = append(binaries, name)
 	}
-	
+
 	return binaries
 }
 
@@ -236,13 +236,13 @@ func (i *Installer) GetBinaryVersion(binaryName string) (string, error) {
 	if !i.CheckBinaryExists(binaryName) {
 		return "", fmt.Errorf("%s binary not found", binaryName)
 	}
-	
+
 	cmd := exec.Command(binaryName, "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get %s version: %w", binaryName, err)
 	}
-	
+
 	return string(output), nil
 }
 
