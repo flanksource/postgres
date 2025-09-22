@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/flanksource/postgres/pkg/embedded"
 	"github.com/flanksource/postgres/pkg/schemas"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,15 +21,15 @@ func init() {
 	sampleDescribeConfigOutput = string(data)
 }
 
-func Testschemas.ParseDescribeConfig(t *testing.T) {
-	params, err := schemas.schemas.ParseDescribeConfig(sampleDescribeConfigOutput)
+func TestParseDescribeConfig(t *testing.T) {
+	params, err := schemas.ParseDescribeConfig(sampleDescribeConfigOutput)
 	require.NoError(t, err)
 
 	// Should parse all 6 parameters
 	assert.Len(t, params, 6)
 
 	// Test integer parameter (shared_buffers)
-	sharedBuffers := schemas.schemas.GetParamByName(params, "shared_buffers")
+	sharedBuffers := schemas.GetParamByName(params, "shared_buffers")
 	require.NotNil(t, sharedBuffers)
 	assert.Equal(t, "shared_buffers", sharedBuffers.Name)
 	assert.Equal(t, "integer", sharedBuffers.VarType)
@@ -90,44 +91,7 @@ func Testschemas.ParseDescribeConfig(t *testing.T) {
 	assert.Equal(t, "", sharedPreload.BootVal)
 }
 
-func TestParseEnumValues(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected []string
-	}{
-		{
-			input:    "debug5,debug4,debug3,debug2,debug1,info,notice,warning,error,log,fatal,panic",
-			expected: []string{"debug5", "debug4", "debug3", "debug2", "debug1", "info", "notice", "warning", "error", "log", "fatal", "panic"},
-		},
-		{
-			input:    "on,off",
-			expected: []string{"on", "off"},
-		},
-		{
-			input:    "minimal,replica,logical",
-			expected: []string{"minimal", "replica", "logical"},
-		},
-		{
-			input:    "",
-			expected: nil,
-		},
-		{
-			input:    "-",
-			expected: nil,
-		},
-		{
-			input:    "single_value",
-			expected: []string{"single_value"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := parseEnumValues(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
+// TestParseEnumValues test removed - parseEnumValues is internal and tested through ParseDescribeConfig
 
 func TestGetParamByName(t *testing.T) {
 	params := []schemas.Param{
@@ -200,25 +164,25 @@ func TestParamValidateParamValue(t *testing.T) {
 		// Boolean parameter tests
 		{
 			name:    "bool valid on",
-			param:   Param{Name: "test_bool", VarType: "bool"},
+			param:   schemas.Param{Name: "test_bool", VarType: "bool"},
 			value:   "on",
 			wantErr: false,
 		},
 		{
 			name:    "bool valid true",
-			param:   Param{Name: "test_bool", VarType: "bool"},
+			param:   schemas.Param{Name: "test_bool", VarType: "bool"},
 			value:   "true",
 			wantErr: false,
 		},
 		{
 			name:    "bool valid 1",
-			param:   Param{Name: "test_bool", VarType: "bool"},
+			param:   schemas.Param{Name: "test_bool", VarType: "bool"},
 			value:   "1",
 			wantErr: false,
 		},
 		{
 			name:     "bool invalid value",
-			param:    Param{Name: "test_bool", VarType: "bool"},
+			param:    schemas.Param{Name: "test_bool", VarType: "bool"},
 			value:    "maybe",
 			wantErr:  true,
 			errMatch: "invalid boolean value",
@@ -226,13 +190,13 @@ func TestParamValidateParamValue(t *testing.T) {
 		// Enum parameter tests
 		{
 			name:    "enum valid value",
-			param:   Param{Name: "test_enum", VarType: "enum", EnumVals: []string{"debug", "info", "warning"}},
+			param:   schemas.Param{Name: "test_enum", VarType: "enum", EnumVals: []string{"debug", "info", "warning"}},
 			value:   "info",
 			wantErr: false,
 		},
 		{
 			name:     "enum invalid value",
-			param:    Param{Name: "test_enum", VarType: "enum", EnumVals: []string{"debug", "info", "warning"}},
+			param:    schemas.Param{Name: "test_enum", VarType: "enum", EnumVals: []string{"debug", "info", "warning"}},
 			value:    "trace",
 			wantErr:  true,
 			errMatch: "invalid enum value",
@@ -240,19 +204,19 @@ func TestParamValidateParamValue(t *testing.T) {
 		// Integer parameter tests
 		{
 			name:    "integer valid value",
-			param:   Param{Name: "test_int", VarType: "integer"},
+			param:   schemas.Param{Name: "test_int", VarType: "integer"},
 			value:   "42",
 			wantErr: false,
 		},
 		{
 			name:    "integer valid negative",
-			param:   Param{Name: "test_int", VarType: "integer"},
+			param:   schemas.Param{Name: "test_int", VarType: "integer"},
 			value:   "-1",
 			wantErr: false,
 		},
 		{
 			name:     "integer invalid format",
-			param:    Param{Name: "test_int", VarType: "integer"},
+			param:    schemas.Param{Name: "test_int", VarType: "integer"},
 			value:    "not_a_number",
 			wantErr:  true,
 			errMatch: "invalid integer format",
@@ -260,19 +224,19 @@ func TestParamValidateParamValue(t *testing.T) {
 		// Real parameter tests
 		{
 			name:    "real valid value",
-			param:   Param{Name: "test_real", VarType: "real"},
+			param:   schemas.Param{Name: "test_real", VarType: "real"},
 			value:   "3.14",
 			wantErr: false,
 		},
 		{
 			name:    "real valid scientific",
-			param:   Param{Name: "test_real", VarType: "real"},
+			param:   schemas.Param{Name: "test_real", VarType: "real"},
 			value:   "1.5e-10",
 			wantErr: false,
 		},
 		{
 			name:     "real invalid format",
-			param:    Param{Name: "test_real", VarType: "real"},
+			param:    schemas.Param{Name: "test_real", VarType: "real"},
 			value:    "not_a_float",
 			wantErr:  true,
 			errMatch: "invalid real format",
@@ -280,14 +244,14 @@ func TestParamValidateParamValue(t *testing.T) {
 		// String parameter tests
 		{
 			name:    "string valid value",
-			param:   Param{Name: "test_string", VarType: "string"},
+			param:   schemas.Param{Name: "test_string", VarType: "string"},
 			value:   "any string value",
 			wantErr: false,
 		},
 		// Unknown parameter type test
 		{
 			name:     "unknown type",
-			param:    Param{Name: "test_unknown", VarType: "unknown"},
+			param:    schemas.Param{Name: "test_unknown", VarType: "unknown"},
 			value:    "value",
 			wantErr:  true,
 			errMatch: "unknown parameter type",
@@ -316,7 +280,7 @@ func TestDescribeConfigIntegration(t *testing.T) {
 	}
 
 	// Create embedded postgres instance
-	pg, err := NewEmbeddedPostgres("16.1.0")
+	pg, err := embedded.NewEmbeddedPostgres("16.1.0")
 	if err != nil {
 		t.Skipf("Failed to create embedded postgres (expected in some environments): %v", err)
 		return
@@ -344,7 +308,7 @@ func TestDescribeConfigIntegration(t *testing.T) {
 	}
 
 	// Verify specific parameter types
-	sharedBuffers := schemas.schemas.GetParamByName(params, "shared_buffers")
+	sharedBuffers := schemas.GetParamByName(params, "shared_buffers")
 	if sharedBuffers != nil {
 		assert.Equal(t, "integer", sharedBuffers.VarType)
 		assert.NotEmpty(t, sharedBuffers.Unit) // Should have a unit like "8kB"
@@ -378,60 +342,64 @@ func TestParseDescribeConfigErrorHandling(t *testing.T) {
 }
 
 func TestValidateBoolValue(t *testing.T) {
+	boolParam := schemas.Param{Name: "test_bool", VarType: "bool"}
 	validValues := []string{"on", "off", "true", "false", "yes", "no", "1", "0", "ON", "OFF", "True", "False"}
 	for _, val := range validValues {
-		err := validateBoolValue(val)
+		err := boolParam.ValidateParamValue(val)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	invalidValues := []string{"maybe", "2", "enable", "disable", ""}
 	for _, val := range invalidValues {
-		err := validateBoolValue(val)
+		err := boolParam.ValidateParamValue(val)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
 
 func TestValidateEnumValue(t *testing.T) {
 	enumVals := []string{"debug", "info", "warning", "error"}
+	enumParam := schemas.Param{Name: "test_enum", VarType: "enum", EnumVals: enumVals}
 
 	// Valid values
 	for _, val := range enumVals {
-		err := validateEnumValue(val, enumVals)
+		err := enumParam.ValidateParamValue(val)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	// Invalid values
 	invalidValues := []string{"trace", "verbose", "", "DEBUG"}
 	for _, val := range invalidValues {
-		err := validateEnumValue(val, enumVals)
+		err := enumParam.ValidateParamValue(val)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
 
 func TestValidateIntegerValue(t *testing.T) {
+	intParam := schemas.Param{Name: "test_int", VarType: "integer"}
 	validValues := []string{"0", "42", "-1", "1000000"}
 	for _, val := range validValues {
-		err := validateIntegerValue(val, 0, 0)
+		err := intParam.ValidateParamValue(val)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	invalidValues := []string{"3.14", "abc", "", "1.0", "1e5"}
 	for _, val := range invalidValues {
-		err := validateIntegerValue(val, 0, 0)
+		err := intParam.ValidateParamValue(val)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
 
 func TestValidateRealValue(t *testing.T) {
+	realParam := schemas.Param{Name: "test_real", VarType: "real"}
 	validValues := []string{"0", "3.14", "-1.5", "1e5", "1.5e-10", "123"}
 	for _, val := range validValues {
-		err := validateRealValue(val, 0, 0)
+		err := realParam.ValidateParamValue(val)
 		assert.NoErrorf(t, err, "Value %s should be valid", val)
 	}
 
 	invalidValues := []string{"abc", "", "1.2.3", "e5"}
 	for _, val := range invalidValues {
-		err := validateRealValue(val, 0, 0)
+		err := realParam.ValidateParamValue(val)
 		assert.Errorf(t, err, "Value %s should be invalid", val)
 	}
 }
@@ -464,7 +432,7 @@ func TestXTypeDetectionSize(t *testing.T) {
 	}{
 		{
 			name: "shared_buffers with MB unit",
-			param: Param{
+			param: schemas.Param{
 				Name:     "shared_buffers",
 				VarType:  "integer",
 				Unit:     "MB",
@@ -474,7 +442,7 @@ func TestXTypeDetectionSize(t *testing.T) {
 		},
 		{
 			name: "work_mem with kB unit",
-			param: Param{
+			param: schemas.Param{
 				Name:     "work_mem",
 				VarType:  "integer", 
 				Unit:     "kB",
@@ -484,7 +452,7 @@ func TestXTypeDetectionSize(t *testing.T) {
 		},
 		{
 			name: "memory param without unit but in memory category",
-			param: Param{
+			param: schemas.Param{
 				Name:     "memory_param",
 				VarType:  "integer",
 				Unit:     "",
@@ -494,7 +462,7 @@ func TestXTypeDetectionSize(t *testing.T) {
 		},
 		{
 			name: "non-memory integer param",
-			param: Param{
+			param: schemas.Param{
 				Name:     "max_connections",
 				VarType:  "integer",
 				Unit:     "",
@@ -554,7 +522,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 	}{
 		{
 			name: "statement_timeout by name",
-			param: Param{
+			param: schemas.Param{
 				Name:    "statement_timeout",
 				VarType: "integer",
 			},
@@ -562,7 +530,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 		},
 		{
 			name: "param with ms unit",
-			param: Param{
+			param: schemas.Param{
 				Name:    "delay_param",
 				VarType: "integer",
 				Unit:    "ms",
@@ -571,7 +539,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 		},
 		{
 			name: "param with s unit", 
-			param: Param{
+			param: schemas.Param{
 				Name:    "timeout_param",
 				VarType: "integer",
 				Unit:    "s",
@@ -580,7 +548,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 		},
 		{
 			name: "regular integer param",
-			param: Param{
+			param: schemas.Param{
 				Name:    "max_connections",
 				VarType: "integer",
 			},
@@ -645,13 +613,13 @@ func cleanDescription(shortDesc, extraDesc string) string {
 func TestParameterTypeMapping(t *testing.T) {
 	tests := []struct {
 		name       string
-		param      Param
+		param      schemas.Param
 		expectType string
 		expectXType string
 	}{
 		{
 			name: "boolean parameter",
-			param: Param{
+			param: schemas.Param{
 				Name:    "enable_seqscan",
 				VarType: "boolean",
 			},
@@ -660,7 +628,7 @@ func TestParameterTypeMapping(t *testing.T) {
 		},
 		{
 			name: "enum parameter",
-			param: Param{
+			param: schemas.Param{
 				Name:     "log_level",
 				VarType:  "enum",
 				EnumVals: []string{"debug", "info", "error"},
@@ -670,7 +638,7 @@ func TestParameterTypeMapping(t *testing.T) {
 		},
 		{
 			name: "integer parameter",
-			param: Param{
+			param: schemas.Param{
 				Name:    "max_connections",
 				VarType: "integer",
 			},
@@ -679,7 +647,7 @@ func TestParameterTypeMapping(t *testing.T) {
 		},
 		{
 			name: "size parameter",
-			param: Param{
+			param: schemas.Param{
 				Name:     "shared_buffers",
 				VarType:  "integer",
 				Category: "Resource Usage / Memory",
@@ -689,7 +657,7 @@ func TestParameterTypeMapping(t *testing.T) {
 		},
 		{
 			name: "duration parameter",
-			param: Param{
+			param: schemas.Param{
 				Name:    "statement_timeout",
 				VarType: "integer",
 			},

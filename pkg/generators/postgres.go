@@ -45,25 +45,23 @@ func (g *PostgreSQLConfigGenerator) SetPGAuditConf(conf *pkg.PGAuditConf) {
 // GenerateConfig generates a PostgreSQL configuration struct
 func (g *PostgreSQLConfigGenerator) GenerateConfig() *pkg.PostgresConf {
 	// Helper functions to convert to pointers
-	intPtr := func(i int) *int { return &i }
-	strPtr := func(s string) *string { return &s }
-	sizePtr := func(kb uint64) *types.Size { val := types.Size(utils.KBToBytes(kb)); return &val }
+	// Helper functions removed - no longer needed for non-pointer types
 
 	config := &pkg.PostgresConf{
 		// Connection settings (using actual field names from schema)
-		Port:           intPtr(5432),
-		MaxConnections: intPtr(g.TunedParams.MaxConnections),
+		Port:           5432,
+		MaxConnections: g.TunedParams.MaxConnections,
 
-		// Memory settings (convert KB values to types.Size values)
-		SharedBuffers: sizePtr(g.TunedParams.SharedBuffers),
-		WorkMem:       sizePtr(g.TunedParams.WorkMem),
+		// Memory settings (convert KB values to string values)
+		SharedBuffers: types.Size(utils.KBToBytes(g.TunedParams.SharedBuffers)).String(),
+		WorkMem:       types.Size(utils.KBToBytes(g.TunedParams.WorkMem)).String(),
 
 		// Security settings
 		PasswordEncryption: "md5",
 
 		// SSL settings
-		SslCertFile: strPtr("/etc/ssl/certs/server.crt"),
-		SslKeyFile:  strPtr("/etc/ssl/private/server.key"),
+		SslCertFile: "/etc/ssl/certs/server.crt",
+		SslKeyFile:  "/etc/ssl/private/server.key",
 
 		// Logging settings
 		LogStatement: "none",
@@ -161,8 +159,8 @@ func (g *PostgreSQLConfigGenerator) generateConnectionSection() string {
 	sb.WriteString(FormatConfigComment("postgres.listen_addresses", "#"))
 	sb.WriteString("\n")
 	listenAddr := "localhost"
-	if g.config.ListenAddresses != nil {
-		listenAddr = *g.config.ListenAddresses
+	if g.config.ListenAddresses != "" {
+		listenAddr = g.config.ListenAddresses
 	}
 	sb.WriteString(fmt.Sprintf("listen_addresses = '%s'\n", listenAddr))
 	sb.WriteString("\n")
@@ -171,8 +169,8 @@ func (g *PostgreSQLConfigGenerator) generateConnectionSection() string {
 	sb.WriteString(FormatConfigComment("postgres.port", "#"))
 	sb.WriteString("\n")
 	port := 5432
-	if g.config.Port != nil {
-		port = *g.config.Port
+	if g.config.Port != 0 {
+		port = g.config.Port
 	}
 	sb.WriteString(fmt.Sprintf("port = %d\n", port))
 	sb.WriteString("\n")
@@ -374,16 +372,9 @@ func (g *PostgreSQLConfigGenerator) generateSSLSection() string {
 	sslEnabled := "off"
 	// Note: Ssl field not available in current schema
 
-	// Safely dereference pointer fields
-	sslCertFile := ""
-	if g.config.SslCertFile != nil {
-		sslCertFile = *g.config.SslCertFile
-	}
-
-	sslKeyFile := ""
-	if g.config.SslKeyFile != nil {
-		sslKeyFile = *g.config.SslKeyFile
-	}
+	// Get SSL file paths (now string fields, not pointers)
+	sslCertFile := g.config.SslCertFile
+	sslKeyFile := g.config.SslKeyFile
 
 	return fmt.Sprintf(`# -----------------------------
 # SSL/TLS CONFIGURATION

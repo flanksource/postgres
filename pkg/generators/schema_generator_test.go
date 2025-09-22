@@ -10,10 +10,14 @@ import (
 )
 
 func TestNewSchemaGenerator(t *testing.T) {
-	// Test creating schema generator with embedded PostgreSQL
-	generator, err := NewSchemaGenerator("16.1.0")
+	// Test creating schema generator with sample parameters
+	mockParams := []schemas.Param{
+		{Name: "shared_buffers", VarType: "integer", Unit: "8kB"},
+		{Name: "max_connections", VarType: "integer"},
+	}
+	generator, err := NewSchemaGenerator(mockParams, "16.1.0")
 	if err != nil {
-		t.Skipf("Skipping test - could not create embedded postgres: %v", err)
+		t.Fatalf("Failed to create schema generator: %v", err)
 	}
 
 	if generator == nil {
@@ -263,9 +267,7 @@ func TestGenerateParameterReport(t *testing.T) {
 		},
 	}
 
-	// Mock the DescribeConfig method
-	mockPostgres := &pkg.Postgres{}
-	generator.postgres = mockPostgres
+	// Generator already has mock parameters from constructor
 
 	// We can't easily test the full report generation without mocking DescribeConfig
 	// So let's test the report format with known parameters

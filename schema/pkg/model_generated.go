@@ -2,7 +2,10 @@
 
 package pkg
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/flanksource/postgres/pkg/types"
+)
 import "fmt"
 import "reflect"
 import "regexp"
@@ -101,7 +104,7 @@ type PGAuditConf struct {
 	LogStatementOnce PGAuditConfLogStatementOnce `json:"log_statement_once,omitempty" yaml:"log_statement_once,omitempty" mapstructure:"log_statement_once,omitempty"`
 
 	// Sets the maximum stack depth for audit logging to prevent infinite recursion
-	MaxStackDepth *string `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
+	MaxStackDepth *types.Size `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
 
 	// Specifies which classes of statements will be logged by object audit logging
 	ObjectLog PGAuditConfObjectLog `json:"object_log,omitempty" yaml:"object_log,omitempty" mapstructure:"object_log,omitempty"`
@@ -571,7 +574,7 @@ func (j *PGAuditConf) UnmarshalJSON(value []byte) error {
 		plain.LogStatementOnce = "off"
 	}
 	if plain.MaxStackDepth != nil {
-		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, string(*plain.MaxStackDepth)); !matched {
+		if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B?$`, plain.MaxStackDepth.String()); !matched {
 			return fmt.Errorf("field %s pattern match: must match %s", "MaxStackDepth", `^[0-9]+[kMGT]?B?$`)
 		}
 	}
@@ -1009,7 +1012,7 @@ type PostgresConf struct {
 	ArrayNulls bool `json:"array_nulls,omitempty" yaml:"array_nulls,omitempty" mapstructure:"array_nulls,omitempty"`
 
 	// Sets the maximum allowed time to complete client authentication.
-	AuthenticationTimeout string `json:"authentication_timeout,omitempty" yaml:"authentication_timeout,omitempty" mapstructure:"authentication_timeout,omitempty"`
+	AuthenticationTimeout *types.Duration `json:"authentication_timeout,omitempty" yaml:"authentication_timeout,omitempty" mapstructure:"authentication_timeout,omitempty"`
 
 	// Starts the autovacuum subprocess.
 	Autovacuum bool `json:"autovacuum,omitempty" yaml:"autovacuum,omitempty" mapstructure:"autovacuum,omitempty"`
@@ -1034,7 +1037,7 @@ type PostgresConf struct {
 	AutovacuumNaptime int `json:"autovacuum_naptime,omitempty" yaml:"autovacuum_naptime,omitempty" mapstructure:"autovacuum_naptime,omitempty"`
 
 	// Vacuum cost delay in milliseconds, for autovacuum.
-	AutovacuumVacuumCostDelay string `json:"autovacuum_vacuum_cost_delay,omitempty" yaml:"autovacuum_vacuum_cost_delay,omitempty" mapstructure:"autovacuum_vacuum_cost_delay,omitempty"`
+	AutovacuumVacuumCostDelay *types.Duration `json:"autovacuum_vacuum_cost_delay,omitempty" yaml:"autovacuum_vacuum_cost_delay,omitempty" mapstructure:"autovacuum_vacuum_cost_delay,omitempty"`
 
 	// Vacuum cost amount available before napping, for autovacuum.
 	AutovacuumVacuumCostLimit int `json:"autovacuum_vacuum_cost_limit,omitempty" yaml:"autovacuum_vacuum_cost_limit,omitempty" mapstructure:"autovacuum_vacuum_cost_limit,omitempty"`
@@ -1053,7 +1056,7 @@ type PostgresConf struct {
 	AutovacuumVacuumThreshold int `json:"autovacuum_vacuum_threshold,omitempty" yaml:"autovacuum_vacuum_threshold,omitempty" mapstructure:"autovacuum_vacuum_threshold,omitempty"`
 
 	// Sets the maximum memory to be used by each autovacuum worker process.
-	AutovacuumWorkMem string `json:"autovacuum_work_mem,omitempty" yaml:"autovacuum_work_mem,omitempty" mapstructure:"autovacuum_work_mem,omitempty"`
+	AutovacuumWorkMem *types.Size `json:"autovacuum_work_mem,omitempty" yaml:"autovacuum_work_mem,omitempty" mapstructure:"autovacuum_work_mem,omitempty"`
 
 	// Number of pages after which previously performed writes are flushed to disk.
 	BackendFlushAfter int `json:"backend_flush_after,omitempty" yaml:"backend_flush_after,omitempty" mapstructure:"backend_flush_after,omitempty"`
@@ -1071,7 +1074,7 @@ type PostgresConf struct {
 	BgwriterLruMaxpages int `json:"bgwriter_lru_maxpages,omitempty" yaml:"bgwriter_lru_maxpages,omitempty" mapstructure:"bgwriter_lru_maxpages,omitempty"`
 
 	// Multiple of the average buffer usage to free per round.
-	BgwriterLruMultiplier string `json:"bgwriter_lru_multiplier,omitempty" yaml:"bgwriter_lru_multiplier,omitempty" mapstructure:"bgwriter_lru_multiplier,omitempty"`
+	BgwriterLruMultiplier *types.Size `json:"bgwriter_lru_multiplier,omitempty" yaml:"bgwriter_lru_multiplier,omitempty" mapstructure:"bgwriter_lru_multiplier,omitempty"`
 
 	// Enables advertising the server via Bonjour.
 	Bonjour bool `json:"bonjour,omitempty" yaml:"bonjour,omitempty" mapstructure:"bonjour,omitempty"`
@@ -1087,13 +1090,13 @@ type PostgresConf struct {
 
 	// Time spent flushing dirty buffers during checkpoint, as fraction of checkpoint
 	// interval.
-	CheckpointCompletionTarget float64 `json:"checkpoint_completion_target,omitempty" yaml:"checkpoint_completion_target,omitempty" mapstructure:"checkpoint_completion_target,omitempty"`
+	CheckpointCompletionTarget *types.Size `json:"checkpoint_completion_target,omitempty" yaml:"checkpoint_completion_target,omitempty" mapstructure:"checkpoint_completion_target,omitempty"`
 
 	// Number of pages after which previously performed writes are flushed to disk.
 	CheckpointFlushAfter int `json:"checkpoint_flush_after,omitempty" yaml:"checkpoint_flush_after,omitempty" mapstructure:"checkpoint_flush_after,omitempty"`
 
 	// Sets the maximum time between automatic WAL checkpoints.
-	CheckpointTimeout string `json:"checkpoint_timeout,omitempty" yaml:"checkpoint_timeout,omitempty" mapstructure:"checkpoint_timeout,omitempty"`
+	CheckpointTimeout *types.Duration `json:"checkpoint_timeout,omitempty" yaml:"checkpoint_timeout,omitempty" mapstructure:"checkpoint_timeout,omitempty"`
 
 	// Sets the maximum time before warning if checkpoints triggered by WAL volume
 	// happen too frequently. Write a message to the server log if checkpoints caused
@@ -1124,7 +1127,7 @@ type PostgresConf struct {
 
 	// Sets the size of the dedicated buffer pool used for the commit timestamp cache.
 	// Specify 0 to have this value determined as a fraction of shared_buffers.
-	CommitTimestampBuffers string `json:"commit_timestamp_buffers,omitempty" yaml:"commit_timestamp_buffers,omitempty" mapstructure:"commit_timestamp_buffers,omitempty"`
+	CommitTimestampBuffers *types.Size `json:"commit_timestamp_buffers,omitempty" yaml:"commit_timestamp_buffers,omitempty" mapstructure:"commit_timestamp_buffers,omitempty"`
 
 	// Enables in-core computation of query identifiers.
 	ComputeQueryId PostgresConfComputeQueryId `json:"compute_query_id,omitempty" yaml:"compute_query_id,omitempty" mapstructure:"compute_query_id,omitempty"`
@@ -1159,7 +1162,7 @@ type PostgresConf struct {
 	DataSyncRetry bool `json:"data_sync_retry,omitempty" yaml:"data_sync_retry,omitempty" mapstructure:"data_sync_retry,omitempty"`
 
 	// Sets the time to wait on a lock before checking for deadlock.
-	DeadlockTimeout string `json:"deadlock_timeout,omitempty" yaml:"deadlock_timeout,omitempty" mapstructure:"deadlock_timeout,omitempty"`
+	DeadlockTimeout *types.Duration `json:"deadlock_timeout,omitempty" yaml:"deadlock_timeout,omitempty" mapstructure:"deadlock_timeout,omitempty"`
 
 	// Indents parse and plan tree displays.
 	DebugPrettyPrint bool `json:"debug_pretty_print,omitempty" yaml:"debug_pretty_print,omitempty" mapstructure:"debug_pretty_print,omitempty"`
@@ -1206,13 +1209,13 @@ type PostgresConf struct {
 	DynamicLibraryPath string `json:"dynamic_library_path,omitempty" yaml:"dynamic_library_path,omitempty" mapstructure:"dynamic_library_path,omitempty"`
 
 	// Selects the dynamic shared memory implementation used.
-	DynamicSharedMemoryType string `json:"dynamic_shared_memory_type,omitempty" yaml:"dynamic_shared_memory_type,omitempty" mapstructure:"dynamic_shared_memory_type,omitempty"`
+	DynamicSharedMemoryType *types.Size `json:"dynamic_shared_memory_type,omitempty" yaml:"dynamic_shared_memory_type,omitempty" mapstructure:"dynamic_shared_memory_type,omitempty"`
 
 	// Sets the planner's assumption about the total size of the data caches. That is,
 	// the total size of the caches (kernel cache and shared buffers) used for
 	// PostgreSQL data files. This is measured in disk pages, which are normally 8 kB
 	// each.
-	EffectiveCacheSize string `json:"effective_cache_size,omitempty" yaml:"effective_cache_size,omitempty" mapstructure:"effective_cache_size,omitempty"`
+	EffectiveCacheSize *types.Size `json:"effective_cache_size,omitempty" yaml:"effective_cache_size,omitempty" mapstructure:"effective_cache_size,omitempty"`
 
 	// Number of simultaneous requests that can be handled efficiently by the disk
 	// subsystem.
@@ -1359,7 +1362,7 @@ type PostgresConf struct {
 	GinFuzzySearchLimit int `json:"gin_fuzzy_search_limit,omitempty" yaml:"gin_fuzzy_search_limit,omitempty" mapstructure:"gin_fuzzy_search_limit,omitempty"`
 
 	// Sets the maximum size of the pending list for GIN index.
-	GinPendingListLimit string `json:"gin_pending_list_limit,omitempty" yaml:"gin_pending_list_limit,omitempty" mapstructure:"gin_pending_list_limit,omitempty"`
+	GinPendingListLimit *types.Size `json:"gin_pending_list_limit,omitempty" yaml:"gin_pending_list_limit,omitempty" mapstructure:"gin_pending_list_limit,omitempty"`
 
 	// Sets whether GSSAPI delegation should be accepted from the client.
 	GssAcceptDelegation bool `json:"gss_accept_delegation,omitempty" yaml:"gss_accept_delegation,omitempty" mapstructure:"gss_accept_delegation,omitempty"`
@@ -1378,7 +1381,7 @@ type PostgresConf struct {
 	HotStandbyFeedback bool `json:"hot_standby_feedback,omitempty" yaml:"hot_standby_feedback,omitempty" mapstructure:"hot_standby_feedback,omitempty"`
 
 	// The size of huge page that should be requested.
-	HugePageSize string `json:"huge_page_size,omitempty" yaml:"huge_page_size,omitempty" mapstructure:"huge_page_size,omitempty"`
+	HugePageSize *types.Size `json:"huge_page_size,omitempty" yaml:"huge_page_size,omitempty" mapstructure:"huge_page_size,omitempty"`
 
 	// Use of huge pages on Linux or Windows.
 	HugePages string `json:"huge_pages,omitempty" yaml:"huge_pages,omitempty" mapstructure:"huge_pages,omitempty"`
@@ -1391,14 +1394,14 @@ type PostgresConf struct {
 
 	// Sets the maximum allowed idle time between queries, when in a transaction. A
 	// value of 0 turns off the timeout.
-	IdleInTransactionSessionTimeout string `json:"idle_in_transaction_session_timeout,omitempty" yaml:"idle_in_transaction_session_timeout,omitempty" mapstructure:"idle_in_transaction_session_timeout,omitempty"`
+	IdleInTransactionSessionTimeout *types.Duration `json:"idle_in_transaction_session_timeout,omitempty" yaml:"idle_in_transaction_session_timeout,omitempty" mapstructure:"idle_in_transaction_session_timeout,omitempty"`
 
 	// Sets the maximum allowed idle time between queries, when not in a transaction.
 	// A value of 0 turns off the timeout.
-	IdleSessionTimeout string `json:"idle_session_timeout,omitempty" yaml:"idle_session_timeout,omitempty" mapstructure:"idle_session_timeout,omitempty"`
+	IdleSessionTimeout *types.Duration `json:"idle_session_timeout,omitempty" yaml:"idle_session_timeout,omitempty" mapstructure:"idle_session_timeout,omitempty"`
 
 	// Limit on the size of data reads and writes.
-	IoCombineLimit string `json:"io_combine_limit,omitempty" yaml:"io_combine_limit,omitempty" mapstructure:"io_combine_limit,omitempty"`
+	IoCombineLimit *types.Size `json:"io_combine_limit,omitempty" yaml:"io_combine_limit,omitempty" mapstructure:"io_combine_limit,omitempty"`
 
 	// Allow JIT compilation.
 	Jit bool `json:"jit,omitempty" yaml:"jit,omitempty" mapstructure:"jit,omitempty"`
@@ -1454,7 +1457,7 @@ type PostgresConf struct {
 
 	// Sets the maximum allowed duration of any wait for a lock. A value of 0 turns
 	// off the timeout.
-	LockTimeout string `json:"lock_timeout,omitempty" yaml:"lock_timeout,omitempty" mapstructure:"lock_timeout,omitempty"`
+	LockTimeout *types.Duration `json:"lock_timeout,omitempty" yaml:"lock_timeout,omitempty" mapstructure:"lock_timeout,omitempty"`
 
 	// Sets the minimum execution time above which autovacuum actions will be logged.
 	// Zero prints all actions. -1 turns autovacuum logging off.
@@ -1568,7 +1571,7 @@ type PostgresConf struct {
 
 	// Log the use of temporary files larger than this number of kilobytes. Zero logs
 	// all files. The default is -1 (turning this feature off).
-	LogTempFiles string `json:"log_temp_files,omitempty" yaml:"log_temp_files,omitempty" mapstructure:"log_temp_files,omitempty"`
+	LogTempFiles *types.Size `json:"log_temp_files,omitempty" yaml:"log_temp_files,omitempty" mapstructure:"log_temp_files,omitempty"`
 
 	// Sets the time zone to use in log messages.
 	LogTimezone string `json:"log_timezone,omitempty" yaml:"log_timezone,omitempty" mapstructure:"log_timezone,omitempty"`
@@ -1585,14 +1588,14 @@ type PostgresConf struct {
 
 	// Sets the maximum memory to be used for logical decoding. This much memory can
 	// be used by each internal reorder buffer before spilling to disk.
-	LogicalDecodingWorkMem string `json:"logical_decoding_work_mem,omitempty" yaml:"logical_decoding_work_mem,omitempty" mapstructure:"logical_decoding_work_mem,omitempty"`
+	LogicalDecodingWorkMem *types.Size `json:"logical_decoding_work_mem,omitempty" yaml:"logical_decoding_work_mem,omitempty" mapstructure:"logical_decoding_work_mem,omitempty"`
 
 	// A variant of "effective_io_concurrency" that is used for maintenance work.
 	MaintenanceIoConcurrency int `json:"maintenance_io_concurrency,omitempty" yaml:"maintenance_io_concurrency,omitempty" mapstructure:"maintenance_io_concurrency,omitempty"`
 
 	// Sets the maximum memory to be used for maintenance operations. This includes
 	// operations such as VACUUM and CREATE INDEX.
-	MaintenanceWorkMem string `json:"maintenance_work_mem,omitempty" yaml:"maintenance_work_mem,omitempty" mapstructure:"maintenance_work_mem,omitempty"`
+	MaintenanceWorkMem *types.Size `json:"maintenance_work_mem,omitempty" yaml:"maintenance_work_mem,omitempty" mapstructure:"maintenance_work_mem,omitempty"`
 
 	// Sets the maximum number of concurrent connections.
 	MaxConnections int `json:"max_connections,omitempty" yaml:"max_connections,omitempty" mapstructure:"max_connections,omitempty"`
@@ -1640,7 +1643,7 @@ type PostgresConf struct {
 	MaxPredLocksPerTransaction int `json:"max_pred_locks_per_transaction,omitempty" yaml:"max_pred_locks_per_transaction,omitempty" mapstructure:"max_pred_locks_per_transaction,omitempty"`
 
 	// Sets the maximum number of simultaneously prepared transactions.
-	MaxPreparedTransactions string `json:"max_prepared_transactions,omitempty" yaml:"max_prepared_transactions,omitempty" mapstructure:"max_prepared_transactions,omitempty"`
+	MaxPreparedTransactions *types.Size `json:"max_prepared_transactions,omitempty" yaml:"max_prepared_transactions,omitempty" mapstructure:"max_prepared_transactions,omitempty"`
 
 	// Sets the maximum number of simultaneously defined replication slots.
 	MaxReplicationSlots int `json:"max_replication_slots,omitempty" yaml:"max_replication_slots,omitempty" mapstructure:"max_replication_slots,omitempty"`
@@ -1651,7 +1654,7 @@ type PostgresConf struct {
 	MaxSlotWalKeepSize int `json:"max_slot_wal_keep_size,omitempty" yaml:"max_slot_wal_keep_size,omitempty" mapstructure:"max_slot_wal_keep_size,omitempty"`
 
 	// Sets the maximum stack depth, in kilobytes.
-	MaxStackDepth string `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
+	MaxStackDepth *types.Size `json:"max_stack_depth,omitempty" yaml:"max_stack_depth,omitempty" mapstructure:"max_stack_depth,omitempty"`
 
 	// Sets the maximum delay before canceling queries when a hot standby server is
 	// processing archived WAL data.
@@ -1674,7 +1677,7 @@ type PostgresConf struct {
 	MaxWorkerProcesses int `json:"max_worker_processes,omitempty" yaml:"max_worker_processes,omitempty" mapstructure:"max_worker_processes,omitempty"`
 
 	// Amount of dynamic shared memory reserved at startup.
-	MinDynamicSharedMemory string `json:"min_dynamic_shared_memory,omitempty" yaml:"min_dynamic_shared_memory,omitempty" mapstructure:"min_dynamic_shared_memory,omitempty"`
+	MinDynamicSharedMemory *types.Size `json:"min_dynamic_shared_memory,omitempty" yaml:"min_dynamic_shared_memory,omitempty" mapstructure:"min_dynamic_shared_memory,omitempty"`
 
 	// Sets the minimum amount of index data for a parallel scan. If the planner
 	// estimates that it will read a number of index pages too small to reach this
@@ -1690,14 +1693,14 @@ type PostgresConf struct {
 	MinWalSize int `json:"min_wal_size,omitempty" yaml:"min_wal_size,omitempty" mapstructure:"min_wal_size,omitempty"`
 
 	// Sets the size of the dedicated buffer pool used for the MultiXact member cache.
-	MultixactMemberBuffers string `json:"multixact_member_buffers,omitempty" yaml:"multixact_member_buffers,omitempty" mapstructure:"multixact_member_buffers,omitempty"`
+	MultixactMemberBuffers *types.Size `json:"multixact_member_buffers,omitempty" yaml:"multixact_member_buffers,omitempty" mapstructure:"multixact_member_buffers,omitempty"`
 
 	// Sets the size of the dedicated buffer pool used for the MultiXact offset cache.
-	MultixactOffsetBuffers string `json:"multixact_offset_buffers,omitempty" yaml:"multixact_offset_buffers,omitempty" mapstructure:"multixact_offset_buffers,omitempty"`
+	MultixactOffsetBuffers *types.Size `json:"multixact_offset_buffers,omitempty" yaml:"multixact_offset_buffers,omitempty" mapstructure:"multixact_offset_buffers,omitempty"`
 
 	// Sets the size of the dedicated buffer pool used for the LISTEN/NOTIFY message
 	// cache.
-	NotifyBuffers string `json:"notify_buffers,omitempty" yaml:"notify_buffers,omitempty" mapstructure:"notify_buffers,omitempty"`
+	NotifyBuffers *types.Size `json:"notify_buffers,omitempty" yaml:"notify_buffers,omitempty" mapstructure:"notify_buffers,omitempty"`
 
 	// Controls whether Gather and Gather Merge also run subplans. Should gather nodes
 	// also run subplans or just gather tuples?
@@ -1745,7 +1748,7 @@ type PostgresConf struct {
 
 	// Prefetch referenced blocks during recovery. Look ahead in the WAL to find
 	// references to uncached data.
-	RecoveryPrefetch string `json:"recovery_prefetch,omitempty" yaml:"recovery_prefetch,omitempty" mapstructure:"recovery_prefetch,omitempty"`
+	RecoveryPrefetch *types.Size `json:"recovery_prefetch,omitempty" yaml:"recovery_prefetch,omitempty" mapstructure:"recovery_prefetch,omitempty"`
 
 	// Set to "immediate" to end recovery as soon as a consistent state is reached.
 	RecoveryTarget *string `json:"recovery_target,omitempty" yaml:"recovery_target,omitempty" mapstructure:"recovery_target,omitempty"`
@@ -1773,7 +1776,7 @@ type PostgresConf struct {
 
 	// Sets the planner's estimate of the average size of a recursive query's working
 	// table.
-	RecursiveWorktableFactor string `json:"recursive_worktable_factor,omitempty" yaml:"recursive_worktable_factor,omitempty" mapstructure:"recursive_worktable_factor,omitempty"`
+	RecursiveWorktableFactor *types.Size `json:"recursive_worktable_factor,omitempty" yaml:"recursive_worktable_factor,omitempty" mapstructure:"recursive_worktable_factor,omitempty"`
 
 	// Sets the number of connection slots reserved for roles with privileges of
 	// pg_use_reserved_connections.
@@ -1799,7 +1802,7 @@ type PostgresConf struct {
 
 	// Sets the size of the dedicated buffer pool used for the serializable
 	// transaction cache.
-	SerializableBuffers string `json:"serializable_buffers,omitempty" yaml:"serializable_buffers,omitempty" mapstructure:"serializable_buffers,omitempty"`
+	SerializableBuffers *types.Size `json:"serializable_buffers,omitempty" yaml:"serializable_buffers,omitempty" mapstructure:"serializable_buffers,omitempty"`
 
 	// Lists shared libraries to preload into each backend.
 	SessionPreloadLibraries *string `json:"session_preload_libraries,omitempty" yaml:"session_preload_libraries,omitempty" mapstructure:"session_preload_libraries,omitempty"`
@@ -1808,11 +1811,11 @@ type PostgresConf struct {
 	SessionReplicationRole string `json:"session_replication_role,omitempty" yaml:"session_replication_role,omitempty" mapstructure:"session_replication_role,omitempty"`
 
 	// Sets the number of shared memory buffers used by the server.
-	SharedBuffers string `json:"shared_buffers,omitempty" yaml:"shared_buffers,omitempty" mapstructure:"shared_buffers,omitempty"`
+	SharedBuffers *types.Size `json:"shared_buffers,omitempty" yaml:"shared_buffers,omitempty" mapstructure:"shared_buffers,omitempty"`
 
 	// Selects the shared memory implementation used for the main shared memory
 	// region.
-	SharedMemoryType string `json:"shared_memory_type,omitempty" yaml:"shared_memory_type,omitempty" mapstructure:"shared_memory_type,omitempty"`
+	SharedMemoryType *types.Size `json:"shared_memory_type,omitempty" yaml:"shared_memory_type,omitempty" mapstructure:"shared_memory_type,omitempty"`
 
 	// Lists shared libraries to preload into server.
 	SharedPreloadLibraries *string `json:"shared_preload_libraries,omitempty" yaml:"shared_preload_libraries,omitempty" mapstructure:"shared_preload_libraries,omitempty"`
@@ -1864,14 +1867,14 @@ type PostgresConf struct {
 
 	// Sets the maximum allowed duration of any statement. A value of 0 turns off the
 	// timeout.
-	StatementTimeout string `json:"statement_timeout,omitempty" yaml:"statement_timeout,omitempty" mapstructure:"statement_timeout,omitempty"`
+	StatementTimeout *types.Duration `json:"statement_timeout,omitempty" yaml:"statement_timeout,omitempty" mapstructure:"statement_timeout,omitempty"`
 
 	// Sets the consistency of accesses to statistics data.
 	StatsFetchConsistency string `json:"stats_fetch_consistency,omitempty" yaml:"stats_fetch_consistency,omitempty" mapstructure:"stats_fetch_consistency,omitempty"`
 
 	// Sets the size of the dedicated buffer pool used for the subtransaction cache.
 	// Specify 0 to have this value determined as a fraction of shared_buffers.
-	SubtransactionBuffers string `json:"subtransaction_buffers,omitempty" yaml:"subtransaction_buffers,omitempty" mapstructure:"subtransaction_buffers,omitempty"`
+	SubtransactionBuffers *types.Size `json:"subtransaction_buffers,omitempty" yaml:"subtransaction_buffers,omitempty" mapstructure:"subtransaction_buffers,omitempty"`
 
 	// Starts the WAL summarizer process to enable incremental backup.
 	SummarizeWal bool `json:"summarize_wal,omitempty" yaml:"summarize_wal,omitempty" mapstructure:"summarize_wal,omitempty"`
@@ -1922,14 +1925,14 @@ type PostgresConf struct {
 	TcpKeepalivesInterval int `json:"tcp_keepalives_interval,omitempty" yaml:"tcp_keepalives_interval,omitempty" mapstructure:"tcp_keepalives_interval,omitempty"`
 
 	// TCP user timeout. A value of 0 uses the system default.
-	TcpUserTimeout string `json:"tcp_user_timeout,omitempty" yaml:"tcp_user_timeout,omitempty" mapstructure:"tcp_user_timeout,omitempty"`
+	TcpUserTimeout *types.Duration `json:"tcp_user_timeout,omitempty" yaml:"tcp_user_timeout,omitempty" mapstructure:"tcp_user_timeout,omitempty"`
 
 	// Sets the maximum number of temporary buffers used by each session.
-	TempBuffers string `json:"temp_buffers,omitempty" yaml:"temp_buffers,omitempty" mapstructure:"temp_buffers,omitempty"`
+	TempBuffers *types.Size `json:"temp_buffers,omitempty" yaml:"temp_buffers,omitempty" mapstructure:"temp_buffers,omitempty"`
 
 	// Limits the total size of all temporary files used by each process. -1 means no
 	// limit.
-	TempFileLimit string `json:"temp_file_limit,omitempty" yaml:"temp_file_limit,omitempty" mapstructure:"temp_file_limit,omitempty"`
+	TempFileLimit *types.Size `json:"temp_file_limit,omitempty" yaml:"temp_file_limit,omitempty" mapstructure:"temp_file_limit,omitempty"`
 
 	// Sets the tablespace(s) to use for temporary tables and sort files.
 	TempTablespaces *string `json:"temp_tablespaces,omitempty" yaml:"temp_tablespaces,omitempty" mapstructure:"temp_tablespaces,omitempty"`
@@ -1962,11 +1965,11 @@ type PostgresConf struct {
 
 	// Sets the size of the dedicated buffer pool used for the transaction status
 	// cache. Specify 0 to have this value determined as a fraction of shared_buffers.
-	TransactionBuffers string `json:"transaction_buffers,omitempty" yaml:"transaction_buffers,omitempty" mapstructure:"transaction_buffers,omitempty"`
+	TransactionBuffers *types.Size `json:"transaction_buffers,omitempty" yaml:"transaction_buffers,omitempty" mapstructure:"transaction_buffers,omitempty"`
 
 	// Sets the maximum allowed duration of any transaction within a session (not a
 	// prepared transaction). A value of 0 turns off the timeout.
-	TransactionTimeout string `json:"transaction_timeout,omitempty" yaml:"transaction_timeout,omitempty" mapstructure:"transaction_timeout,omitempty"`
+	TransactionTimeout *types.Duration `json:"transaction_timeout,omitempty" yaml:"transaction_timeout,omitempty" mapstructure:"transaction_timeout,omitempty"`
 
 	// Treats "expr=NULL" as "expr IS NULL". When turned on, expressions of the form
 	// expr = NULL (or NULL = expr) are treated as expr IS NULL, that is, they return
@@ -1993,10 +1996,10 @@ type PostgresConf struct {
 	UpdateProcessTitle bool `json:"update_process_title,omitempty" yaml:"update_process_title,omitempty" mapstructure:"update_process_title,omitempty"`
 
 	// Sets the buffer pool size for VACUUM, ANALYZE, and autovacuum.
-	VacuumBufferUsageLimit string `json:"vacuum_buffer_usage_limit,omitempty" yaml:"vacuum_buffer_usage_limit,omitempty" mapstructure:"vacuum_buffer_usage_limit,omitempty"`
+	VacuumBufferUsageLimit *types.Size `json:"vacuum_buffer_usage_limit,omitempty" yaml:"vacuum_buffer_usage_limit,omitempty" mapstructure:"vacuum_buffer_usage_limit,omitempty"`
 
 	// Vacuum cost delay in milliseconds.
-	VacuumCostDelay string `json:"vacuum_cost_delay,omitempty" yaml:"vacuum_cost_delay,omitempty" mapstructure:"vacuum_cost_delay,omitempty"`
+	VacuumCostDelay *types.Duration `json:"vacuum_cost_delay,omitempty" yaml:"vacuum_cost_delay,omitempty" mapstructure:"vacuum_cost_delay,omitempty"`
 
 	// Vacuum cost amount available before napping.
 	VacuumCostLimit int `json:"vacuum_cost_limit,omitempty" yaml:"vacuum_cost_limit,omitempty" mapstructure:"vacuum_cost_limit,omitempty"`
@@ -2005,10 +2008,10 @@ type PostgresConf struct {
 	VacuumCostPageDirty int `json:"vacuum_cost_page_dirty,omitempty" yaml:"vacuum_cost_page_dirty,omitempty" mapstructure:"vacuum_cost_page_dirty,omitempty"`
 
 	// Vacuum cost for a page found in the buffer cache.
-	VacuumCostPageHit string `json:"vacuum_cost_page_hit,omitempty" yaml:"vacuum_cost_page_hit,omitempty" mapstructure:"vacuum_cost_page_hit,omitempty"`
+	VacuumCostPageHit *types.Size `json:"vacuum_cost_page_hit,omitempty" yaml:"vacuum_cost_page_hit,omitempty" mapstructure:"vacuum_cost_page_hit,omitempty"`
 
 	// Vacuum cost for a page not found in the buffer cache.
-	VacuumCostPageMiss string `json:"vacuum_cost_page_miss,omitempty" yaml:"vacuum_cost_page_miss,omitempty" mapstructure:"vacuum_cost_page_miss,omitempty"`
+	VacuumCostPageMiss *types.Size `json:"vacuum_cost_page_miss,omitempty" yaml:"vacuum_cost_page_miss,omitempty" mapstructure:"vacuum_cost_page_miss,omitempty"`
 
 	// Age at which VACUUM should trigger failsafe to avoid a wraparound outage.
 	VacuumFailsafeAge int `json:"vacuum_failsafe_age,omitempty" yaml:"vacuum_failsafe_age,omitempty" mapstructure:"vacuum_failsafe_age,omitempty"`
@@ -2031,20 +2034,20 @@ type PostgresConf struct {
 
 	// Sets the number of disk-page buffers in shared memory for WAL. Specify -1 to
 	// have this value determined as a fraction of shared_buffers.
-	WalBuffers string `json:"wal_buffers,omitempty" yaml:"wal_buffers,omitempty" mapstructure:"wal_buffers,omitempty"`
+	WalBuffers *types.Size `json:"wal_buffers,omitempty" yaml:"wal_buffers,omitempty" mapstructure:"wal_buffers,omitempty"`
 
 	// Compresses full-page writes written in WAL file with specified method.
 	WalCompression PostgresConfWalCompression `json:"wal_compression,omitempty" yaml:"wal_compression,omitempty" mapstructure:"wal_compression,omitempty"`
 
 	// Buffer size for reading ahead in the WAL during recovery. Maximum distance to
 	// read ahead in the WAL to prefetch referenced data blocks.
-	WalDecodeBufferSize string `json:"wal_decode_buffer_size,omitempty" yaml:"wal_decode_buffer_size,omitempty" mapstructure:"wal_decode_buffer_size,omitempty"`
+	WalDecodeBufferSize *types.Size `json:"wal_decode_buffer_size,omitempty" yaml:"wal_decode_buffer_size,omitempty" mapstructure:"wal_decode_buffer_size,omitempty"`
 
 	// Writes zeroes to new WAL files before first use.
 	WalInitZero bool `json:"wal_init_zero,omitempty" yaml:"wal_init_zero,omitempty" mapstructure:"wal_init_zero,omitempty"`
 
 	// Sets the size of WAL files held for standby servers.
-	WalKeepSize string `json:"wal_keep_size,omitempty" yaml:"wal_keep_size,omitempty" mapstructure:"wal_keep_size,omitempty"`
+	WalKeepSize *types.Size `json:"wal_keep_size,omitempty" yaml:"wal_keep_size,omitempty" mapstructure:"wal_keep_size,omitempty"`
 
 	// Sets the level of information written to the WAL.
 	WalLevel PostgresConfWalLevel `json:"wal_level,omitempty" yaml:"wal_level,omitempty" mapstructure:"wal_level,omitempty"`
@@ -2062,7 +2065,7 @@ type PostgresConf struct {
 	WalReceiverStatusInterval int `json:"wal_receiver_status_interval,omitempty" yaml:"wal_receiver_status_interval,omitempty" mapstructure:"wal_receiver_status_interval,omitempty"`
 
 	// Sets the maximum wait time to receive data from the sending server.
-	WalReceiverTimeout string `json:"wal_receiver_timeout,omitempty" yaml:"wal_receiver_timeout,omitempty" mapstructure:"wal_receiver_timeout,omitempty"`
+	WalReceiverTimeout *types.Duration `json:"wal_receiver_timeout,omitempty" yaml:"wal_receiver_timeout,omitempty" mapstructure:"wal_receiver_timeout,omitempty"`
 
 	// Recycles WAL files by renaming them.
 	WalRecycle bool `json:"wal_recycle,omitempty" yaml:"wal_recycle,omitempty" mapstructure:"wal_recycle,omitempty"`
@@ -2071,10 +2074,10 @@ type PostgresConf struct {
 	WalRetrieveRetryInterval int `json:"wal_retrieve_retry_interval,omitempty" yaml:"wal_retrieve_retry_interval,omitempty" mapstructure:"wal_retrieve_retry_interval,omitempty"`
 
 	// Sets the maximum time to wait for WAL replication.
-	WalSenderTimeout string `json:"wal_sender_timeout,omitempty" yaml:"wal_sender_timeout,omitempty" mapstructure:"wal_sender_timeout,omitempty"`
+	WalSenderTimeout *types.Duration `json:"wal_sender_timeout,omitempty" yaml:"wal_sender_timeout,omitempty" mapstructure:"wal_sender_timeout,omitempty"`
 
 	// Minimum size of new file to fsync instead of writing WAL.
-	WalSkipThreshold string `json:"wal_skip_threshold,omitempty" yaml:"wal_skip_threshold,omitempty" mapstructure:"wal_skip_threshold,omitempty"`
+	WalSkipThreshold *types.Size `json:"wal_skip_threshold,omitempty" yaml:"wal_skip_threshold,omitempty" mapstructure:"wal_skip_threshold,omitempty"`
 
 	// Time for which WAL summary files should be kept.
 	WalSummaryKeepTime int `json:"wal_summary_keep_time,omitempty" yaml:"wal_summary_keep_time,omitempty" mapstructure:"wal_summary_keep_time,omitempty"`
@@ -2091,7 +2094,7 @@ type PostgresConf struct {
 	// Sets the maximum memory to be used for query workspaces. This much memory can
 	// be used by each internal sort operation and hash table before switching to
 	// temporary disk files.
-	WorkMem string `json:"work_mem,omitempty" yaml:"work_mem,omitempty" mapstructure:"work_mem,omitempty"`
+	WorkMem *types.Size `json:"work_mem,omitempty" yaml:"work_mem,omitempty" mapstructure:"work_mem,omitempty"`
 
 	// Sets how binary values are to be encoded in XML.
 	Xmlbinary string `json:"xmlbinary,omitempty" yaml:"xmlbinary,omitempty" mapstructure:"xmlbinary,omitempty"`
@@ -2555,7 +2558,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.ArrayNulls = false
 	}
 	if v, ok := raw["authentication_timeout"]; !ok || v == nil {
-		plain.AuthenticationTimeout = "0"
+		plain.AuthenticationTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.AuthenticationTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "AuthenticationTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -2612,7 +2615,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "autovacuum_naptime", 1)
 	}
 	if v, ok := raw["autovacuum_vacuum_cost_delay"]; !ok || v == nil {
-		plain.AutovacuumVacuumCostDelay = "0"
+		plain.AutovacuumVacuumCostDelay = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.AutovacuumVacuumCostDelay)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "AutovacuumVacuumCostDelay", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -2654,7 +2657,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "autovacuum_vacuum_threshold", 2147483647)
 	}
 	if v, ok := raw["autovacuum_work_mem"]; !ok || v == nil {
-		plain.AutovacuumWorkMem = "0"
+		plain.AutovacuumWorkMem = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.AutovacuumWorkMem)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "AutovacuumWorkMem", `^[0-9]+[kMGT]?B$`)
@@ -2690,7 +2693,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "bgwriter_lru_maxpages", 1073741823)
 	}
 	if v, ok := raw["bgwriter_lru_multiplier"]; !ok || v == nil {
-		plain.BgwriterLruMultiplier = "0"
+		plain.BgwriterLruMultiplier = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.BgwriterLruMultiplier)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "BgwriterLruMultiplier", `^[0-9]+[kMGT]?B$`)
@@ -2705,10 +2708,10 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.CheckFunctionBodies = false
 	}
 	if v, ok := raw["checkpoint_completion_target"]; !ok || v == nil {
-		plain.CheckpointCompletionTarget = 0.0
+		plain.CheckpointCompletionTarget = types.ParseSize("0")
 	}
-	if 1 < plain.CheckpointCompletionTarget {
-		return fmt.Errorf("field %s: must be <= %v", "checkpoint_completion_target", 1)
+	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.CheckpointCompletionTarget)); !matched {
+		return fmt.Errorf("field %s pattern match: must match %s", "CheckpointCompletionTarget", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["checkpoint_flush_after"]; !ok || v == nil {
 		plain.CheckpointFlushAfter = 0.0
@@ -2717,7 +2720,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "checkpoint_flush_after", 256)
 	}
 	if v, ok := raw["checkpoint_timeout"]; !ok || v == nil {
-		plain.CheckpointTimeout = "0"
+		plain.CheckpointTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.CheckpointTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "CheckpointTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -2753,7 +2756,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "commit_siblings", 1000)
 	}
 	if v, ok := raw["commit_timestamp_buffers"]; !ok || v == nil {
-		plain.CommitTimestampBuffers = "0"
+		plain.CommitTimestampBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.CommitTimestampBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "CommitTimestampBuffers", `^[0-9]+[kMGT]?B$`)
@@ -2792,7 +2795,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.DataSyncRetry = false
 	}
 	if v, ok := raw["deadlock_timeout"]; !ok || v == nil {
-		plain.DeadlockTimeout = "0"
+		plain.DeadlockTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.DeadlockTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "DeadlockTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -2840,13 +2843,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.DynamicLibraryPath = "$libdir"
 	}
 	if v, ok := raw["dynamic_shared_memory_type"]; !ok || v == nil {
-		plain.DynamicSharedMemoryType = "posix"
+		plain.DynamicSharedMemoryType = types.ParseSize("posix")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.DynamicSharedMemoryType)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "DynamicSharedMemoryType", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["effective_cache_size"]; !ok || v == nil {
-		plain.EffectiveCacheSize = "0"
+		plain.EffectiveCacheSize = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.EffectiveCacheSize)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "EffectiveCacheSize", `^[0-9]+[kMGT]?B$`)
@@ -3014,7 +3017,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "gin_fuzzy_search_limit", 2147483647)
 	}
 	if v, ok := raw["gin_pending_list_limit"]; !ok || v == nil {
-		plain.GinPendingListLimit = "0"
+		plain.GinPendingListLimit = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.GinPendingListLimit)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "GinPendingListLimit", `^[0-9]+[kMGT]?B$`)
@@ -3038,7 +3041,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.HotStandbyFeedback = false
 	}
 	if v, ok := raw["huge_page_size"]; !ok || v == nil {
-		plain.HugePageSize = "0"
+		plain.HugePageSize = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.HugePageSize)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "HugePageSize", `^[0-9]+[kMGT]?B$`)
@@ -3050,19 +3053,19 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.IcuValidationLevel = "warning"
 	}
 	if v, ok := raw["idle_in_transaction_session_timeout"]; !ok || v == nil {
-		plain.IdleInTransactionSessionTimeout = "0"
+		plain.IdleInTransactionSessionTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.IdleInTransactionSessionTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "IdleInTransactionSessionTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
 	}
 	if v, ok := raw["idle_session_timeout"]; !ok || v == nil {
-		plain.IdleSessionTimeout = "0"
+		plain.IdleSessionTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.IdleSessionTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "IdleSessionTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
 	}
 	if v, ok := raw["io_combine_limit"]; !ok || v == nil {
-		plain.IoCombineLimit = "0"
+		plain.IoCombineLimit = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.IoCombineLimit)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "IoCombineLimit", `^[0-9]+[kMGT]?B$`)
@@ -3131,7 +3134,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.LoCompatPrivileges = false
 	}
 	if v, ok := raw["lock_timeout"]; !ok || v == nil {
-		plain.LockTimeout = "0"
+		plain.LockTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.LockTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "LockTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -3272,7 +3275,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.LogStatementStats = false
 	}
 	if v, ok := raw["log_temp_files"]; !ok || v == nil {
-		plain.LogTempFiles = "0"
+		plain.LogTempFiles = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.LogTempFiles)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "LogTempFiles", `^[0-9]+[kMGT]?B$`)
@@ -3293,7 +3296,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.LoggingCollector = false
 	}
 	if v, ok := raw["logical_decoding_work_mem"]; !ok || v == nil {
-		plain.LogicalDecodingWorkMem = "0"
+		plain.LogicalDecodingWorkMem = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.LogicalDecodingWorkMem)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "LogicalDecodingWorkMem", `^[0-9]+[kMGT]?B$`)
@@ -3305,7 +3308,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "maintenance_io_concurrency", 1000)
 	}
 	if v, ok := raw["maintenance_work_mem"]; !ok || v == nil {
-		plain.MaintenanceWorkMem = "0"
+		plain.MaintenanceWorkMem = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MaintenanceWorkMem)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MaintenanceWorkMem", `^[0-9]+[kMGT]?B$`)
@@ -3401,7 +3404,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "max_pred_locks_per_transaction", 10)
 	}
 	if v, ok := raw["max_prepared_transactions"]; !ok || v == nil {
-		plain.MaxPreparedTransactions = "0"
+		plain.MaxPreparedTransactions = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MaxPreparedTransactions)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MaxPreparedTransactions", `^[0-9]+[kMGT]?B$`)
@@ -3422,7 +3425,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "max_slot_wal_keep_size", -1)
 	}
 	if v, ok := raw["max_stack_depth"]; !ok || v == nil {
-		plain.MaxStackDepth = "0"
+		plain.MaxStackDepth = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MaxStackDepth)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MaxStackDepth", `^[0-9]+[kMGT]?B$`)
@@ -3473,7 +3476,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "max_worker_processes", 262143)
 	}
 	if v, ok := raw["min_dynamic_shared_memory"]; !ok || v == nil {
-		plain.MinDynamicSharedMemory = "0"
+		plain.MinDynamicSharedMemory = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MinDynamicSharedMemory)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MinDynamicSharedMemory", `^[0-9]+[kMGT]?B$`)
@@ -3500,19 +3503,19 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "min_wal_size", 2)
 	}
 	if v, ok := raw["multixact_member_buffers"]; !ok || v == nil {
-		plain.MultixactMemberBuffers = "0"
+		plain.MultixactMemberBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MultixactMemberBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MultixactMemberBuffers", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["multixact_offset_buffers"]; !ok || v == nil {
-		plain.MultixactOffsetBuffers = "0"
+		plain.MultixactOffsetBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.MultixactOffsetBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "MultixactOffsetBuffers", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["notify_buffers"]; !ok || v == nil {
-		plain.NotifyBuffers = "0"
+		plain.NotifyBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.NotifyBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "NotifyBuffers", `^[0-9]+[kMGT]?B$`)
@@ -3566,7 +3569,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "recovery_min_apply_delay", 2147483647)
 	}
 	if v, ok := raw["recovery_prefetch"]; !ok || v == nil {
-		plain.RecoveryPrefetch = "try"
+		plain.RecoveryPrefetch = types.ParseSize("try")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.RecoveryPrefetch)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "RecoveryPrefetch", `^[0-9]+[kMGT]?B$`)
@@ -3581,7 +3584,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.RecoveryTargetTimeline = "latest"
 	}
 	if v, ok := raw["recursive_worktable_factor"]; !ok || v == nil {
-		plain.RecursiveWorktableFactor = "0"
+		plain.RecursiveWorktableFactor = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.RecursiveWorktableFactor)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "RecursiveWorktableFactor", `^[0-9]+[kMGT]?B$`)
@@ -3617,7 +3620,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "seq_page_cost", 1.79769e+308)
 	}
 	if v, ok := raw["serializable_buffers"]; !ok || v == nil {
-		plain.SerializableBuffers = "0"
+		plain.SerializableBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.SerializableBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "SerializableBuffers", `^[0-9]+[kMGT]?B$`)
@@ -3626,13 +3629,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.SessionReplicationRole = "origin"
 	}
 	if v, ok := raw["shared_buffers"]; !ok || v == nil {
-		plain.SharedBuffers = "0"
+		plain.SharedBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.SharedBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "SharedBuffers", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["shared_memory_type"]; !ok || v == nil {
-		plain.SharedMemoryType = "mmap"
+		plain.SharedMemoryType = types.ParseSize("mmap")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.SharedMemoryType)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "SharedMemoryType", `^[0-9]+[kMGT]?B$`)
@@ -3665,7 +3668,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.StandardConformingStrings = false
 	}
 	if v, ok := raw["statement_timeout"]; !ok || v == nil {
-		plain.StatementTimeout = "0"
+		plain.StatementTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.StatementTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "StatementTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -3674,7 +3677,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.StatsFetchConsistency = "cache"
 	}
 	if v, ok := raw["subtransaction_buffers"]; !ok || v == nil {
-		plain.SubtransactionBuffers = "0"
+		plain.SubtransactionBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.SubtransactionBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "SubtransactionBuffers", `^[0-9]+[kMGT]?B$`)
@@ -3728,19 +3731,19 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "tcp_keepalives_interval", 2147483647)
 	}
 	if v, ok := raw["tcp_user_timeout"]; !ok || v == nil {
-		plain.TcpUserTimeout = "0"
+		plain.TcpUserTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.TcpUserTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "TcpUserTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
 	}
 	if v, ok := raw["temp_buffers"]; !ok || v == nil {
-		plain.TempBuffers = "0"
+		plain.TempBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.TempBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "TempBuffers", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["temp_file_limit"]; !ok || v == nil {
-		plain.TempFileLimit = "0"
+		plain.TempFileLimit = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.TempFileLimit)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "TempFileLimit", `^[0-9]+[kMGT]?B$`)
@@ -3773,13 +3776,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.TrackWalIoTiming = false
 	}
 	if v, ok := raw["transaction_buffers"]; !ok || v == nil {
-		plain.TransactionBuffers = "0"
+		plain.TransactionBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.TransactionBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "TransactionBuffers", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["transaction_timeout"]; !ok || v == nil {
-		plain.TransactionTimeout = "0"
+		plain.TransactionTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.TransactionTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "TransactionTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -3800,13 +3803,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.UpdateProcessTitle = false
 	}
 	if v, ok := raw["vacuum_buffer_usage_limit"]; !ok || v == nil {
-		plain.VacuumBufferUsageLimit = "0"
+		plain.VacuumBufferUsageLimit = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.VacuumBufferUsageLimit)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "VacuumBufferUsageLimit", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["vacuum_cost_delay"]; !ok || v == nil {
-		plain.VacuumCostDelay = "0"
+		plain.VacuumCostDelay = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.VacuumCostDelay)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "VacuumCostDelay", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -3827,13 +3830,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "vacuum_cost_page_dirty", 10000)
 	}
 	if v, ok := raw["vacuum_cost_page_hit"]; !ok || v == nil {
-		plain.VacuumCostPageHit = "0"
+		plain.VacuumCostPageHit = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.VacuumCostPageHit)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "VacuumCostPageHit", `^[0-9]+[kMGT]?B$`)
 	}
 	if v, ok := raw["vacuum_cost_page_miss"]; !ok || v == nil {
-		plain.VacuumCostPageMiss = "0"
+		plain.VacuumCostPageMiss = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.VacuumCostPageMiss)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "VacuumCostPageMiss", `^[0-9]+[kMGT]?B$`)
@@ -3875,7 +3878,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "vacuum_multixact_freeze_table_age", 2000000000)
 	}
 	if v, ok := raw["wal_buffers"]; !ok || v == nil {
-		plain.WalBuffers = "0"
+		plain.WalBuffers = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.WalBuffers)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalBuffers", `^[0-9]+[kMGT]?B$`)
@@ -3884,7 +3887,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.WalCompression = "off"
 	}
 	if v, ok := raw["wal_decode_buffer_size"]; !ok || v == nil {
-		plain.WalDecodeBufferSize = "0"
+		plain.WalDecodeBufferSize = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.WalDecodeBufferSize)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalDecodeBufferSize", `^[0-9]+[kMGT]?B$`)
@@ -3893,7 +3896,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		plain.WalInitZero = false
 	}
 	if v, ok := raw["wal_keep_size"]; !ok || v == nil {
-		plain.WalKeepSize = "0"
+		plain.WalKeepSize = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.WalKeepSize)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalKeepSize", `^[0-9]+[kMGT]?B$`)
@@ -3914,7 +3917,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "wal_receiver_status_interval", 2147483)
 	}
 	if v, ok := raw["wal_receiver_timeout"]; !ok || v == nil {
-		plain.WalReceiverTimeout = "0"
+		plain.WalReceiverTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.WalReceiverTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalReceiverTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
@@ -3932,13 +3935,13 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "wal_retrieve_retry_interval", 1)
 	}
 	if v, ok := raw["wal_sender_timeout"]; !ok || v == nil {
-		plain.WalSenderTimeout = "0"
+		plain.WalSenderTimeout = types.ParseDuration("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+(us|ms|s|min|h|d)?$`, string(plain.WalSenderTimeout)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalSenderTimeout", `^[0-9]+(us|ms|s|min|h|d)?$`)
 	}
 	if v, ok := raw["wal_skip_threshold"]; !ok || v == nil {
-		plain.WalSkipThreshold = "0"
+		plain.WalSkipThreshold = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.WalSkipThreshold)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WalSkipThreshold", `^[0-9]+[kMGT]?B$`)
@@ -3968,7 +3971,7 @@ func (j *PostgresConf) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s: must be <= %v", "wal_writer_flush_after", 2147483647)
 	}
 	if v, ok := raw["work_mem"]; !ok || v == nil {
-		plain.WorkMem = "0"
+		plain.WorkMem = types.ParseSize("0")
 	}
 	if matched, _ := regexp.MatchString(`^[0-9]+[kMGT]?B$`, string(plain.WorkMem)); !matched {
 		return fmt.Errorf("field %s pattern match: must match %s", "WorkMem", `^[0-9]+[kMGT]?B$`)

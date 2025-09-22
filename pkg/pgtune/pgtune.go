@@ -167,8 +167,8 @@ func ApplyPostProcessors(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) error {
 	// Create tuning config from the PostgresConf and system info
 	maxConn := 100 // default value
-	if pgConf.MaxConnections != nil {
-		maxConn = *pgConf.MaxConnections
+	if pgConf.MaxConnections != 0 {
+		maxConn = pgConf.MaxConnections
 	}
 	config := &TuningConfig{
 		SystemInfo:     sysInfo,
@@ -184,9 +184,9 @@ func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 	}
 
 	// Update the PostgresConf model with the calculated values
-	pgConf.MaxConnections = &params.MaxConnections
+	pgConf.MaxConnections = params.MaxConnections
 	sharedBuffersSize := types.Size(utils.KBToBytes(params.SharedBuffers))
-	pgConf.SharedBuffers = &sharedBuffersSize
+	pgConf.SharedBuffers = sharedBuffersSize.String()
 
 	// Only set fields that exist in the new PostgresConf struct
 	// The rest will be handled by the generators when creating config files

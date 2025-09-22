@@ -116,13 +116,13 @@ func (p *Postgres) Health() error {
 
 	// Use pg_isready to check if server is accepting connections
 	host := "localhost"
-	if p.Config != nil && p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" {
-		host = *p.Config.ListenAddresses
+	if p.Config != nil && p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" {
+		host = p.Config.ListenAddresses
 	}
 
 	port := 5432
-	if p.Config != nil && p.Config.Port != nil && *p.Config.Port != 0 {
-		port = *p.Config.Port
+	if p.Config != nil && p.Config.Port != 0 {
+		port = p.Config.Port
 	}
 
 	cmd := exec.Command(
@@ -232,11 +232,11 @@ func (p *Postgres) SQL(sqlQuery string) ([]map[string]interface{}, error) {
 
 	// Use config values if available
 	if p.Config != nil {
-		if p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" {
-			host = *p.Config.ListenAddresses
+		if p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" {
+			host = p.Config.ListenAddresses
 		}
-		if p.Config.Port != nil && *p.Config.Port != 0 {
-			port = *p.Config.Port
+		if p.Config.Port != 0 {
+			port = p.Config.Port
 		}
 		// No SuperuserPassword field available in PostgresConf
 	}
@@ -310,11 +310,11 @@ func (p *Postgres) Backup() error {
 
 	// Use config values if available
 	if p.Config != nil {
-		if p.Config.ListenAddresses != nil && *p.Config.ListenAddresses != "" && *p.Config.ListenAddresses != "*" && *p.Config.ListenAddresses != "localhost" {
-			host = *p.Config.ListenAddresses
+		if p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" && p.Config.ListenAddresses != "localhost" {
+			host = p.Config.ListenAddresses
 		}
-		if p.Config.Port != nil && *p.Config.Port != 0 {
-			port = *p.Config.Port
+		if p.Config.Port != 0 {
+			port = p.Config.Port
 		}
 	}
 
@@ -940,8 +940,8 @@ func (p *Postgres) installSingleExtension(originalName, extensionName string) er
 	port := 5432
 
 	// Use config values if available
-	if p.Config != nil && p.Config.Port != nil && *p.Config.Port != 0 {
-		port = *p.Config.Port
+	if p.Config != nil && p.Config.Port != 0 {
+		port = p.Config.Port
 	}
 
 	// For localhost, generally no password needed with trust auth

@@ -1,3 +1,4 @@
+hack/
 schema/generate-schema
 .task
 test/reports/

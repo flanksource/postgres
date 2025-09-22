@@ -196,6 +196,15 @@ func (sg *SchemaGenerator) isSensitiveParam(name string) bool {
 
 // detectXType determines if a parameter should be treated as a special type based on PostgreSQL metadata
 func (sg *SchemaGenerator) detectXType(param schemas.Param) string {
+	// Exclude parameters that should remain as regular types
+	excludeFromXType := []string{
+		"checkpoint_completion_target", // Float between 0-1, not a size
+	}
+	for _, excluded := range excludeFromXType {
+		if param.Name == excluded {
+			return ""
+		}
+	}
 
 	// First check the unit field from describe-config - this is the most reliable indicator
 	switch param.Unit {
@@ -204,6 +213,79 @@ func (sg *SchemaGenerator) detectXType(param schemas.Param) string {
 	case "8kB": // PostgreSQL block size units
 		return "Size"
 	case "ms", "s", "min", "h", "d":
+		return "Duration"
+	}
+
+	// Also check if it's a memory parameter based on category
+	if param.Category == "Resource Usage / Memory" && param.VarType == "integer" {
+		return "Size"
+	}
+
+	// Add specific memory-related parameters that should be Size type
+	// These parameters commonly accept size values (e.g., "4GB", "16MB") in configurations
+	memoryParams := []string{
+		"effective_cache_size",      // Planner memory assumption
+		"wal_buffers",              // WAL memory buffers 
+		"temp_buffers",             // Temporary buffer memory
+		"min_dynamic_shared_memory", // Minimum dynamic shared memory
+		"huge_page_size",           // Huge page size
+		"log_temp_files",           // Log temporary files above this size
+		"logical_decoding_work_mem", // Memory for logical decoding
+		"max_stack_depth",          // Maximum stack depth
+		"vacuum_buffer_usage_limit", // Vacuum buffer usage limit
+		"backend_flush_after",      // Backend flush after pages
+		"gin_pending_list_limit",   // GIN pending list size limit
+		"log_rotation_size",        // Log rotation size
+		"temp_file_limit",          // Temporary file size limit
+		"max_slot_wal_keep_size",   // Max WAL kept for slots
+		"wal_keep_size",            // WAL keep size
+		"autovacuum_work_mem",      // Autovacuum working memory
+		"maintenance_work_mem",     // Maintenance work memory
+		"shared_buffers",           // Shared buffer pool size
+		"work_mem",                 // Working memory for sorts/hashes
+	}
+	for _, mp := range memoryParams {
+		if param.Name == mp {
+			return "Size"
+		}
+	}
+
+	// Check parameter names for time-related parameters
+	timeParams := []string{
+		"statement_timeout", "lock_timeout", "idle_in_transaction_session_timeout",
+		"checkpoint_timeout", "wal_receiver_timeout", "wal_sender_timeout",
+		"deadlock_timeout", "authentication_timeout", "tcp_user_timeout",
+		"idle_session_timeout", "transaction_timeout", "archive_timeout",
+		"log_autovacuum_min_duration", "log_min_duration_statement",
+		"autovacuum_vacuum_cost_delay", "vacuum_cost_delay",
+		"log_rotation_age", "client_connection_check_interval",
+		"tcp_keepalives_idle", "tcp_keepalives_interval", "checkpoint_warning",
+		"bgwriter_delay", "wal_writer_delay",
+	}
+	for _, tp := range timeParams {
+		if param.Name == tp {
+			return "Duration"
+		}
+	}
+
+	// Heuristic detection based on parameter names for size-related parameters
+	paramName := strings.ToLower(param.Name)
+	if strings.Contains(paramName, "buffer") || 
+	   strings.Contains(paramName, "_mem") ||
+	   strings.Contains(paramName, "mem_") ||
+	   strings.Contains(paramName, "memory") ||
+	   strings.Contains(paramName, "cache") ||
+	   (strings.Contains(paramName, "size") && param.VarType == "integer") {
+		return "Size"
+	}
+
+	// Heuristic detection for duration parameters
+	if strings.Contains(paramName, "timeout") ||
+	   strings.Contains(paramName, "delay") ||
+	   strings.Contains(paramName, "duration") ||
+	   strings.Contains(paramName, "interval") ||
+	   strings.Contains(paramName, "age") ||
+	   strings.Contains(paramName, "warning") {
 		return "Duration"
 	}
 

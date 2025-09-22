@@ -525,20 +525,12 @@ pgaudit:
 		t.Fatal("Postgres config is nil")
 	}
 
-	if conf.Postgres.Port == nil || *conf.Postgres.Port != 9999 {
-		if conf.Postgres.Port == nil {
-			t.Error("Expected port 9999, got nil")
-		} else {
-			t.Errorf("Expected port 9999, got %d", *conf.Postgres.Port)
-		}
+	if conf.Postgres.Port != 9999 {
+		t.Errorf("Expected port 9999, got %d", conf.Postgres.Port)
 	}
 
-	if conf.Postgres.MaxConnections == nil || *conf.Postgres.MaxConnections != 50 {
-		if conf.Postgres.MaxConnections == nil {
-			t.Error("Expected max_connections 50, got nil")
-		} else {
-			t.Errorf("Expected max_connections 50, got %d", *conf.Postgres.MaxConnections)
-		}
+	if conf.Postgres.MaxConnections != 50 {
+		t.Errorf("Expected max_connections 50, got %d", conf.Postgres.MaxConnections)
 	}
 
 	if conf.Pgbouncer == nil || conf.Pgbouncer.ListenPort != 7777 {

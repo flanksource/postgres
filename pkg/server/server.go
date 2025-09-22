@@ -859,7 +859,7 @@ func (s *HealthServer) initializeHealthChecker() {
 
 	// Always create PostgreSQL service
 	if s.PostgresConfig != nil {
-		postgresService = pkg.NewPostgres(s.PostgresConfig, s.ConfigDir)
+		postgresService = NewPostgres(s.PostgresConfig, s.ConfigDir)
 		enabledServices = append(enabledServices, "postgresql")
 	}
 
@@ -942,9 +942,9 @@ func (s *HealthServer) LoadServiceConfigs() {
 	listenAddr := "localhost"
 	port := 5432
 	s.PostgresConfig = &pkg.PostgresConf{
-		ListenAddresses: &listenAddr,
-		Port:            &port,
-		MaxConnections:  &s.MaxConn,
+		ListenAddresses: listenAddr,
+		Port:            port,
+		MaxConnections:  s.MaxConn,
 		// Other defaults will be set by struct tags
 	}
 

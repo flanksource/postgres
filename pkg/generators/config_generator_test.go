@@ -60,16 +60,16 @@ func TestConfigGenerator_GenerateFullYAML(t *testing.T) {
 			name: "formats_different_field_types",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:                       intPtr(5432),
-					MaxConnections:             intPtr(200),
-					SharedBuffers:              sizePtr(262144),
-					EffectiveCacheSize:         sizePtr(131072),
-					MaintenanceWorkMem:         sizePtr(65536),
-					CheckpointCompletionTarget: float64Ptr(0.9),
-					WalBuffers:                 sizePtr(2048),
-					RandomPageCost:             float64Ptr(4.0),
-					EffectiveIoConcurrency:     intPtr(1),
-					WorkMem:                    sizePtr(4096),
+					Port:                       5432,
+					MaxConnections:             200,
+					SharedBuffers:              "256kB",
+					EffectiveCacheSize:         "131072",
+					MaintenanceWorkMem:         "64kB",
+					CheckpointCompletionTarget: 0.9,
+					WalBuffers:                 "2048",
+					RandomPageCost:             4.0,
+					EffectiveIoConcurrency:     1,
+					WorkMem:                    "4kB",
 				},
 			},
 			contains: []string{
@@ -131,9 +131,9 @@ func TestConfigGenerator_GenerateMinimalYAML(t *testing.T) {
 			name: "non_default_postgres_values_included",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           intPtr(9999),
-					MaxConnections: intPtr(500),
-					SharedBuffers:  sizePtr(524288), // 512MB in 8KB pages
+					Port:           9999,
+					MaxConnections: 500,
+					SharedBuffers:  "512MB", // 512MB
 				},
 			},
 			contains: []string{
@@ -169,7 +169,7 @@ func TestConfigGenerator_GenerateMinimalYAML(t *testing.T) {
 			name: "mixed_sections_only_non_defaults_shown",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port: intPtr(5433),
+					Port: 5433,
 				},
 				Walg: &pkg.WalgConf{
 					S3Prefix: stringPtr("s3://my-backup-bucket"),
@@ -382,9 +382,9 @@ func TestConfigGenerator_YAMLValidation(t *testing.T) {
 			name: "complex_config",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           intPtr(5432),
-					MaxConnections: intPtr(100),
-					SharedBuffers:  sizePtr(131072), // 128MB in 8KB pages
+					Port:           5432,
+					MaxConnections: 100,
+					SharedBuffers:  "128MB", // 128MB
 				},
 				Pgbouncer: &pkg.PgBouncerConf{
 					ListenPort:      6432,
@@ -458,9 +458,9 @@ func TestHasNonDefaults(t *testing.T) {
 			name: "all_defaults_returns_false",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           intPtr(5432),
-					MaxConnections: intPtr(100),
-					SharedBuffers:  sizePtr(128 * 1024 * 1024), // 128MB in bytes
+					Port:           5432,
+					MaxConnections: 100,
+					SharedBuffers:  "128MB", // 128MB
 				},
 			},
 			prefix:   "postgres",
@@ -470,9 +470,9 @@ func TestHasNonDefaults(t *testing.T) {
 			name: "non_default_port_returns_true",
 			conf: &pkg.PostgreSQLConfiguration{
 				Postgres: &pkg.PostgresConf{
-					Port:           intPtr(9999),
-					MaxConnections: intPtr(100),
-					SharedBuffers:  sizePtr(128 * 1024 * 1024), // 128MB in bytes
+					Port:           9999,
+					MaxConnections: 100,
+					SharedBuffers:  "128MB", // 128MB
 				},
 			},
 			prefix:   "postgres",
