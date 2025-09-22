@@ -9,6 +9,8 @@ output:
 vars:
   SCHEMA_FILE: "schema/pgconfig-schema.json"
   GENERATED_FILE: "pkg/model_generated.go"
+  CLI_NAME: "postgres-cli"
+  GOBIN: '{{.GOBIN | default "$(go env GOPATH)/bin"}}'
 
 tasks:
   generate-schema:
@@ -18,7 +20,7 @@ tasks:
       - "{{.GENERATED_FILE}}"
     cmds:
       - echo "Generating JSON schema and Go structs from PostgreSQL configuration..."
-      - go run cmd/schema/main.go
+      - go run ./cmd schema generate --output {{.SCHEMA_FILE}}
       - "echo ✅ Generated schema and structs with custom pointer types"
 
   validate-schema:
@@ -40,93 +42,61 @@ tasks:
         fi
       - echo "✅ Schema validation completed"
 
-  build-pgconfig:
-    desc: Build the pgconfig CLI tool
-    deps:
-      - generate-schema
+  cli:build:
+    desc: Build the postgres-cli and install to GOBIN
     sources:
-      - "cmd/pgconfig/**/*.go"
+      - "cmd/**/*.go"
       - "pkg/**/*.go"
-    generates:
-      - "pgconfig"
     cmds:
-      - echo "Building pgconfig CLI tool..."
-      - go build -o pgconfig ./cmd/pgconfig
-      - echo "✅ Built pgconfig CLI tool"
+      - echo "Building postgres-cli..."
+      - |
+        GOBIN_PATH="$(go env GOPATH)/bin"
+        echo "Installing to: $GOBIN_PATH/{{.CLI_NAME}}"
+        go build -ldflags "-s -w" -o "$GOBIN_PATH/{{.CLI_NAME}}" ./cmd
+      - echo "✅ Built and installed {{.CLI_NAME}} to $(go env GOPATH)/bin"
     method: timestamp
 
-  test-config:
-    desc: Run configuration tests
-    deps:
-      - generate-schema
+  cli:install:
+    desc: Install the CLI to GOBIN (alias for cli:build)
     cmds:
-      - echo "Running configuration tests..."
-      - go test ./pkg -v -run "TestConfig|TestLoad|TestGenerate|TestSchema|TestValidation"
-      - echo "✅ Configuration tests passed"
+      - task: cli:build
 
-  test-config-integration:
-    desc: Run configuration integration tests
-    deps:
-      - build-pgconfig
+  cli:test:
+    desc: Run all CLI-related tests
     cmds:
-      - echo "Running configuration integration tests..."
-      - go test ./test -v -run "TestConfig.*Integration" || echo "Integration tests not yet implemented"
-      - echo "✅ Configuration integration tests completed"
+      - echo "Running CLI tests..."
+      - go test ./cmd/... ./pkg/... -v -cover
+      - echo "✅ CLI tests passed"
 
-  test-all:
-    desc: Run all configuration-related tests
-    deps:
-      - validate-schema
-      - generate-schema
+  cli:ci:
+    desc: Run complete CI pipeline for CLI
     cmds:
-      - task: test-config
-      - task: test-config-integration
+      - task: check-dependencies
+      - task: cli:build
+      - task: cli:test
+      - echo "🎉 CLI CI pipeline completed successfully"
 
   clean-generated:
     desc: Remove generated configuration files
     cmds:
       - echo "Cleaning generated configuration files..."
       - rm -f {{.GENERATED_FILE}}
-      - rm -f pgconfig
+      - rm -f "$(go env GOPATH)/bin/{{.CLI_NAME}}"
       - echo "✅ Cleaned generated files"
 
-  generate-test-configs:
-    desc: Generate test configuration files using pgconfig CLI
-    deps:
-      - build-pgconfig
+  cli:fmt:
+    desc: Format CLI code
     cmds:
-      - echo "Generating test configuration files..."
-      - mkdir -p test/generated-configs
-      - ./pgconfig generate --output-dir test/generated-configs --validate
-      - echo "✅ Generated test configurations in test/generated-configs/"
+      - echo "Formatting CLI code..."
+      - go fmt ./cmd/... ./pkg/...
+      - echo "✅ CLI code formatted"
 
-  validate-generated-configs:
-    desc: Validate generated configuration files
-    deps:
-      - generate-test-configs
+  cli:lint:
+    desc: Lint CLI code
     cmds:
-      - echo "Validating generated configuration files..."
-      - ./pgconfig validate postgres --file test/generated-configs/postgresql.conf
-      - ./pgconfig validate pgbouncer --file test/generated-configs/pgbouncer.ini
-      - ./pgconfig validate postgrest --file test/generated-configs/postgrest.conf
-      - echo "✅ All generated configurations are valid"
-
-  lint-config:
-    desc: Lint configuration-related Go code
-    cmds:
-      - echo "Linting configuration code..."
-      - gofmt -l pkg/config.go pkg/utils/defaults.go || echo "Formatting issues found"
-      - go vet ./pkg/config.go ./pkg/utils/defaults.go
-      - echo "✅ Configuration code linting completed"
-
-  benchmark-config:
-    desc: Run configuration loading benchmarks
-    deps:
-      - generate-schema
-    cmds:
-      - echo "Running configuration loading benchmarks..."
-      - go test -bench=BenchmarkConfig -benchmem ./pkg
-      - echo "✅ Configuration benchmarks completed"
+      - echo "Linting CLI code..."
+      - go vet ./cmd/... ./pkg/...
+      - echo "✅ CLI code linting completed"
 
   check-dependencies:
     desc: Check that all required dependencies are available
@@ -146,40 +116,25 @@ tasks:
       - echo "✅ All dependencies available"
 
   help:
-    desc: Show help for pgconfig tasks
+    desc: Show help for CLI tasks
     cmds:
-      - echo "PGConfig Build Tasks:"
-      - echo "====================="
+      - echo "PostgreSQL CLI Build Tasks:"
+      - echo "============================"
       - echo ""
-      - echo "Generation Tasks:"
+      - echo "Schema Tasks:"
       - echo "  generate-schema        - Generate JSON schema and Go structs"
       - echo "  validate-schema        - Validate the JSON schema file"
-      - echo "  build-pgconfig         - Build the pgconfig CLI tool"
       - echo ""
-      - echo "Testing Tasks:"
-      - echo "  test-config            - Run configuration unit tests"
-      - echo "  test-config-integration- Run configuration integration tests"
-      - echo "  test-all               - Run all configuration tests"
-      - echo ""
-      - echo "Validation Tasks:"
-      - echo "  generate-test-configs  - Generate test configuration files"
-      - echo "  validate-generated-configs - Validate generated configurations"
+      - echo "CLI Build Tasks:"
+      - echo "  cli:build              - Build and install CLI to GOBIN"
+      - echo "  cli:install            - Install the CLI to GOBIN"
+      - echo "  cli:test               - Run all CLI tests"
+      - echo "  cli:ci                 - Run complete CI pipeline"
       - echo ""
       - echo "Utility Tasks:"
+      - echo "  cli:fmt                - Format CLI code"
+      - echo "  cli:lint               - Lint CLI code"
       - echo "  clean-generated        - Remove generated files"
-      - echo "  lint-config           - Lint configuration code"
-      - echo "  benchmark-config      - Run configuration benchmarks"
-      - echo "  check-dependencies    - Check required dependencies"
-      - echo "  help                  - Show this help message"
+      - echo "  check-dependencies     - Check required dependencies"
+      - echo "  help                   - Show this help message"
 
-  # Main workflow task that runs the complete pipeline
-  ci:
-    desc: Run complete CI pipeline for configuration system
-    cmds:
-      - task: check-dependencies
-      - task: validate-schema
-      - task: generate-schema
-      - task: lint-config
-      - task: test-all
-      - task: validate-generated-configs
-      - echo "🎉 Configuration CI pipeline completed successfully"

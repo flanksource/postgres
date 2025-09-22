@@ -158,26 +158,36 @@ tasks:
         fi
         docker exec postgres-container wal-g backup-fetch /var/lib/postgresql/data/pgdata {{.BACKUP_NAME}}
 
-  # Configuration tasks shortcuts
-  generate-structs:
-    desc: Generate Go structs from JSON schema
+  # CLI and Schema shortcuts
+  generate-schema:
+    desc: Generate JSON schema and Go structs
     cmds:
-      - task: pgconfig:generate-structs
+      - task: pgconfig:generate-schema
 
   validate-schema:
     desc: Validate the JSON schema file
     cmds:
       - task: pgconfig:validate-schema
 
-  build-pgconfig:
-    desc: Build the pgconfig CLI tool
+  cli-build:
+    desc: Build and install the postgres-cli to GOBIN
     cmds:
-      - task: pgconfig:build-pgconfig
+      - task: pgconfig:cli:build
 
-  test-config:
-    desc: Run configuration tests
+  cli-install:
+    desc: Install the postgres-cli to GOBIN
     cmds:
-      - task: pgconfig:test-all
+      - task: pgconfig:cli:install
+
+  cli-test:
+    desc: Run CLI tests
+    cmds:
+      - task: pgconfig:cli:test
+
+  cli-ci:
+    desc: Run complete CLI CI pipeline
+    cmds:
+      - task: pgconfig:cli:ci
 
   # Help task
   help:
@@ -226,11 +236,13 @@ tasks:
       - echo "  task backup-list        - List available backups"
       - echo "  task backup-restore     - Restore from backup (BACKUP_NAME=name)"
       - 'echo ""'
-      - echo "Configuration Tasks:"
-      - echo "  task generate-structs   - Generate Go structs from JSON schema"
+      - echo "CLI and Configuration Tasks:"
+      - echo "  task generate-schema    - Generate JSON schema and Go structs"
       - echo "  task validate-schema    - Validate the JSON schema file"
-      - echo "  task build-pgconfig     - Build the pgconfig CLI tool"
-      - echo "  task test-config        - Run all configuration tests"
+      - echo "  task cli-build          - Build and install postgres-cli to GOBIN"
+      - echo "  task cli-install        - Install postgres-cli to GOBIN"
+      - echo "  task cli-test           - Run CLI tests"
+      - echo "  task cli-ci             - Run complete CLI CI pipeline"
       - 'echo ""'
       - echo "Utility Tasks:"
       - echo "  task clean              - Clean up volumes and images"

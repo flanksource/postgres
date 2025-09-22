@@ -103,28 +103,27 @@ seed-15:
 seed-16:
 	task seed-pg16
 
-# PGConfig targets
-generate-structs:
-	task generate-structs
+# CLI targets
+cli-build:
+	task cli-build
+
+cli-install:
+	task cli-install
+
+cli-test:
+	task cli-test
+
+cli-ci:
+	task cli-ci
+
+# Schema targets
+generate-schema:
+	task generate-schema
 
 validate-schema:
 	task validate-schema
 
-build-pgconfig:
-	task build-pgconfig
+# CLI shortcuts
+cli: cli-build
 
-test-config:
-	task test-config
-
-test-config-integration:
-	task pgconfig:test-config-integration
-
-pgconfig-ci:
-	task pgconfig:ci
-
-# PGConfig shortcuts
-pgconfig: build-pgconfig
-
-pgconfig-test: test-config
-
-pgconfig-all: generate-structs validate-schema build-pgconfig test-config
+cli-all: generate-schema validate-schema cli-build cli-test
