@@ -7,7 +7,7 @@ output:
     end: "::endgroup::"
 
 vars:
-  IMAGE_NAME: postgres:latest
+  IMAGE_NAME: flanksource/postgres:latest
   REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
   IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres"}}'
   IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
@@ -15,7 +15,7 @@ vars:
 
 tasks:
   build:
-    desc: Build the postgres-upgrade Docker image
+    desc: Build the flanksource/postgres Docker image
     cmds:
       - docker build -t {{.IMAGE_NAME}} .
     sources:
@@ -119,6 +119,6 @@ tasks:
           VERSION: "{{.ITEM}}"
 
   list-images:
-    desc: List all built postgres-upgrade images
+    desc: List all built flanksource/postgres images
     cmds:
       - docker images | grep -E "{{.IMAGE_BASE}}:to-" | sort || echo "No images found"

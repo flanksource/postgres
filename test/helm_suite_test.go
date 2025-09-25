@@ -35,11 +35,11 @@ var _ = BeforeSuite(func() {
 		By("Creating kind cluster for testing")
 		err := createKindCluster("postgres-test")
 		Expect(err).NotTo(HaveOccurred())
-		
+
 		By("Waiting for cluster to be ready")
 		err = waitForClusterReady()
 		Expect(err).NotTo(HaveOccurred())
-		
+
 		By("Loading required Docker images")
 		err = loadDockerImages()
 		Expect(err).NotTo(HaveOccurred())
@@ -77,7 +77,7 @@ var _ = AfterSuite(func() {
 		// Clean up Helm release and namespace
 		_ = helmDelete(releaseName, namespace)
 		_ = deleteNamespace(namespace)
-		
+
 		// Delete kind cluster if we created it
 		if os.Getenv("USE_EXISTING_CLUSTER") != "true" {
 			By("Deleting kind cluster")

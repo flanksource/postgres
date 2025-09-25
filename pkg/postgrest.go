@@ -12,7 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flanksource/postgres/pkg/installer"
+	"github.com/flanksource/commons/deps"
+
 	"github.com/flanksource/postgres/pkg/jwt"
 	"github.com/flanksource/postgres/pkg/utils"
 )
@@ -53,7 +54,12 @@ func (p *PostgREST) Health() error {
 	}
 
 	// Build the PostgREST URL
-	url := fmt.Sprintf("http://%s:%d/", p.Config.ServerHost, p.Config.ServerPort)
+	var url string
+	if p.Config.ServerHost != nil && p.Config.ServerPort != nil {
+		url = fmt.Sprintf("http://%s:%d/", *p.Config.ServerHost, *p.Config.ServerPort)
+	} else {
+		url = "http://localhost:3000/"
+	}
 
 	// Create HTTP client with timeout
 	client := &http.Client{
@@ -114,7 +120,12 @@ func (p *PostgREST) GetOpenAPISchema() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("PostgREST configuration not provided")
 	}
 
-	url := fmt.Sprintf("http://%s:%d/", p.Config.ServerHost, p.Config.ServerPort)
+	var url string
+	if p.Config.ServerHost != nil && p.Config.ServerPort != nil {
+		url = fmt.Sprintf("http://%s:%d/", *p.Config.ServerHost, *p.Config.ServerPort)
+	} else {
+		url = "http://localhost:3000/"
+	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
@@ -150,8 +161,14 @@ func (p *PostgREST) GetOpenAPISchema() (map[string]interface{}, error) {
 
 // GetStatus returns detailed PostgREST service status
 func (p *PostgREST) GetStatus() (*PostgRESTStatus, error) {
+	var statusURL string
+	if p.Config.ServerHost != nil && p.Config.ServerPort != nil {
+		statusURL = fmt.Sprintf("http://%s:%d", *p.Config.ServerHost, *p.Config.ServerPort)
+	} else {
+		statusURL = "http://localhost:3000"
+	}
 	status := &PostgRESTStatus{
-		URL:           fmt.Sprintf("http://%s:%d", p.Config.ServerHost, p.Config.ServerPort),
+		URL:           statusURL,
 		Healthy:       false,
 		CheckTime:     time.Now(),
 		AdminRole:     p.Config.AdminRole,
@@ -390,20 +407,25 @@ func (p *PostgREST) validateParameter(key, value string, lineNum int) error {
 
 // Install installs PostgREST binary with optional version and target directory
 func (p *PostgREST) Install(version, targetDir string) error {
-	inst := installer.New()
-	return inst.InstallBinary("postgrest", version, targetDir)
+	if targetDir == "" {
+		targetDir = "/usr/local/bin"
+	}
+	return deps.Install("postgrest", version, deps.WithBinDir(targetDir))
 }
 
 // IsInstalled checks if PostgREST is installed in PATH
 func (p *PostgREST) IsInstalled() bool {
-	inst := installer.New()
-	return inst.IsPostgRESTInstalled()
+	return deps.Which("postgrest")
 }
 
 // InstalledVersion returns the installed PostgREST version
 func (p *PostgREST) InstalledVersion() (string, error) {
-	inst := installer.New()
-	return inst.GetPostgRESTVersion()
+	cmd := exec.Command("postgrest", "--help")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get postgrest version: %w", err)
+	}
+	return string(output), nil
 }
 
 // validateWithBinary attempts to validate using the postgrest binary

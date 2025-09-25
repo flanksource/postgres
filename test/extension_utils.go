@@ -27,22 +27,22 @@ type ExtensionTestConfig struct {
 func DefaultExtensionConfig() ExtensionTestConfig {
 	return ExtensionTestConfig{
 		Extensions: map[string]string{
-			"pgvector":       "vector",
-			"pgsodium":       "pgsodium",
-			"pgjwt":          "pgjwt",
-			"pgaudit":        "pgaudit",
-			"pg_tle":         "pg_tle",
+			"pgvector":        "vector",
+			"pgsodium":        "pgsodium",
+			"pgjwt":           "pgjwt",
+			"pgaudit":         "pgaudit",
+			"pg_tle":          "pg_tle",
 			"pg_stat_monitor": "pg_stat_monitor",
-			"pg_repack":      "pg_repack",
-			"pg_plan_filter": "pg_plan_filter",
-			"pg_net":         "pg_net",
-			"pg_jsonschema":  "jsonschema",
-			"pg_hashids":     "hashids",
-			"pg_cron":        "pg_cron",
-			"pg-safeupdate":  "safeupdate",
-			"index_advisor":  "index_advisor",
-			"wal2json":       "wal2json",
-			"hypopg":         "hypopg",
+			"pg_repack":       "pg_repack",
+			"pg_plan_filter":  "pg_plan_filter",
+			"pg_net":          "pg_net",
+			"pg_jsonschema":   "jsonschema",
+			"pg_hashids":      "hashids",
+			"pg_cron":         "pg_cron",
+			"pg-safeupdate":   "safeupdate",
+			"index_advisor":   "index_advisor",
+			"wal2json":        "wal2json",
+			"hypopg":          "hypopg",
 		},
 		Host:     "localhost",
 		Port:     5432,
@@ -62,17 +62,17 @@ type ExtensionTester struct {
 func NewExtensionTester(config ExtensionTestConfig) (*ExtensionTester, error) {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		config.Host, config.Port, config.User, config.Password, config.Database)
-	
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	
+
 	// Test connection
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-	
+
 	return &ExtensionTester{
 		config: config,
 		db:     db,
@@ -90,7 +90,7 @@ func (et *ExtensionTester) Close() error {
 // VerifyAllExtensions checks that all expected extensions are installed
 func (et *ExtensionTester) VerifyAllExtensions() (map[string]bool, error) {
 	results := make(map[string]bool)
-	
+
 	for configName, extName := range et.config.Extensions {
 		exists, err := et.IsExtensionInstalled(extName)
 		if err != nil {
@@ -98,7 +98,7 @@ func (et *ExtensionTester) VerifyAllExtensions() (map[string]bool, error) {
 		}
 		results[configName] = exists
 	}
-	
+
 	return results, nil
 }
 
@@ -112,13 +112,13 @@ func (et *ExtensionTester) IsExtensionInstalled(extensionName string) (bool, err
 // GetInstalledExtensions returns all currently installed extensions
 func (et *ExtensionTester) GetInstalledExtensions() (map[string]string, error) {
 	extensions := make(map[string]string)
-	
+
 	rows, err := et.db.Query("SELECT extname, extversion FROM pg_extension ORDER BY extname")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var name, version string
 		if err := rows.Scan(&name, &version); err != nil {
@@ -126,7 +126,7 @@ func (et *ExtensionTester) GetInstalledExtensions() (map[string]string, error) {
 		}
 		extensions[name] = version
 	}
-	
+
 	return extensions, nil
 }
 
@@ -137,54 +137,54 @@ func (et *ExtensionTester) TestPgVectorFunctionality() error {
 	if err != nil {
 		return fmt.Errorf("failed to create vector table: %w", err)
 	}
-	
+
 	// Insert test data
 	_, err = et.db.Exec("INSERT INTO test_vectors_util (embedding) VALUES ('[1,2,3]'), ('[4,5,6]') ON CONFLICT DO NOTHING")
 	if err != nil {
 		return fmt.Errorf("failed to insert vector data: %w", err)
 	}
-	
+
 	// Test similarity search
 	var distance float64
 	err = et.db.QueryRow("SELECT embedding <-> '[1,2,3]' FROM test_vectors_util ORDER BY embedding <-> '[1,2,3]' LIMIT 1").Scan(&distance)
 	if err != nil {
 		return fmt.Errorf("failed to perform similarity search: %w", err)
 	}
-	
+
 	if distance < 0 {
 		return fmt.Errorf("invalid distance result: %f", distance)
 	}
-	
+
 	return nil
 }
 
 // TestPgCronFunctionality tests pg_cron extension functionality
 func (et *ExtensionTester) TestPgCronFunctionality() error {
 	jobName := "test-job-util"
-	
+
 	// Schedule a job
 	_, err := et.db.Exec("SELECT cron.schedule($1, '* * * * *', 'SELECT 1;')", jobName)
 	if err != nil {
 		return fmt.Errorf("failed to schedule cron job: %w", err)
 	}
-	
+
 	// Verify job was scheduled
 	var count int
 	err = et.db.QueryRow("SELECT COUNT(*) FROM cron.job WHERE jobname = $1", jobName).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("failed to check scheduled job: %w", err)
 	}
-	
+
 	if count != 1 {
 		return fmt.Errorf("expected 1 job, got %d", count)
 	}
-	
+
 	// Clean up
 	_, err = et.db.Exec("SELECT cron.unschedule($1)", jobName)
 	if err != nil {
 		return fmt.Errorf("failed to unschedule cron job: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -196,11 +196,11 @@ func (et *ExtensionTester) TestPgSodiumFunctionality() error {
 	if err != nil {
 		return fmt.Errorf("failed to encrypt data: %w", err)
 	}
-	
+
 	if encrypted == "" {
 		return fmt.Errorf("encryption returned empty result")
 	}
-	
+
 	return nil
 }
 
@@ -212,17 +212,17 @@ func (et *ExtensionTester) TestPgJWTFunctionality() error {
 	if err != nil {
 		return fmt.Errorf("failed to sign JWT: %w", err)
 	}
-	
+
 	if token == "" {
 		return fmt.Errorf("JWT signing returned empty result")
 	}
-	
+
 	// Verify JWT has proper structure (header.payload.signature)
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return fmt.Errorf("invalid JWT format, expected 3 parts, got %d", len(parts))
 	}
-	
+
 	return nil
 }
 
@@ -233,11 +233,11 @@ func (et *ExtensionTester) TestJsonSchemaFunctionality() error {
 	if err != nil {
 		return fmt.Errorf("failed to validate JSON schema: %w", err)
 	}
-	
+
 	if !isValid {
 		return fmt.Errorf("JSON schema validation failed unexpectedly")
 	}
-	
+
 	return nil
 }
 
@@ -248,11 +248,11 @@ func (et *ExtensionTester) TestHashidsFunctionality() error {
 	if err != nil {
 		return fmt.Errorf("failed to encode hashid: %w", err)
 	}
-	
+
 	if hashid == "" {
 		return fmt.Errorf("hashid encoding returned empty result")
 	}
-	
+
 	return nil
 }
 
@@ -298,24 +298,24 @@ func NewServiceTester(config ServiceTestConfig) *ServiceTester {
 func (st *ServiceTester) TestPgBouncerConnection() error {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		st.config.PgBouncerHost, st.config.PgBouncerPort, st.config.User, st.config.Password, st.config.Database)
-	
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to PgBouncer: %w", err)
 	}
 	defer db.Close()
-	
+
 	// Test connection
 	var result int
 	err = db.QueryRow("SELECT 1").Scan(&result)
 	if err != nil {
 		return fmt.Errorf("failed to execute query through PgBouncer: %w", err)
 	}
-	
+
 	if result != 1 {
 		return fmt.Errorf("unexpected query result: %d", result)
 	}
-	
+
 	return nil
 }
 
@@ -323,27 +323,27 @@ func (st *ServiceTester) TestPgBouncerConnection() error {
 func (st *ServiceTester) TestPgBouncerPools() (map[string]interface{}, error) {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s dbname=pgbouncer sslmode=disable",
 		st.config.PgBouncerHost, st.config.PgBouncerPort, st.config.User)
-	
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PgBouncer admin: %w", err)
 	}
 	defer db.Close()
-	
+
 	pools := make(map[string]interface{})
 	rows, err := db.Query("SHOW POOLS")
 	if err != nil {
 		return nil, fmt.Errorf("failed to show pools: %w", err)
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var database, user, clActive, clWaiting, svActive, svIdle, svUsed, svTested, svLogin, maxwait, maxwaitUs, poolMode string
 		err := rows.Scan(&database, &user, &clActive, &clWaiting, &svActive, &svIdle, &svUsed, &svTested, &svLogin, &maxwait, &maxwaitUs, &poolMode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan pool data: %w", err)
 		}
-		
+
 		pools[database] = map[string]string{
 			"user":       user,
 			"cl_active":  clActive,
@@ -353,7 +353,7 @@ func (st *ServiceTester) TestPgBouncerPools() (map[string]interface{}, error) {
 			"pool_mode":  poolMode,
 		}
 	}
-	
+
 	return pools, nil
 }
 
@@ -361,17 +361,17 @@ func (st *ServiceTester) TestPgBouncerPools() (map[string]interface{}, error) {
 func (st *ServiceTester) TestPostgRESTAPI() error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("http://%s:%d/", st.config.PostgRESTHost, st.config.PostgRESTPort)
-	
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to connect to PostgREST: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("PostgREST returned status %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
@@ -379,17 +379,17 @@ func (st *ServiceTester) TestPostgRESTAPI() error {
 func (st *ServiceTester) TestPostgRESTHealthCheck() (map[string]interface{}, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("http://%s:%d/rpc/health_check", st.config.PostgRESTHost, st.config.PostgRESTPort)
-	
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call health check: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("health check returned status %d", resp.StatusCode)
 	}
-	
+
 	// For now, return basic info - in real implementation you'd parse JSON response
 	return map[string]interface{}{
 		"status": "ok",
@@ -409,9 +409,9 @@ func NewLoadTester(extConfig ExtensionTestConfig, svcConfig ServiceTestConfig) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create extension tester: %w", err)
 	}
-	
+
 	svcTester := NewServiceTester(svcConfig)
-	
+
 	return &LoadTester{
 		extensionTester: extTester,
 		serviceTester:   svcTester,
@@ -439,7 +439,7 @@ func (lt *LoadTester) RunConcurrentVectorSearches(concurrency, searchesPerWorker
 	if err != nil {
 		return fmt.Errorf("failed to create vector table: %w", err)
 	}
-	
+
 	// Insert sample data
 	_, err = lt.extensionTester.db.Exec(`
 		INSERT INTO load_test_vectors_util (embedding, category)
@@ -452,12 +452,12 @@ func (lt *LoadTester) RunConcurrentVectorSearches(concurrency, searchesPerWorker
 	if err != nil {
 		return fmt.Errorf("failed to insert vector data: %w", err)
 	}
-	
+
 	// Run concurrent searches
 	done := make(chan error, concurrency)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			for j := 0; j < searchesPerWorker; j++ {
@@ -471,7 +471,7 @@ func (lt *LoadTester) RunConcurrentVectorSearches(concurrency, searchesPerWorker
 					ORDER BY embedding <-> query_vector.vec
 					LIMIT 1
 				`).Scan(&distance)
-				
+
 				if err != nil {
 					done <- fmt.Errorf("vector search failed: %w", err)
 					return
@@ -480,14 +480,14 @@ func (lt *LoadTester) RunConcurrentVectorSearches(concurrency, searchesPerWorker
 			done <- nil
 		}()
 	}
-	
+
 	// Wait for all workers to complete
 	for i := 0; i < concurrency; i++ {
 		if err := <-done; err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -496,20 +496,20 @@ func (lt *LoadTester) RunConcurrentPgBouncerConnections(concurrency, queriesPerW
 	done := make(chan error, concurrency)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	for i := 0; i < concurrency; i++ {
 		go func(workerID int) {
 			connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 				lt.serviceTester.config.PgBouncerHost, lt.serviceTester.config.PgBouncerPort,
 				lt.serviceTester.config.User, lt.serviceTester.config.Password, lt.serviceTester.config.Database)
-			
+
 			db, err := sql.Open("postgres", connStr)
 			if err != nil {
 				done <- fmt.Errorf("worker %d: failed to connect: %w", workerID, err)
 				return
 			}
 			defer db.Close()
-			
+
 			for j := 0; j < queriesPerWorker; j++ {
 				var result int
 				err := db.QueryRowContext(ctx, "SELECT $1", workerID*queriesPerWorker+j).Scan(&result)
@@ -521,13 +521,13 @@ func (lt *LoadTester) RunConcurrentPgBouncerConnections(concurrency, queriesPerW
 			done <- nil
 		}(i)
 	}
-	
+
 	// Wait for all workers to complete
 	for i := 0; i < concurrency; i++ {
 		if err := <-done; err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }

@@ -1,6 +1,0 @@
-shared_buffers	postmaster	Resource Usage / Memory	INTEGER	128MB	16	1073741823	Sets the number of shared memory buffers used by the server.	
-log_min_messages	sighup	Reporting and Logging / When to Log	ENUM	warning			Sets the message levels that are logged.	Each level includes all the levels that follow it. The later the level, the fewer messages are sent.
-enable_seqscan	user	Query Tuning / Planner Method Configuration	BOOLEAN	on			Enables the planner's use of sequential-scan plans.	
-shared_preload_libraries	postmaster	Client Connection Defaults / Shared Library Preloading	STRING				Lists shared libraries to preload into server.	
-authentication_timeout	sighup	Connections and Authentication / Authentication	INTEGER	0	1	600	Sets the maximum allowed time to complete client authentication.	
-lock_timeout	user	Client Connection Defaults / Statement Behavior	INTEGER	0	0	2147483647	Sets the maximum allowed duration of any wait for a lock.	A value of 0 turns off the timeout.

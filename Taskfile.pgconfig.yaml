@@ -14,14 +14,15 @@ vars:
 
 tasks:
   generate-schema:
-    desc: Generate JSON schema and Go structs from PostgreSQL describe-config output
+    desc: Generate JSON schema from Go structs (Go is the source of truth)
     generates:
       - "{{.SCHEMA_FILE}}"
-      - "{{.GENERATED_FILE}}"
+      - "pkg/schemas/data/pgconfig-schema.json"
     cmds:
-      - echo "Generating JSON schema and Go structs from PostgreSQL configuration..."
-      - go run ./cmd schema generate --output {{.SCHEMA_FILE}}
-      - "echo ✅ Generated schema and structs with custom pointer types"
+      - echo "Generating JSON schema from Go structs..."
+      - go run ./cmd schema generate-from-go --output {{.SCHEMA_FILE}}
+      - cp {{.SCHEMA_FILE}} pkg/schemas/data/pgconfig-schema.json
+      - "echo ✅ Generated schema from Go structs with additionalProperties enabled"
 
   validate-schema:
     desc: Validate the JSON schema file
@@ -42,7 +43,7 @@ tasks:
         fi
       - echo "✅ Schema validation completed"
 
-  cli:build:
+  build:
     desc: Build the postgres-cli and install to GOBIN
     sources:
       - "cmd/**/*.go"
@@ -56,24 +57,24 @@ tasks:
       - echo "✅ Built and installed {{.CLI_NAME}} to $(go env GOPATH)/bin"
     method: timestamp
 
-  cli:install:
-    desc: Install the CLI to GOBIN (alias for cli:build)
+  install:
+    desc: Install the CLI to GOBIN (alias for build)
     cmds:
-      - task: cli:build
+      - task: build
 
-  cli:test:
+  test:
     desc: Run all CLI-related tests
     cmds:
       - echo "Running CLI tests..."
       - go test ./cmd/... ./pkg/... -v -cover
       - echo "✅ CLI tests passed"
 
-  cli:ci:
+  ci:
     desc: Run complete CI pipeline for CLI
     cmds:
       - task: check-dependencies
-      - task: cli:build
-      - task: cli:test
+      - task: build
+      - task: test
       - echo "🎉 CLI CI pipeline completed successfully"
 
   clean-generated:
@@ -84,14 +85,14 @@ tasks:
       - rm -f "$(go env GOPATH)/bin/{{.CLI_NAME}}"
       - echo "✅ Cleaned generated files"
 
-  cli:fmt:
+  fmt:
     desc: Format CLI code
     cmds:
       - echo "Formatting CLI code..."
       - go fmt ./cmd/... ./pkg/...
       - echo "✅ CLI code formatted"
 
-  cli:lint:
+  lint:
     desc: Lint CLI code
     cmds:
       - echo "Linting CLI code..."
@@ -126,14 +127,14 @@ tasks:
       - echo "  validate-schema        - Validate the JSON schema file"
       - echo ""
       - echo "CLI Build Tasks:"
-      - echo "  cli:build              - Build and install CLI to GOBIN"
-      - echo "  cli:install            - Install the CLI to GOBIN"
-      - echo "  cli:test               - Run all CLI tests"
-      - echo "  cli:ci                 - Run complete CI pipeline"
+      - echo "  build                  - Build and install CLI to GOBIN"
+      - echo "  install                - Install the CLI to GOBIN"
+      - echo "  test                   - Run all CLI tests"
+      - echo "  ci                     - Run complete CI pipeline"
       - echo ""
       - echo "Utility Tasks:"
-      - echo "  cli:fmt                - Format CLI code"
-      - echo "  cli:lint               - Lint CLI code"
+      - echo "  fmt                    - Format CLI code"
+      - echo "  lint                   - Lint CLI code"
       - echo "  clean-generated        - Remove generated files"
       - echo "  check-dependencies     - Check required dependencies"
       - echo "  help                   - Show this help message"

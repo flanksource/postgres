@@ -4,60 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
 
-	"github.com/flanksource/postgres/pkg/types"
-	"github.com/flanksource/postgres/pkg/utils"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
 	"github.com/xeipuuv/gojsonschema"
+
+	"github.com/flanksource/postgres/pkg/schemas"
+	"github.com/flanksource/postgres/pkg/types"
+	"github.com/flanksource/postgres/pkg/utils"
 )
 
 // LoadConfig loads configuration from a YAML file using koanf with schema-based validation and defaults
 func LoadConfig(configFile string) (*PgconfigSchemaJson, error) {
-	k := koanf.New(".")
-
-	// Load schema-based defaults first
-	if err := loadSchemaDefaults(k); err != nil {
-		return nil, fmt.Errorf("failed to load schema defaults: %w", err)
-	}
-
-	// Load environment variables
-	if err := k.Load(env.Provider("", ".", func(s string) string {
-		return s
-	}), nil); err != nil {
-		return nil, fmt.Errorf("failed to load environment variables: %w", err)
-	}
-
-	// Load from file if provided (this will override defaults and env vars)
-	if configFile != "" {
-		if err := k.Load(file.Provider(configFile), yaml.Parser()); err != nil {
-			return nil, fmt.Errorf("failed to load config file %s: %w", configFile, err)
-		}
-	}
-
-	// Unmarshal configuration into generated struct with mapstructure tags
-	var conf PgconfigSchemaJson
-	if err := k.UnmarshalWithConf("", &conf, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	// Validate against JSON schema
-	if err := validateConfiguration(&conf); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
-	return &conf, nil
-}
-
-// LoadConfigWithValidation loads configuration and validates it against a specific schema file
-func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJson, error) {
 	var hasEnvVars bool
 
 	// First validate the raw YAML file against the schema to catch unknown fields
@@ -79,7 +43,7 @@ func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJso
 		hasEnvVars = containsEnvVarPlaceholders(rawConfig)
 		if !hasEnvVars {
 			// Validate against schema to catch unknown fields
-			if err := validateFileAgainstSchema(configFile, schemaFile); err != nil {
+			if err := validateFileAgainstSchema(configFile); err != nil {
 				return nil, err
 			}
 		}
@@ -87,7 +51,19 @@ func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJso
 
 	k := koanf.New(".")
 
-	// Load from file first if provided
+	// Load schema-based defaults first
+	if err := loadSchemaDefaults(k); err != nil {
+		return nil, fmt.Errorf("failed to load schema defaults: %w", err)
+	}
+
+	// Load environment variables
+	if err := k.Load(env.Provider("", ".", func(s string) string {
+		return s
+	}), nil); err != nil {
+		return nil, fmt.Errorf("failed to load environment variables: %w", err)
+	}
+
+	// Load from file if provided (this will override defaults and env vars)
 	if configFile != "" {
 		// If the file contains env var placeholders, we need to expand them
 		if hasEnvVars {
@@ -100,22 +76,11 @@ func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJso
 				return nil, fmt.Errorf("failed to load config: %w", err)
 			}
 		} else {
+			// No env vars, load directly
 			if err := k.Load(file.Provider(configFile), yaml.Parser()); err != nil {
 				return nil, fmt.Errorf("failed to load config file %s: %w", configFile, err)
 			}
 		}
-	}
-
-	// Then load schema-based defaults for any missing values
-	if err := loadSchemaDefaultsSelectively(k); err != nil {
-		return nil, fmt.Errorf("failed to load schema defaults: %w", err)
-	}
-
-	// Finally load environment variables (which override both file and defaults)
-	if err := k.Load(env.Provider("", ".", func(s string) string {
-		return s
-	}), nil); err != nil {
-		return nil, fmt.Errorf("failed to load environment variables: %w", err)
 	}
 
 	// Unmarshal configuration into generated struct with mapstructure tags
@@ -124,13 +89,14 @@ func LoadConfigWithValidation(configFile, schemaFile string) (*PgconfigSchemaJso
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Validate the final configuration after all processing
-	if err := validateConfigurationWithSchema(&conf, schemaFile); err != nil {
+	// Validate against JSON schema
+	if err := validateConfiguration(&conf); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return &conf, nil
 }
+
 
 // loadSchemaDefaults loads all schema-defined defaults into koanf
 func loadSchemaDefaults(k *koanf.Koanf) error {
@@ -194,14 +160,10 @@ func isMemoryParameter(key string) bool {
 	return false
 }
 
-// validateConfiguration validates the configuration against the JSON schema
+// validateConfiguration validates the configuration against the embedded JSON schema
 func validateConfiguration(conf *PgconfigSchemaJson) error {
-	// Load the JSON schema
-	schemaPath := filepath.Join("schema", "pgconfig-schema.json")
-	schemaData, err := ioutil.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("failed to read schema file: %w", err)
-	}
+	// Get embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 
 	// Create schema loader
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
@@ -232,90 +194,11 @@ func validateConfiguration(conf *PgconfigSchemaJson) error {
 	return nil
 }
 
-// validateConfigurationWithSchema validates configuration against a specific schema file
-func validateConfigurationWithSchema(conf *PgconfigSchemaJson, schemaFile string) error {
-	// Load schema from file
-	schemaData, err := ioutil.ReadFile(schemaFile)
-	if err != nil {
-		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
-	}
 
-	// Create schema loader
-	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-
-	// Convert configuration to JSON for validation
-	configData, err := json.Marshal(conf)
-	if err != nil {
-		return fmt.Errorf("failed to marshal configuration: %w", err)
-	}
-
-	// Create config loader
-	configLoader := gojsonschema.NewBytesLoader(configData)
-
-	// Validate
-	result, err := gojsonschema.Validate(schemaLoader, configLoader)
-	if err != nil {
-		return fmt.Errorf("failed to validate configuration: %w", err)
-	}
-
-	if !result.Valid() {
-		var errMsg string
-		for _, desc := range result.Errors() {
-			errMsg += fmt.Sprintf("- %s\n", desc)
-		}
-		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
-	}
-
-	return nil
-}
-
-// validateRawConfigurationWithSchema validates the raw koanf configuration against a schema file
-func validateRawConfigurationWithSchema(k *koanf.Koanf, schemaFile string) error {
-	// Load schema from file
-	schemaData, err := ioutil.ReadFile(schemaFile)
-	if err != nil {
-		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
-	}
-
-	// Create schema loader
-	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
-
-	// Get all config as a map for validation
-	configData := k.All()
-
-	// Convert to JSON for validation
-	configJSON, err := json.Marshal(configData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal configuration: %w", err)
-	}
-
-	// Create config loader
-	configLoader := gojsonschema.NewBytesLoader(configJSON)
-
-	// Validate
-	result, err := gojsonschema.Validate(schemaLoader, configLoader)
-	if err != nil {
-		return fmt.Errorf("failed to validate configuration: %w", err)
-	}
-
-	if !result.Valid() {
-		var errMsg string
-		for _, desc := range result.Errors() {
-			errMsg += fmt.Sprintf("- %s\n", desc)
-		}
-		return fmt.Errorf("configuration validation errors:\n%s", errMsg)
-	}
-
-	return nil
-}
-
-// validateFileAgainstSchema validates a YAML file directly against a schema file
-func validateFileAgainstSchema(configFile, schemaFile string) error {
-	// Load schema from file
-	schemaData, err := ioutil.ReadFile(schemaFile)
-	if err != nil {
-		return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
-	}
+// validateFileAgainstSchema validates a YAML file directly against the embedded schema
+func validateFileAgainstSchema(configFile string) error {
+	// Get embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 
 	// Load and parse the YAML file
 	configData, err := ioutil.ReadFile(configFile)

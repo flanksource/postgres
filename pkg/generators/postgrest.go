@@ -12,6 +12,15 @@ import (
 	"github.com/flanksource/postgres/pkg/sysinfo"
 )
 
+// Helper functions for pointer conversions
+func stringPtr(s string) *string {
+	return &s
+}
+
+func intPtr(i int) *int {
+	return &i
+}
+
 // PostgRESTConfigGenerator generates PostgREST configuration
 type PostgRESTConfigGenerator struct {
 	SystemInfo     *sysinfo.SystemInfo
@@ -52,29 +61,22 @@ func (g *PostgRESTConfigGenerator) GenerateConfig() (*pkg.PostgrestConf, error) 
 		return nil, fmt.Errorf("failed to generate JWT secret: %w", err)
 	}
 
+	schemas := "public"
 	config := &pkg.PostgrestConf{
 		// Database connection
-		DbUri:     &dbUri,
-		DbSchemas: "public",
-		DbPool:    dbPool,
+		DbUri:      &dbUri,
+		DbSchemas:  &schemas,
+		DbPoolSize: &dbPool,
 
 		// JWT authentication
 		JwtSecret:     &jwtSecret,
-		JwtAud:        "",
 		AdminRole:     "postgres",
 		AnonymousRole: "anon",
 
 		// Server settings
-		ServerHost: "0.0.0.0",
-		ServerPort: 3000,
-		LogLevel:   "error",
-
-		// Pre-request function (empty by default)
-		PreRequest: "",
-
-		// SSL settings (disabled by default)
-		ServerSslCert: "",
-		ServerSslKey:  "",
+		ServerHost: stringPtr("0.0.0.0"),
+		ServerPort: intPtr(3000),
+		LogLevel:   stringPtr("error"),
 	}
 
 	return config, nil
@@ -149,9 +151,12 @@ func (g *PostgRESTConfigGenerator) GenerateEnvFile() (string, error) {
 		dbUri = *g.config.DbUri
 	}
 	sb.WriteString(fmt.Sprintf("DB_URI=\"%s\"\n", dbUri))
-	sb.WriteString(fmt.Sprintf("DB_SCHEMAS=\"%s\"\n", g.config.DbSchemas))
-	sb.WriteString(fmt.Sprintf("DB_POOL=%d\n", g.config.DbPool))
-	sb.WriteString(fmt.Sprintf("DB_POOL_TIMEOUT=%d\n\n", g.config.DbPoolTimeout))
+	if g.config.DbSchemas != nil {
+		sb.WriteString(fmt.Sprintf("DB_SCHEMAS=\"%s\"\n", *g.config.DbSchemas))
+	}
+	if g.config.DbPoolSize != nil {
+		sb.WriteString(fmt.Sprintf("DB_POOL=%d\n\n", *g.config.DbPoolSize))
+	}
 
 	// Authentication
 	sb.WriteString("# JWT Authentication\n")
@@ -160,8 +165,8 @@ func (g *PostgRESTConfigGenerator) GenerateEnvFile() (string, error) {
 		jwtSecret = *g.config.JwtSecret
 	}
 	sb.WriteString(fmt.Sprintf("JWT_SECRET=\"%s\"\n", jwtSecret))
-	if g.config.JwtAud != "" {
-		sb.WriteString(fmt.Sprintf("JWT_AUD=\"%s\"\n", g.config.JwtAud))
+	if g.config.JwtAud != nil && *g.config.JwtAud != "" {
+		sb.WriteString(fmt.Sprintf("JWT_AUD=\"%s\"\n", *g.config.JwtAud))
 	} else {
 		sb.WriteString("# JWT_AUD=\"your-app-name\"  # Optional: JWT audience\n")
 	}
@@ -170,19 +175,21 @@ func (g *PostgRESTConfigGenerator) GenerateEnvFile() (string, error) {
 
 	// Server settings
 	sb.WriteString("# Server Configuration\n")
-	sb.WriteString(fmt.Sprintf("SERVER_HOST=\"%s\"\n", g.config.ServerHost))
-	sb.WriteString(fmt.Sprintf("SERVER_PORT=%d\n", g.config.ServerPort))
-	sb.WriteString(fmt.Sprintf("LOG_LEVEL=\"%s\"\n\n", g.config.LogLevel))
+	if g.config.ServerHost != nil {
+		sb.WriteString(fmt.Sprintf("SERVER_HOST=\"%s\"\n", *g.config.ServerHost))
+	}
+	if g.config.ServerPort != nil {
+		sb.WriteString(fmt.Sprintf("SERVER_PORT=%d\n", *g.config.ServerPort))
+	}
+	if g.config.LogLevel != nil {
+		sb.WriteString(fmt.Sprintf("LOG_LEVEL=\"%s\"\n\n", *g.config.LogLevel))
+	}
 
 	// SSL settings
 	sb.WriteString("# SSL Configuration\n")
-	if g.config.ServerSslCert != "" && g.config.ServerSslKey != "" {
-		sb.WriteString(fmt.Sprintf("SERVER_SSL_CERT=\"%s\"\n", g.config.ServerSslCert))
-		sb.WriteString(fmt.Sprintf("SERVER_SSL_KEY=\"%s\"\n\n", g.config.ServerSslKey))
-	} else {
-		sb.WriteString("# SERVER_SSL_CERT=\"/path/to/server.crt\"\n")
-		sb.WriteString("# SERVER_SSL_KEY=\"/path/to/server.key\"\n\n")
-	}
+	// SSL configuration would go here if needed
+	sb.WriteString("# SERVER_SSL_CERT=\"/path/to/server.crt\"\n")
+	sb.WriteString("# SERVER_SSL_KEY=\"/path/to/server.key\"\n\n")
 
 	// Custom settings
 	if len(g.CustomSettings) > 0 {
@@ -224,17 +231,23 @@ func (g *PostgRESTConfigGenerator) generateDatabaseSection() string {
 	if g.config.DbUri != nil {
 		dbUri = *g.config.DbUri
 	}
+	schemas := "public"
+	if g.config.DbSchemas != nil {
+		schemas = *g.config.DbSchemas
+	}
+	poolSize := 10
+	if g.config.DbPoolSize != nil {
+		poolSize = *g.config.DbPoolSize
+	}
 	return fmt.Sprintf(`# Database Connection
 db-uri = "%s"
 db-schemas = "%s"
 db-pool = %d
-db-pool-timeout = %d
 
 `,
 		dbUri,
-		g.config.DbSchemas,
-		g.config.DbPool,
-		g.config.DbPoolTimeout,
+		schemas,
+		poolSize,
 	)
 }
 
@@ -246,9 +259,9 @@ func (g *PostgRESTConfigGenerator) generateAuthSection() string {
 	authSection := fmt.Sprintf(`# JWT Authentication
 jwt-secret = "%s"`, jwtSecret)
 
-	if g.config.JwtAud != "" {
+	if g.config.JwtAud != nil && *g.config.JwtAud != "" {
 		authSection += fmt.Sprintf(`
-jwt-aud = "%s"`, g.config.JwtAud)
+jwt-aud = "%s"`, *g.config.JwtAud)
 	} else {
 		authSection += `
 # jwt-aud = "your-app-name"  # Optional: JWT audience claim`
@@ -260,11 +273,11 @@ anonymous-role = "%s"
 
 `, g.config.AdminRole, g.config.AnonymousRole)
 
-	if g.config.PreRequest != "" {
+	if g.config.PreRequest != nil && *g.config.PreRequest != "" {
 		authSection += fmt.Sprintf(`# Pre-request function
 pre-request = "%s"
 
-`, g.config.PreRequest)
+`, *g.config.PreRequest)
 	} else {
 		authSection += `# Pre-request function (optional)
 # pre-request = "public.check_auth"
@@ -276,6 +289,18 @@ pre-request = "%s"
 }
 
 func (g *PostgRESTConfigGenerator) generateServerSection() string {
+	host := "0.0.0.0"
+	if g.config.ServerHost != nil {
+		host = *g.config.ServerHost
+	}
+	port := 3000
+	if g.config.ServerPort != nil {
+		port = *g.config.ServerPort
+	}
+	logLevel := "error"
+	if g.config.LogLevel != nil {
+		logLevel = *g.config.LogLevel
+	}
 	return fmt.Sprintf(`# Server Configuration
 server-host = "%s"
 server-port = %d
@@ -284,21 +309,11 @@ log-level = "%s"
 # Logging levels: crit, error, warn, info
 # Use "info" for development, "error" for production
 
-`, g.config.ServerHost, g.config.ServerPort, g.config.LogLevel)
+`, host, port, logLevel)
 }
 
 func (g *PostgRESTConfigGenerator) generateSSLSection() string {
-	if g.config.ServerSslCert != "" && g.config.ServerSslKey != "" {
-		return fmt.Sprintf(`# SSL/TLS Configuration
-server-ssl-cert = "%s"
-server-ssl-key = "%s"
-
-# SSL is enabled - PostgREST will serve HTTPS on the specified port
-# Make sure the certificate files are readable by the PostgREST process
-
-`, g.config.ServerSslCert, g.config.ServerSslKey)
-	} else {
-		return `# SSL/TLS Configuration (uncomment to enable HTTPS)
+	return `# SSL/TLS Configuration (uncomment to enable HTTPS)
 # server-ssl-cert = "/path/to/server.crt"
 # server-ssl-key = "/path/to/server.key"
 
@@ -306,7 +321,6 @@ server-ssl-key = "%s"
 # Make sure the certificate files are readable by the PostgREST process
 
 `
-	}
 }
 
 func (g *PostgRESTConfigGenerator) generateCustomSection() string {

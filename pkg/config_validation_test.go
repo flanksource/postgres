@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/flanksource/postgres/pkg/utils"
 	"github.com/xeipuuv/gojsonschema"
+
+	"github.com/flanksource/postgres/pkg/schemas"
+	"github.com/flanksource/postgres/pkg/utils"
 )
 
 // TestSchemaValidationInvalidFieldNames tests that configs with invalid field names are rejected
@@ -18,16 +20,21 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 		name           string
 		configJSON     string
 		expectedErrors []string
+		shouldPass     bool // Add field to indicate if validation should pass
 	}{
+		// Note: postgres section intentionally allows additional properties
+		// to support arbitrary PostgreSQL configuration parameters
 		{
-			name: "invalid_postgres_field",
+			name: "postgres_allows_additional_properties",
 			configJSON: `{
 				"postgres": {
-					"invalid_field_name": "some_value",
+					"custom_setting": "value",
+					"another_custom_param": 123,
 					"port": 5432
 				}
 			}`,
-			expectedErrors: []string{"Additional property invalid_field_name is not allowed"},
+			expectedErrors: []string{},
+			shouldPass:     true, // postgres allows additional properties
 		},
 		{
 			name: "invalid_pgbouncer_field",
@@ -38,6 +45,7 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 				}
 			}`,
 			expectedErrors: []string{"Additional property unknown_setting is not allowed"},
+			shouldPass:     false,
 		},
 		{
 			name: "invalid_walg_field",
@@ -48,6 +56,7 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 				}
 			}`,
 			expectedErrors: []string{"Additional property bad_config_option is not allowed"},
+			shouldPass:     false,
 		},
 		{
 			name: "invalid_postgrest_field",
@@ -58,6 +67,7 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 				}
 			}`,
 			expectedErrors: []string{"Additional property wrong_field is not allowed"},
+			shouldPass:     false,
 		},
 		{
 			name: "invalid_pgaudit_field",
@@ -68,17 +78,12 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 				}
 			}`,
 			expectedErrors: []string{"Additional property nonexistent_option is not allowed"},
+			shouldPass:     false,
 		},
 	}
 
-	// Load the schema
-	schemaPath := "../schema/pgconfig-schema.json"
-	schemaData, err := ioutil.ReadFile(schemaPath)
-	if err != nil {
-		t.Skipf("Schema file not found: %v (this is expected in some test environments)", err)
-		return
-	}
-
+	// Load the embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
 
 	for _, tt := range tests {
@@ -90,27 +95,39 @@ func TestSchemaValidationInvalidFieldNames(t *testing.T) {
 				t.Fatalf("Failed to validate: %v", err)
 			}
 
-			if result.Valid() {
-				t.Error("Expected validation to fail, but it passed")
-				return
-			}
-
-			// Check that the expected error messages are present
-			errorMessages := make([]string, len(result.Errors()))
-			for i, desc := range result.Errors() {
-				errorMessages[i] = desc.String()
-			}
-
-			for _, expectedError := range tt.expectedErrors {
-				found := false
-				for _, errorMsg := range errorMessages {
-					if strings.Contains(errorMsg, expectedError) {
-						found = true
-						break
+			if tt.shouldPass {
+				// Test should pass validation
+				if !result.Valid() {
+					errorMessages := make([]string, len(result.Errors()))
+					for i, desc := range result.Errors() {
+						errorMessages[i] = desc.String()
 					}
+					t.Errorf("Expected validation to pass, but it failed with errors: %v", errorMessages)
 				}
-				if !found {
-					t.Errorf("Expected error message '%s' not found. Got errors: %v", expectedError, errorMessages)
+			} else {
+				// Test should fail validation
+				if result.Valid() {
+					t.Error("Expected validation to fail, but it passed")
+					return
+				}
+
+				// Check that the expected error messages are present
+				errorMessages := make([]string, len(result.Errors()))
+				for i, desc := range result.Errors() {
+					errorMessages[i] = desc.String()
+				}
+
+				for _, expectedError := range tt.expectedErrors {
+					found := false
+					for _, errorMsg := range errorMessages {
+						if strings.Contains(errorMsg, expectedError) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected error message '%s' not found. Got errors: %v", expectedError, errorMessages)
+					}
 				}
 			}
 		})
@@ -189,14 +206,8 @@ func TestSchemaValidationIncorrectTypes(t *testing.T) {
 		},
 	}
 
-	// Load the schema
-	schemaPath := "../schema/pgconfig-schema.json"
-	schemaData, err := ioutil.ReadFile(schemaPath)
-	if err != nil {
-		t.Skipf("Schema file not found: %v (this is expected in some test environments)", err)
-		return
-	}
-
+	// Load the embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
 
 	for _, tt := range tests {
@@ -291,14 +302,8 @@ func TestSchemaValidationOutOfRangeValues(t *testing.T) {
 		},
 	}
 
-	// Load the schema
-	schemaPath := "../schema/pgconfig-schema.json"
-	schemaData, err := ioutil.ReadFile(schemaPath)
-	if err != nil {
-		t.Skipf("Schema file not found: %v (this is expected in some test environments)", err)
-		return
-	}
-
+	// Load the embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
 
 	for _, tt := range tests {
@@ -394,14 +399,8 @@ func TestValidConfigurationPasses(t *testing.T) {
 		},
 	}
 
-	// Load the schema
-	schemaPath := "../schema/pgconfig-schema.json"
-	schemaData, err := ioutil.ReadFile(schemaPath)
-	if err != nil {
-		t.Skipf("Schema file not found: %v (this is expected in some test environments)", err)
-		return
-	}
-
+	// Load the embedded schema
+	schemaData := schemas.GetPgconfigSchemaJSON()
 	schemaLoader := gojsonschema.NewBytesLoader(schemaData)
 
 	for _, tt := range tests {
@@ -537,7 +536,7 @@ pgaudit:
 		t.Errorf("Expected pgbouncer listen_port 7777, got %v", conf.Pgbouncer)
 	}
 
-	if conf.Postgrest == nil || conf.Postgrest.ServerPort != 4000 {
+	if conf.Postgrest == nil || conf.Postgrest.ServerPort == nil || *conf.Postgrest.ServerPort != 4000 {
 		t.Errorf("Expected postgrest server_port 4000, got %v", conf.Postgrest)
 	}
 }

@@ -6,10 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/server"
 	"github.com/flanksource/postgres/pkg/utils"
-	"github.com/spf13/cobra"
 )
 
 // createServerCommands creates the server command group

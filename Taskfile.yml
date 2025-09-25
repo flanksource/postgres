@@ -10,7 +10,7 @@ includes:
   build: ./Taskfile.build.yaml
   test: ./Taskfile.test.yaml
   run: ./Taskfile.run.yaml
-  pgconfig: ./Taskfile.pgconfig.yaml
+  cli: ./Taskfile.pgconfig.yaml
 
 # Default tasks that delegate to included files
 tasks:
@@ -162,32 +162,27 @@ tasks:
   generate-schema:
     desc: Generate JSON schema and Go structs
     cmds:
-      - task: pgconfig:generate-schema
+      - task: cli:generate-schema
 
   validate-schema:
     desc: Validate the JSON schema file
     cmds:
-      - task: pgconfig:validate-schema
+      - task: cli:validate-schema
 
   cli-build:
     desc: Build and install the postgres-cli to GOBIN
     cmds:
-      - task: pgconfig:cli:build
-
-  cli-install:
-    desc: Install the postgres-cli to GOBIN
-    cmds:
-      - task: pgconfig:cli:install
+      - task: cli:build
 
   cli-test:
     desc: Run CLI tests
     cmds:
-      - task: pgconfig:cli:test
+      - task: cli:test
 
   cli-ci:
     desc: Run complete CLI CI pipeline
     cmds:
-      - task: pgconfig:cli:ci
+      - task: cli:ci
 
   # Help task
   help:

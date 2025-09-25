@@ -870,8 +870,8 @@ func (s *HealthServer) initializeHealthChecker() {
 	}
 
 	// Set PostgREST URL if configured
-	if s.PostgRESTConfig != nil {
-		postgrestURL = fmt.Sprintf("http://%s:%d", s.PostgRESTConfig.ServerHost, s.PostgRESTConfig.ServerPort)
+	if s.PostgRESTConfig != nil && s.PostgRESTConfig.ServerHost != nil && s.PostgRESTConfig.ServerPort != nil {
+		postgrestURL = fmt.Sprintf("http://%s:%d", *s.PostgRESTConfig.ServerHost, *s.PostgRESTConfig.ServerPort)
 		enabledServices = append(enabledServices, "postgrest")
 	}
 
@@ -964,11 +964,14 @@ func (s *HealthServer) LoadServiceConfigs() {
 	postgrestEnabled := os.Getenv("POSTGREST_ENABLED") == "true"
 	if postgrestEnabled {
 		dbUri := "postgresql://postgres@localhost:5432/postgres"
+		dbSchemas := "public"
+		serverHost := "0.0.0.0"
+		serverPort := 3000
 		s.PostgRESTConfig = &pkg.PostgrestConf{
 			DbUri:         &dbUri,
-			DbSchemas:     "public",
-			ServerHost:    "0.0.0.0",
-			ServerPort:    3000,
+			DbSchemas:     &dbSchemas,
+			ServerHost:    &serverHost,
+			ServerPort:    &serverPort,
 			AdminRole:     "postgres",
 			AnonymousRole: "postgres",
 			// Other defaults from env vars/struct tags

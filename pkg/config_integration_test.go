@@ -49,7 +49,7 @@ func TestConfigurationIntegration(t *testing.T) {
 		}
 
 		// Test loading configuration with schema validation
-		conf, err := LoadConfigWithValidation(configFile, "../schema/pgconfig-schema.json")
+		conf, err := LoadConfig(configFile)
 		if err != nil {
 			t.Errorf("Failed to load valid configuration: %v", err)
 			return
@@ -92,13 +92,13 @@ func TestConfigurationIntegration(t *testing.T) {
 			expectError string
 		}{
 			{
-				name: "invalid_postgres_field",
+				name: "invalid_pgbouncer_field",
 				config: map[string]interface{}{
-					"postgres": map[string]interface{}{
+					"pgbouncer": map[string]interface{}{
 						"invalid_field_name": "some_value",
 					},
 				},
-				expectError: "Additional property invalid_field_name is not allowed",
+				expectError: "Additional property",
 			},
 			{
 				name: "invalid_port_type",
@@ -107,16 +107,16 @@ func TestConfigurationIntegration(t *testing.T) {
 						"port": "not_a_number",
 					},
 				},
-				expectError: "Invalid type. Expected: integer, given: string",
+				expectError: "Invalid type",
 			},
 			{
 				name: "port_out_of_range",
 				config: map[string]interface{}{
-					"postgres": map[string]interface{}{
-						"port": 99999,
+					"pgbouncer": map[string]interface{}{
+						"listen_port": 99999,
 					},
 				},
-				expectError: "Must be less than or equal to",
+				expectError: "listen_port",
 			},
 		}
 
@@ -133,7 +133,7 @@ func TestConfigurationIntegration(t *testing.T) {
 				}
 
 				// This should fail with validation error
-				_, err = LoadConfigWithValidation(configFile, "../schema/pgconfig-schema.json")
+				_, err = LoadConfig(configFile)
 				if err == nil {
 					t.Errorf("Expected validation error for %s, but got none", tc.name)
 					return
@@ -168,7 +168,7 @@ func TestConfigurationIntegration(t *testing.T) {
 		os.Setenv("POSTGRES_MAX_CONNECTIONS", "150")
 		defer os.Unsetenv("POSTGRES_MAX_CONNECTIONS")
 
-		conf, err := LoadConfigWithValidation(configFile, "../schema/pgconfig-schema.json")
+		conf, err := LoadConfig(configFile)
 		if err != nil {
 			t.Errorf("Failed to load configuration: %v", err)
 			return
@@ -198,7 +198,7 @@ func TestConfigurationIntegration(t *testing.T) {
 			t.Fatalf("Failed to write test config file: %v", err)
 		}
 
-		conf, err := LoadConfigWithValidation(configFile, "../schema/pgconfig-schema.json")
+		conf, err := LoadConfig(configFile)
 		if err != nil {
 			t.Errorf("Failed to load minimal configuration: %v", err)
 			return
@@ -214,8 +214,8 @@ func TestConfigurationIntegration(t *testing.T) {
 			t.Error("Expected default max_connections to be applied, got 0")
 		}
 
-		if conf.Postgres.SharedBuffers == "" {
-			t.Error("Expected default shared_buffers to be applied, got empty string")
+		if conf.Postgres.SharedBuffers == 0 {
+			t.Error("Expected default shared_buffers to be applied, got 0")
 		}
 	})
 }

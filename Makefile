@@ -1,4 +1,4 @@
-.PHONY: build build-15 build-16 build-17 build-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all clean help status generate-structs validate-schema build-pgconfig test-config test-config-integration pgconfig-ci pgconfig pgconfig-test pgconfig-all
+.PHONY: build build-15 build-16 build-17 build-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all clean help status generate-structs validate-schema build-pgconfig test-config test-config-integration pgconfig-ci pgconfig pgconfig-test pgconfig-all lint fmt check
 
 # Docker registry and image configuration
 REGISTRY ?= ghcr.io
@@ -127,3 +127,19 @@ validate-schema:
 cli: cli-build
 
 cli-all: generate-schema validate-schema cli-build cli-test
+
+# Code quality targets
+lint:
+	@echo "Running golangci-lint..."
+	@golangci-lint run --timeout=5m --config=.golangci.yml ./...
+
+fmt:
+	@echo "Formatting Go code..."
+	@gofmt -s -w .
+	@goimports -local github.com/flanksource/postgres -w .
+	@echo "Code formatting complete"
+
+check: fmt lint
+	@echo "Running go vet..."
+	@go vet ./...
+	@echo "All quality checks passed"

@@ -3,12 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
-	"github.com/flanksource/postgres/pkg/embedded"
-	"github.com/flanksource/postgres/pkg/schemas"
 	"github.com/spf13/cobra"
+
+	"github.com/flanksource/postgres/pkg/generators"
 )
 
 // createSchemaCommands creates the schema command group
@@ -21,6 +19,7 @@ func createSchemaCommands() *cobra.Command {
 
 	schemaCmd.AddCommand(
 		createSchemaGenerateCommand(),
+		createSchemaGenerateFromGoCommand(),
 		createSchemaValidateCommand(),
 		createSchemaReportCommand(),
 	)
@@ -32,15 +31,29 @@ func createSchemaCommands() *cobra.Command {
 func createSchemaGenerateCommand() *cobra.Command {
 	generateCmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate JSON schema from PostgreSQL parameters",
-		Long:  "Generate JSON schema from PostgreSQL CSV parameter files using describe-config",
+		Short: "Generate JSON schema from configuration structs",
+		Long:  "Generate JSON schema from the configuration Go structs for validation",
 		RunE:  runSchemaGenerate,
 	}
 
-	generateCmd.Flags().String("postgres-version", "17", "PostgreSQL version to use")
 	generateCmd.Flags().String("output", "", "Output file for generated schema (default: stdout)")
 
 	return generateCmd
+}
+
+// createSchemaGenerateFromGoCommand creates the generate-from-go command
+func createSchemaGenerateFromGoCommand() *cobra.Command {
+	generateFromGoCmd := &cobra.Command{
+		Use:   "generate-from-go",
+		Short: "Generate JSON schema from Go structs",
+		Long:  "Generate JSON schema from the PostgresConf Go struct (Go is the source of truth)",
+		RunE:  runSchemaGenerateFromGo,
+	}
+
+	generateFromGoCmd.Flags().String("output", "", "Output file for generated schema (required)")
+	generateFromGoCmd.MarkFlagRequired("output")
+
+	return generateFromGoCmd
 }
 
 // createSchemaValidateCommand creates the schema validate command
@@ -77,124 +90,58 @@ func createSchemaReportCommand() *cobra.Command {
 
 // runSchemaGenerate handles the schema generate command
 func runSchemaGenerate(cmd *cobra.Command, args []string) error {
-	version, _ := cmd.Flags().GetString("postgres-version")
 	outputFile, _ := cmd.Flags().GetString("output")
 
 	if verbose {
-		fmt.Printf("Generating schema from PostgreSQL %s using describe-config...\n", version)
+		fmt.Println("Generating JSON schema from configuration structs...")
 	}
 
-	// Use embedded postgres to get parameters via describe-config
-	embeddedPG, err := embedded.NewEmbeddedPostgres("17.6.0")
+	// Create the Go-to-schema generator
+	generator := generators.NewGoToSchemaGenerator()
+
+	// Generate the schema
+	schemaJSON, err := generator.GenerateSchemaJSON()
 	if err != nil {
-		return fmt.Errorf("error creating embedded postgres: %w", err)
-	}
-	defer embeddedPG.Cleanup()
-
-	params, err := embeddedPG.DescribeConfig()
-	if err != nil {
-		return fmt.Errorf("error getting parameters from describe-config: %w", err)
+		return fmt.Errorf("error generating schema: %w", err)
 	}
 
-	if verbose {
-		fmt.Printf("Loaded %d parameters from describe-config\n", len(params))
-	}
-
-	// Add critical configuration parameters that must be included
-	criticalParams := []schemas.Param{
-		{
-			Name:      "listen_addresses",
-			Context:   "postmaster",
-			Category:  "Connections and Authentication / Connection Settings",
-			VarType:   "string",
-			BootVal:   "localhost",
-			MinVal:    0,
-			MaxVal:    0,
-			ShortDesc: "Sets the host name or IP address(es) to listen to.",
-			ExtraDesc: "",
-			VarClass:  "configuration",
-		},
-		{
-			Name:      "port",
-			Context:   "postmaster",
-			Category:  "Connections and Authentication / Connection Settings",
-			VarType:   "integer",
-			BootVal:   "5432",
-			MinVal:    1,
-			MaxVal:    65535,
-			ShortDesc: "Sets the server's port number.",
-			ExtraDesc: "",
-			VarClass:  "configuration",
-		},
-	}
-
-	// Check if these parameters are already present
-	paramNames := make(map[string]bool)
-	for _, param := range params {
-		paramNames[param.Name] = true
-	}
-
-	// Add missing critical parameters
-	for _, criticalParam := range criticalParams {
-		if !paramNames[criticalParam.Name] {
-			params = append(params, criticalParam)
-			if verbose {
-				fmt.Printf("Added missing parameter: %s\n", criticalParam.Name)
-			}
-		}
-	}
-
-	// Convert params to string format for the schema generator
-	describeOutput := formatDescribeOutput(params)
-
-	if verbose {
-		fmt.Printf("Got %d parameters, generating schema...\n", len(params))
-	}
-
-	// Build the schema generator
-	buildCmd := exec.Command("go", "build", "-tags", "pgtune_none", "-o", "schema/generate_schema", "./schema")
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stderr
-	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("error building schema generator: %w", err)
-	}
-
-	// Write describe-config output to temporary file
-	tmpFile, err := os.CreateTemp("", "postgres-describe-config-*.txt")
-	if err != nil {
-		return fmt.Errorf("error creating temporary file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
-
-	if _, err := tmpFile.WriteString(describeOutput); err != nil {
-		return fmt.Errorf("error writing to temporary file: %w", err)
-	}
-	tmpFile.Close() // Close file before passing to command
-
-	// Run the schema generator with the describe-config output file
-	var outputCmd *exec.Cmd
+	// Write to output file or stdout
 	if outputFile != "" {
-		outputCmd = exec.Command("./schema/generate_schema", tmpFile.Name())
-		outputCmd.Stderr = os.Stderr
-
-		output, err := outputCmd.Output()
-		if err != nil {
-			return fmt.Errorf("error running schema generator: %w", err)
+		if err := os.WriteFile(outputFile, schemaJSON, 0644); err != nil {
+			return fmt.Errorf("error writing schema file: %w", err)
 		}
-
-		if err := os.WriteFile(outputFile, output, 0644); err != nil {
-			return fmt.Errorf("error writing output file: %w", err)
-		}
-
 		fmt.Printf("✅ Schema generated and saved to: %s\n", outputFile)
 	} else {
-		outputCmd = exec.Command("./schema/generate_schema", tmpFile.Name())
-		outputCmd.Stdout = os.Stdout
-		outputCmd.Stderr = os.Stderr
-		if err := outputCmd.Run(); err != nil {
-			return fmt.Errorf("error running schema generator: %w", err)
-		}
+		fmt.Println(string(schemaJSON))
+	}
+
+	return nil
+}
+
+// runSchemaGenerateFromGo handles the generate-from-go command
+func runSchemaGenerateFromGo(cmd *cobra.Command, args []string) error {
+	outputFile, _ := cmd.Flags().GetString("output")
+
+	if verbose {
+		fmt.Println("Generating JSON schema from Go structs...")
+	}
+
+	// Create the Go-to-schema generator
+	generator := generators.NewGoToSchemaGenerator()
+
+	// Generate the schema
+	schemaJSON, err := generator.GenerateSchemaJSON()
+	if err != nil {
+		return fmt.Errorf("error generating schema: %w", err)
+	}
+
+	// Write to output file
+	if err := os.WriteFile(outputFile, schemaJSON, 0644); err != nil {
+		return fmt.Errorf("error writing schema file: %w", err)
+	}
+
+	if verbose {
+		fmt.Printf("✅ Schema generated from Go structs and saved to: %s\n", outputFile)
 	}
 
 	return nil
@@ -248,59 +195,6 @@ func runSchemaReport(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// formatDescribeOutput formats the parameter list as tab-separated values
-func formatDescribeOutput(params []schemas.Param) string {
-	var output string
-
-	// Add header (tab-separated to match ParseDescribeConfig expected format)
-	output = "name\tcontext\tcategory\tvartype\tboot_val\tmin_val\tmax_val\tshort_desc\textra_desc\n"
-
-	// Add each parameter
-	for _, param := range params {
-		// Handle empty values properly
-		name := param.Name
-		context := param.Context
-		if context == "" {
-			context = "\\N"
-		}
-		category := param.Category
-		if category == "" {
-			category = "\\N"
-		}
-		vartype := strings.ToUpper(param.VarType) // Convert to uppercase to match postgres format
-		if vartype == "" {
-			vartype = "\\N"
-		}
-		bootVal := param.BootVal
-		if bootVal == "" {
-			bootVal = "\\N"
-		}
-		minVal := fmt.Sprintf("%.0f", param.MinVal)
-		if minVal == "0" {
-			minVal = ""
-		}
-		maxVal := fmt.Sprintf("%.0f", param.MaxVal)
-		if maxVal == "0" {
-			maxVal = ""
-		}
-		shortDesc := param.ShortDesc
-		if shortDesc == "" {
-			shortDesc = "\\N"
-		}
-		extraDesc := param.ExtraDesc
-		if extraDesc == "" {
-			extraDesc = "\\N"
-		}
-
-		// Format: name, context, category, vartype, boot_val, min_val, max_val, short_desc, extra_desc
-		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			name, context, category, vartype, bootVal, minVal, maxVal, shortDesc, extraDesc)
-
-		output += line
-	}
-
-	return output
-}
 
 // generateParameterReport generates a parameter report (placeholder implementation)
 func generateParameterReport(version, format string) string {

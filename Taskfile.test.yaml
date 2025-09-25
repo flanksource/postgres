@@ -185,7 +185,7 @@ tasks:
 
   # Build task
   build:
-    desc: Build the PostgreSQL upgrade Docker image
+    desc: Build the flanksource/postgres Docker image
     cmds:
       - task build:build
 

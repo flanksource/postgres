@@ -2,7 +2,6 @@ package test
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,15 +14,15 @@ import (
 
 // PostgresIntegrationConfig holds configuration for comprehensive PostgreSQL testing
 type PostgresIntegrationConfig struct {
-	ImageName        string
-	ContainerName    string
-	PostgresPort     string
-	PgBouncerPort    string
-	PostgRESTPort    string
-	Extensions       []string
-	TestDatabase     string
-	TestUser         string
-	TestPassword     string
+	ImageName     string
+	ContainerName string
+	PostgresPort  string
+	PgBouncerPort string
+	PostgRESTPort string
+	Extensions    []string
+	TestDatabase  string
+	TestUser      string
+	TestPassword  string
 }
 
 // PostgresIntegrationTest manages comprehensive PostgreSQL testing
@@ -183,19 +182,19 @@ func (pit *PostgresIntegrationTest) waitForServices() error {
 
 	// First wait for ports to be available
 	pit.client.runner.Printf(colorGray, "", "Waiting for service ports to be available...")
-	
+
 	pgPort, _ := strconv.Atoi(pit.config.PostgresPort)
 	pgBouncerPort, _ := strconv.Atoi(pit.config.PgBouncerPort)
 	postgrestPort, _ := strconv.Atoi(pit.config.PostgRESTPort)
-	
+
 	if err := WaitForPort("localhost", pgPort, timeout); err != nil {
 		return fmt.Errorf("PostgreSQL port not available: %v", err)
 	}
-	
+
 	if err := WaitForPort("localhost", pgBouncerPort, timeout); err != nil {
 		return fmt.Errorf("PgBouncer port not available: %v", err)
 	}
-	
+
 	if err := WaitForPort("localhost", postgrestPort, timeout); err != nil {
 		return fmt.Errorf("PostgREST port not available: %v", err)
 	}
@@ -206,11 +205,11 @@ func (pit *PostgresIntegrationTest) waitForServices() error {
 		// Check PostgreSQL
 		if pit.checkPostgresReady() {
 			pit.client.runner.Printf(colorGray, "", "✅ PostgreSQL ready")
-			
+
 			// Check PgBouncer
 			if pit.checkPgBouncerReady() {
 				pit.client.runner.Printf(colorGray, "", "✅ PgBouncer ready")
-				
+
 				// Check PostgREST
 				if pit.checkPostgRESTReady() {
 					pit.client.runner.Printf(colorGray, "", "✅ PostgREST ready")
@@ -218,7 +217,7 @@ func (pit *PostgresIntegrationTest) waitForServices() error {
 				}
 			}
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
 

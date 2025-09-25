@@ -152,9 +152,8 @@ if [ $# -eq 2 ] && [[ "$1" =~ ^[0-9]+$ ]] && [[ "$2" =~ ^[0-9]+$ ]]; then
     FROM_VERSION="$1"
     TO_VERSION="$2"
     echo "🔧 Legacy mode: upgrading from PostgreSQL $FROM_VERSION to $TO_VERSION"
-    
-    # Delegate to docker-upgrade-multi script for legacy compatibility
-    exec /usr/local/bin/docker-upgrade-multi "$FROM_VERSION" "$TO_VERSION"
+    echo "❌ Legacy upgrade mode is no longer supported. Please use the auto-upgrade mode instead."
+    exit 1
     
 elif [ $# -eq 0 ]; then
     # Auto-detection mode - check if we should use s6-overlay or traditional approach

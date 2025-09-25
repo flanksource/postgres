@@ -26,6 +26,10 @@ test/schema_generation_test.go
 pkg/schemas/
 test/generated-configs/
 
+# Prevent schema file duplication - schemas should only be in schema/ directory
+*-schema.json
+!schema/*-schema.json
+
 # Go build artifacts
 *.out
 *.test

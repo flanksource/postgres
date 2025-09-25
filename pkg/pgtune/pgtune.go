@@ -185,8 +185,7 @@ func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 
 	// Update the PostgresConf model with the calculated values
 	pgConf.MaxConnections = params.MaxConnections
-	sharedBuffersSize := types.Size(utils.KBToBytes(params.SharedBuffers))
-	pgConf.SharedBuffers = sharedBuffersSize.String()
+	pgConf.SharedBuffers = types.Size(utils.KBToBytes(params.SharedBuffers))
 
 	// Only set fields that exist in the new PostgresConf struct
 	// The rest will be handled by the generators when creating config files

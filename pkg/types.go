@@ -36,7 +36,7 @@ func (e *ValidationError) Error() string {
 // This allows existing code to work while server implementations are concrete
 type Postgres interface {
 	DescribeConfig() ([]interface{}, error)
-	DetectVersion() (int, error) 
+	DetectVersion() (int, error)
 	Health() error
 	IsRunning() bool
 	Start() error

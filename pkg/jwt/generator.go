@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/flanksource/postgres/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/flanksource/postgres/pkg/utils"
 )
 
 // JWTGenerator handles JWT token creation and validation

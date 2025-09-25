@@ -63,8 +63,8 @@ postgrest:
 		t.Errorf("Expected pgbouncer listen_port 7777, got %d", conf.Pgbouncer.ListenPort)
 	}
 
-	if conf.Postgrest != nil && conf.Postgrest.ServerPort != 4000 {
-		t.Errorf("Expected postgrest server_port 4000, got %d", conf.Postgrest.ServerPort)
+	if conf.Postgrest != nil && conf.Postgrest.ServerPort != nil && *conf.Postgrest.ServerPort != 4000 {
+		t.Errorf("Expected postgrest server_port 4000, got %d", *conf.Postgrest.ServerPort)
 	}
 }
 

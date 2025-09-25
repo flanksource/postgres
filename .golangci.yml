@@ -1,0 +1,120 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - ineffassign
+    - unused
+    - unparam
+    - misspell
+    - dupl
+    - gosec
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - errcheck
+    - gosimple
+    - gocritic
+    - gocyclo
+
+  disable:
+    - deadcode  # deprecated
+    - structcheck  # deprecated
+    - varcheck  # deprecated
+    - ifshort  # deprecated
+    - nosnakecase  # deprecated
+    - golint  # deprecated
+    - scopelint  # deprecated
+    - exhaustivestruct  # too strict
+    - maligned  # deprecated
+
+linters-settings:
+  dupl:
+    threshold: 150  # tokens count for duplicate detection
+
+  gocyclo:
+    min-complexity: 20
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - commentFormatting
+      - whyNoLint
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  gosec:
+    excludes:
+      - G307  # Deferring unsafe method "Close"
+      - G204  # Subprocess launch (needed for binary validation)
+      - G304  # File path provided as argument (needed for config files)
+
+  goimports:
+    local-prefixes: github.com/flanksource/postgres
+
+  unparam:
+    check-exported: false  # only check internal functions
+
+issues:
+  exclude-rules:
+    # Exclude test files from some linters
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - unparam
+
+    # Exclude generated files
+    - path: "generated"
+      linters:
+        - dupl
+        - gosec
+
+    # Allow longer functions in specific files
+    - path: pkg/server/postgres.go
+      linters:
+        - gocyclo
+      source: "func.*Validate"
+
+    # Allow TODO comments
+    - text: "TODO"
+      linters:
+        - godox
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new-from-rev: ""
+  fix: false

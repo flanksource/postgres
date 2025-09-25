@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/flanksource/postgres/pkg/installer"
+	"github.com/flanksource/commons/deps"
 )
 
 // WalG represents a WAL-G backup service instance
@@ -254,20 +254,25 @@ func (w *WalG) GetStatus() (*WalgStatus, error) {
 
 // Install installs WAL-G binary with optional version and target directory
 func (w *WalG) Install(version, targetDir string) error {
-	inst := installer.New()
-	return inst.InstallBinary("wal-g", version, targetDir)
+	if targetDir == "" {
+		targetDir = "/usr/local/bin"
+	}
+	return deps.Install("wal-g", version, deps.WithBinDir(targetDir))
 }
 
 // IsInstalled checks if WAL-G is installed in PATH
 func (w *WalG) IsInstalled() bool {
-	inst := installer.New()
-	return inst.IsWalGInstalled()
+	return deps.Which("wal-g")
 }
 
 // InstalledVersion returns the installed WAL-G version
 func (w *WalG) InstalledVersion() (string, error) {
-	inst := installer.New()
-	return inst.GetWalGVersion()
+	cmd := exec.Command("wal-g", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get wal-g version: %w", err)
+	}
+	return string(output), nil
 }
 
 // buildEnvironment constructs the environment variables for WAL-G commands
@@ -317,7 +322,7 @@ func (w *WalG) buildEnvironment() []string {
 	if w.Config.S3Endpoint != nil && *w.Config.S3Endpoint != "" {
 		env = append(env, "AWS_ENDPOINT="+*w.Config.S3Endpoint)
 	}
-	if !w.Config.S3UseSsl {
+	if w.Config.S3UseSsl != nil && !*w.Config.S3UseSsl {
 		env = append(env, "WALG_S3_SSL=false")
 	}
 

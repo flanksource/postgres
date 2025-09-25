@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/flanksource/postgres/pkg/utils"
 	"github.com/spf13/cobra"
+
+	"github.com/flanksource/postgres/pkg/utils"
 )
 
 const version = "1.0.0"

@@ -3,7 +3,7 @@
 # Supports both AMD64 and ARM64 architectures
 
 # Build stage for pgconfig binary
-FROM golang:1.24-bookworm AS pgconfig-builder
+FROM golang:1.25-bookworm AS pgconfig-builder
 
 # Copy source code
 WORKDIR /src
@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build pgconfig binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o pgconfig ./cmd/pgconfig
+RUN CGO_ENABLED=0 GOOS=linux go build -o pgconfig ./cmd
 
 # Main stage
 FROM postgres:17-bookworm
@@ -236,8 +236,8 @@ RUN chmod +x /usr/local/bin/postgresql-service.sh /usr/local/bin/pgbouncer-servi
 
 # Copy Taskfiles and scripts
 COPY Taskfile.yml Taskfile.*.yaml /var/lib/postgresql/
-COPY docker-entrypoint.sh docker-upgrade-multi /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-upgrade-multi
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER root
 

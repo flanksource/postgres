@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
 	"github.com/flanksource/commons/test"
 )
 
 // createKindCluster creates a kind cluster
 func createKindCluster(name string) error {
 	fmt.Printf("Creating Kind Cluster: %s\n", name)
-	
+
 	// Check if cluster already exists
 	cmd := exec.Command("kind", "get", "clusters")
 	output, _ := cmd.Output()
@@ -19,7 +20,7 @@ func createKindCluster(name string) error {
 		fmt.Printf("Kind cluster %s already exists, reusing it\n", name)
 		return nil
 	}
-	
+
 	// Create kind config
 	kindConfig := `
 kind: Cluster
@@ -38,20 +39,20 @@ nodes:
         hostPort: 5432
         protocol: TCP
 `
-	
+
 	// Create cluster with config
 	cmd = exec.Command("kind", "create", "cluster", "--name", name, "--config", "-")
 	cmd.Stdin = strings.NewReader(kindConfig)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to create kind cluster: %w\nStdout: %s\nStderr: %s", 
+		return fmt.Errorf("failed to create kind cluster: %w\nStdout: %s\nStderr: %s",
 			err, stdout.String(), stderr.String())
 	}
-	
+
 	fmt.Printf("Kind cluster %s created successfully\n", name)
 	return nil
 }
@@ -73,45 +74,45 @@ func deleteKindCluster(name string) error {
 // waitForClusterReady waits for the cluster to be ready
 func waitForClusterReady() error {
 	// Wait for nodes to be ready
-	cmd := exec.Command("kubectl", "wait", "--for=condition=Ready", 
+	cmd := exec.Command("kubectl", "wait", "--for=condition=Ready",
 		"nodes", "--all", "--timeout=120s")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed waiting for nodes: %w", err)
 	}
-	
+
 	// Wait for system pods to be ready
-	cmd = exec.Command("kubectl", "wait", "--for=condition=Ready", 
+	cmd = exec.Command("kubectl", "wait", "--for=condition=Ready",
 		"pods", "--all", "-n", "kube-system", "--timeout=60s")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed waiting for system pods: %w", err)
 	}
-	
+
 	return nil
 }
 
 // loadDockerImages loads required Docker images into kind
 func loadDockerImages() error {
 	fmt.Printf("Loading Docker Images into Kind\n")
-	
+
 	images := []string{
 		"ghcr.io/flanksource/docker-postgres-upgrade-upgrade:latest",
 		"supabase/postgres:15.1.0.147",
 		"postgres:14-bookworm",
-		"postgres:15-bookworm", 
+		"postgres:15-bookworm",
 		"postgres:16-bookworm",
 		"postgres:17-bookworm",
 	}
-	
+
 	for i, image := range images {
 		fmt.Printf("[%d/%d] Processing image: %s\n", i+1, len(images), image)
-		
+
 		// First try to pull the image
 		fmt.Printf("Attempting to pull image...\n")
 		cmd := exec.Command("docker", "pull", image)
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Warning: Could not pull image %s (may use local)\n", image)
 		}
-		
+
 		// Load into kind
 		fmt.Printf("Loading image into kind cluster...\n")
 		cmd = exec.Command("kind", "load", "docker-image", image, "--name", "postgres-test")
@@ -121,7 +122,7 @@ func loadDockerImages() error {
 			fmt.Printf("✓ Image loaded successfully\n")
 		}
 	}
-	
+
 	fmt.Printf("Docker Images Loading Complete\n")
 	return nil
 }
@@ -154,6 +155,6 @@ func helmDelete(releaseName, namespace string) error {
 		Release(releaseName).
 		Namespace(namespace).
 		Delete()
-	
+
 	return chart.Error()
 }

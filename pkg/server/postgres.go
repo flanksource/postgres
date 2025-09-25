@@ -13,10 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/schemas"
 	"github.com/flanksource/postgres/pkg/utils"
-	_ "github.com/lib/pq"
 )
 
 type Postgres struct {

@@ -245,38 +245,6 @@ func detectLinuxDiskType() (DiskType, error) {
 	return DiskHDD, nil
 }
 
-// GetDBTypeFromString converts a string to DBType
-func GetDBTypeFromString(dbType string) DBType {
-	switch strings.ToLower(dbType) {
-	case "web":
-		return DBTypeWeb
-	case "oltp":
-		return DBTypeOLTP
-	case "dw", "datawarehouse", "data-warehouse":
-		return DBTypeDW
-	case "desktop":
-		return DBTypeDesktop
-	case "mixed":
-		return DBTypeMixed
-	default:
-		return DBTypeWeb // Default to web workload
-	}
-}
-
-// GetDiskTypeFromString converts a string to DiskType
-func GetDiskTypeFromString(diskType string) DiskType {
-	switch strings.ToLower(diskType) {
-	case "ssd":
-		return DiskSSD
-	case "hdd", "hard-drive":
-		return DiskHDD
-	case "san":
-		return DiskSAN
-	default:
-		return DiskSSD // Default to SSD
-	}
-}
-
 // TotalMemoryGB returns total memory in GB
 func (si *SystemInfo) TotalMemoryGB() float64 {
 	memGB := float64(si.TotalMemoryBytes) / (1024 * 1024 * 1024)

@@ -3,20 +3,21 @@ package test
 import (
 	"testing"
 
-	"github.com/flanksource/postgres/pkg/schemas"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/flanksource/postgres/pkg/schemas"
 )
 
 // Test \\N handling in parameter descriptions and values
 func TestHandleNullValues(t *testing.T) {
 	// Test data with \\N values
 	testInput := "param1\tpostmaster\tResource Usage / Memory\tINTEGER\t\\N\t16\t1024\tTest parameter\t\\N\n"
-	
+
 	params, err := schemas.ParseDescribeConfig(testInput)
 	require.NoError(t, err)
 	require.Len(t, params, 1)
-	
+
 	param := params[0]
 	assert.Equal(t, "param1", param.Name)
 	assert.Equal(t, "integer", param.VarType)
@@ -46,7 +47,7 @@ func TestXTypeDetectionSize(t *testing.T) {
 			name: "work_mem with kB unit",
 			param: schemas.Param{
 				Name:     "work_mem",
-				VarType:  "integer", 
+				VarType:  "integer",
 				Unit:     "kB",
 				Category: "Resource Usage / Memory",
 			},
@@ -107,7 +108,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 			expected: "Duration",
 		},
 		{
-			name: "param with s unit", 
+			name: "param with s unit",
 			param: schemas.Param{
 				Name:    "timeout_param",
 				VarType: "integer",
@@ -133,7 +134,7 @@ func TestXTypeDetectionDuration(t *testing.T) {
 	}
 }
 
-// Test that no \\N values appear in final descriptions 
+// Test that no \\N values appear in final descriptions
 func TestDescriptionsCleaned(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -179,9 +180,9 @@ func TestDescriptionsCleaned(t *testing.T) {
 // Test all parameter types are correctly mapped
 func TestParameterTypeMapping(t *testing.T) {
 	tests := []struct {
-		name       string
-		param      schemas.Param
-		expectType string
+		name        string
+		param       schemas.Param
+		expectType  string
 		expectXType string
 	}{
 		{
@@ -228,7 +229,7 @@ func TestParameterTypeMapping(t *testing.T) {
 				Name:    "statement_timeout",
 				VarType: "integer",
 			},
-			expectType:  "string", 
+			expectType:  "string",
 			expectXType: "Duration",
 		},
 	}
@@ -236,7 +237,7 @@ func TestParameterTypeMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			xType := detectXTypeForTest(tt.param)
-			
+
 			// Determine expected schema type based on x-type
 			var schemaType string
 			if xType == "Size" || xType == "Duration" {
@@ -253,7 +254,7 @@ func TestParameterTypeMapping(t *testing.T) {
 					schemaType = "string"
 				}
 			}
-			
+
 			assert.Equal(t, tt.expectType, schemaType)
 			assert.Equal(t, tt.expectXType, xType)
 		})

@@ -7,18 +7,18 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/flanksource/commons/deps"
+	"github.com/spf13/cobra"
+
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/generators"
-	"github.com/flanksource/postgres/pkg/installer"
 	"github.com/flanksource/postgres/pkg/pgtune"
 	"github.com/flanksource/postgres/pkg/server"
 	"github.com/flanksource/postgres/pkg/sysinfo"
 	"github.com/flanksource/postgres/pkg/utils"
-	"github.com/spf13/cobra"
 )
 
 // createConfigCommands creates the config command group
@@ -751,21 +751,25 @@ func handleInstallFromConfig(configFile, targetDir string) error {
 		return fmt.Errorf("error loading config: %w", err)
 	}
 
-	inst := installer.New()
+	// Set default target directory if not specified
+	if targetDir == "" {
+		targetDir = "/usr/local/bin"
+	}
+
 	installed := []string{}
 	skipped := []string{}
 
 	// Install PostgREST if configured and enabled
 	if config.Postgrest != nil && config.Postgrest.DbUri != nil && *config.Postgrest.DbUri != "" {
-		version := inst.GetDefaultVersion("postgrest")
+		version := "" // Use default version from deps
 
 		if verbose {
-			fmt.Printf("Installing PostgREST version %s...\n", version)
+			fmt.Printf("Installing PostgREST...\n")
 		}
-		if err := inst.InstallBinary("postgrest", version, targetDir); err != nil {
+		if err := deps.Install("postgrest", version, deps.WithBinDir(targetDir)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error installing PostgREST: %v\n", err)
 		} else {
-			installed = append(installed, fmt.Sprintf("PostgREST (%s)", version))
+			installed = append(installed, "PostgREST")
 		}
 	} else {
 		skipped = append(skipped, "PostgREST (not configured)")
@@ -773,15 +777,15 @@ func handleInstallFromConfig(configFile, targetDir string) error {
 
 	// Install WAL-G if enabled
 	if config.Walg != nil && config.Walg.Enabled {
-		version := inst.GetDefaultVersion("wal-g")
+		version := "" // Use default version from deps
 
 		if verbose {
-			fmt.Printf("Installing WAL-G version %s...\n", version)
+			fmt.Printf("Installing WAL-G...\n")
 		}
-		if err := inst.InstallBinary("wal-g", version, targetDir); err != nil {
+		if err := deps.Install("wal-g", version, deps.WithBinDir(targetDir)); err != nil {
 			fmt.Fprintf(os.Stderr, "Error installing WAL-G: %v\n", err)
 		} else {
-			installed = append(installed, fmt.Sprintf("WAL-G (%s)", version))
+			installed = append(installed, "WAL-G")
 		}
 	} else {
 		skipped = append(skipped, "WAL-G (not enabled)")
@@ -789,14 +793,14 @@ func handleInstallFromConfig(configFile, targetDir string) error {
 
 	// Install PostgreSQL if postgres configuration exists
 	if config.Postgres != nil {
-		version := inst.GetDefaultVersion("postgres")
+		version := "" // Use default version from deps
 		if verbose {
-			fmt.Printf("Installing PostgreSQL version %s...\n", version)
+			fmt.Printf("Installing PostgreSQL...\n")
 		}
-		if err := inst.InstallBinary("postgres", version, targetDir); err != nil {
+		if err := deps.InstallPostgres(version, targetDir); err != nil {
 			fmt.Fprintf(os.Stderr, "Error installing PostgreSQL: %v\n", err)
 		} else {
-			installed = append(installed, fmt.Sprintf("PostgreSQL (%s)", version))
+			installed = append(installed, "PostgreSQL")
 		}
 	} else {
 		skipped = append(skipped, "PostgreSQL (no postgres configuration found)")
@@ -821,26 +825,42 @@ func handleInstallFromConfig(configFile, targetDir string) error {
 }
 
 func handleInstallBinary(binary, version, targetDir string) error {
-	inst := installer.New()
+	// Set default target directory if not specified
+	if targetDir == "" {
+		targetDir = "/usr/local/bin"
+	}
 
-	if !inst.IsBinarySupported(binary) {
-		return fmt.Errorf("unsupported binary '%s'. Supported binaries: %v", binary, inst.ListSupportedBinaries())
+	// List of supported binaries
+	supportedBinaries := []string{"postgres", "postgrest", "wal-g", "task"}
+	isSupported := false
+	for _, supported := range supportedBinaries {
+		if binary == supported {
+			isSupported = true
+			break
+		}
+	}
+
+	if !isSupported {
+		return fmt.Errorf("unsupported binary '%s'. Supported binaries: %v", binary, supportedBinaries)
 	}
 
 	// Show what we're installing
 	fmt.Printf("Installing %s", binary)
 	if version != "" {
 		fmt.Printf(" version %s", version)
-	} else {
-		fmt.Printf(" (default: %s)", inst.GetDefaultVersion(binary))
 	}
-	if targetDir != "" {
-		fmt.Printf(" to %s", targetDir)
-	}
+	fmt.Printf(" to %s", targetDir)
 	fmt.Println("...")
 
-	if err := inst.InstallBinary(binary, version, targetDir); err != nil {
-		return err
+	// Special handling for postgres
+	if binary == "postgres" {
+		if err := deps.InstallPostgres(version, targetDir); err != nil {
+			return err
+		}
+	} else {
+		if err := deps.Install(binary, version, deps.WithBinDir(targetDir)); err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("✅ Successfully installed %s\n", binary)
@@ -848,18 +868,18 @@ func handleInstallBinary(binary, version, targetDir string) error {
 }
 
 func handleInstallList() error {
-	inst := installer.New()
+	supportedBinaries := map[string]string{
+		"postgres":  "16.1.0",
+		"postgrest": "v13.0.5",
+		"wal-g":     "v3.0.5",
+		"task":      "v3.44.1",
+	}
+
 	fmt.Println("Available binaries for installation:")
-	for _, name := range inst.ListSupportedBinaries() {
-		defaultVer := inst.GetDefaultVersion(name)
-		installed := inst.CheckBinaryExists(name)
+	for name, defaultVer := range supportedBinaries {
 		status := ""
-		if installed {
-			if ver, err := inst.GetBinaryVersion(name); err == nil {
-				status = fmt.Sprintf(" (installed: %s)", strings.TrimSpace(ver))
-			} else {
-				status = " (installed)"
-			}
+		if deps.Which(name) {
+			status = " (installed)"
 		}
 		fmt.Printf("  - %s (default: %s)%s\n", name, defaultVer, status)
 	}

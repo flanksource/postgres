@@ -52,16 +52,16 @@ func (g *PostgreSQLConfigGenerator) GenerateConfig() *pkg.PostgresConf {
 		Port:           5432,
 		MaxConnections: g.TunedParams.MaxConnections,
 
-		// Memory settings (convert KB values to string values)
-		SharedBuffers: types.Size(utils.KBToBytes(g.TunedParams.SharedBuffers)).String(),
-		WorkMem:       types.Size(utils.KBToBytes(g.TunedParams.WorkMem)).String(),
+		// Memory settings (convert KB values to Size type)
+		SharedBuffers: types.Size(utils.KBToBytes(g.TunedParams.SharedBuffers)),
+		WorkMem:       types.Size(utils.KBToBytes(g.TunedParams.WorkMem)),
 
 		// Security settings
 		PasswordEncryption: "md5",
 
 		// SSL settings
-		SslCertFile: "/etc/ssl/certs/server.crt",
-		SslKeyFile:  "/etc/ssl/private/server.key",
+		SSLCertFile: "/etc/ssl/certs/server.crt",
+		SSLKeyFile:  "/etc/ssl/private/server.key",
 
 		// Logging settings
 		LogStatement: "none",
@@ -373,8 +373,8 @@ func (g *PostgreSQLConfigGenerator) generateSSLSection() string {
 	// Note: Ssl field not available in current schema
 
 	// Get SSL file paths (now string fields, not pointers)
-	sslCertFile := g.config.SslCertFile
-	sslKeyFile := g.config.SslKeyFile
+	sslCertFile := g.config.SSLCertFile
+	sslKeyFile := g.config.SSLKeyFile
 
 	return fmt.Sprintf(`# -----------------------------
 # SSL/TLS CONFIGURATION

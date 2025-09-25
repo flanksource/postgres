@@ -28,7 +28,7 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 	Context("Helm Chart Operations", func() {
 		It("should install with default values", func() {
 			By("Installing the Helm chart using fluent API")
-			
+
 			// Install with password secret and wait
 			chart.
 				WithPassword(passwordSecret).
@@ -39,7 +39,7 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 			By("Waiting for StatefulSet to be ready")
 			statefulSet := chart.GetStatefulSet(statefulSet)
 			statefulSet.WaitReady()
-			
+
 			replicas, err := statefulSet.GetReplicas()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(replicas).To(Equal(1))
@@ -186,7 +186,7 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 		It("should support complex chained operations", func() {
 			By("Complex chained operation")
-			
+
 			// This demonstrates the full power of the fluent interface
 			chart.
 				WithPassword("admin-secret").
@@ -252,22 +252,22 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 	Context("Namespace Management", func() {
 		It("should manage namespaces", func() {
 			testNs := test.NewNamespace("test-fluent-ns")
-			
+
 			By("Creating namespace")
 			testNs.Create().MustSucceed()
-			
+
 			By("Installing chart in new namespace")
 			testChart := test.NewHelmChart(chartPath).
 				Release("test-release").
 				Namespace("test-fluent-ns").
 				WithPassword("test-secret").
 				Install()
-			
+
 			if testChart.Error() == nil {
 				By("Cleaning up")
 				testChart.Delete()
 			}
-			
+
 			By("Deleting namespace")
 			testNs.Delete().MustSucceed()
 		})
