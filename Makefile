@@ -1,4 +1,4 @@
-.PHONY: build build-15 build-16 build-17 build-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all clean help status generate-structs validate-schema build-pgconfig test-config test-config-integration pgconfig-ci pgconfig pgconfig-test pgconfig-all lint fmt check
+.PHONY: build build-15 build-16 build-17 build-all build-minimal build-minimal-all push push-15 push-16 push-17 push-all test test-simple test-compose test-all test-minimal test-minimal-all clean clean-minimal help status generate-structs validate-schema build-pgconfig test-config test-config-integration pgconfig-ci pgconfig pgconfig-test pgconfig-all lint fmt check
 
 # Docker registry and image configuration
 REGISTRY ?= ghcr.io
@@ -20,6 +20,24 @@ build-17:
 
 build-all:
 	task build:build-all
+
+build-minimal:
+	task build:build-minimal
+
+build-minimal-14:
+	task build:build-minimal-14
+
+build-minimal-15:
+	task build:build-minimal-15
+
+build-minimal-16:
+	task build:build-minimal-16
+
+build-minimal-17:
+	task build:build-minimal-17
+
+build-minimal-all:
+	task build:build-minimal-all
 
 # Push operations
 push-15:
@@ -49,6 +67,24 @@ test-all:
 test:
 	task test
 
+test-minimal:
+	task test:test-minimal-all
+
+test-minimal-basic:
+	task test:test-minimal-basic
+
+test-minimal-14-to-17:
+	task test:test-minimal-14-to-17
+
+test-minimal-15-to-17:
+	task test:test-minimal-15-to-17
+
+test-minimal-16-to-17:
+	task test:test-minimal-16-to-17
+
+test-minimal-all:
+	task test:test-minimal-all
+
 # Development shortcuts
 dev-setup:
 	task dev-setup
@@ -59,6 +95,9 @@ dev-test-quick:
 # Utility commands
 clean:
 	task clean
+
+clean-minimal:
+	task test:clean-minimal
 
 status:
 	task status

@@ -1,0 +1,315 @@
+name: Build and Test PostgreSQL Minimal Container
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+    paths:
+      - 'Dockerfile.minimal'
+      - 'entrypoint-minimal.sh'
+      - 'cmd/pgconfig/**'
+      - '.github/workflows/build-and-test-minimal.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile.minimal'
+      - 'entrypoint-minimal.sh'
+      - 'cmd/pgconfig/**'
+      - '.github/workflows/build-and-test-minimal.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/postgres-minimal
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.minimal
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image
+        id: image
+        run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Don't cancel other tests if one fails
+      matrix:
+        include:
+          # AMD64 tests - full matrix
+          - platform: linux/amd64
+            test: { from: 14, to: 15, name: "14 to 15" }
+          - platform: linux/amd64
+            test: { from: 15, to: 16, name: "15 to 16" }
+          - platform: linux/amd64
+            test: { from: 16, to: 17, name: "16 to 17" }
+          - platform: linux/amd64
+            test: { from: 14, to: 16, name: "14 to 16 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          # ARM64 test - just one to verify it works
+          - platform: linux/arm64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+    name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set image name
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          else
+            echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
+          fi
+
+      - name: Pull test image
+        run: |
+          echo "Pulling test image: ${{ env.TEST_IMAGE }}"
+          docker pull ${{ env.TEST_IMAGE }}
+
+      - name: Create test data directory
+        run: |
+          mkdir -p test-data/${{ matrix.test.from }}
+          chmod 777 test-data/${{ matrix.test.from }}
+          # Set SELinux context to allow Docker access
+          sudo chcon -Rt svirt_sandbox_file_t test-data/ 2>/dev/null || true
+
+      - name: Initialize PostgreSQL ${{ matrix.test.from }} with test data
+        run: |
+          docker run --rm \
+            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
+            -e POSTGRES_PASSWORD=testpass \
+            -e POSTGRES_DB=testdb \
+            postgres:${{ matrix.test.from }}-bookworm \
+            bash -c "
+              docker-entrypoint.sh postgres &
+              PGPID=\$!
+              sleep 10
+
+              # Create testuser and test database
+              psql -U postgres -d testdb <<EOF
+          CREATE USER testuser WITH PASSWORD 'testpass';
+          GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
+          EOF
+
+              # Create test data as testuser
+              psql -U testuser -d testdb <<EOF
+          CREATE TABLE test_data (
+            id SERIAL PRIMARY KEY,
+            data TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          INSERT INTO test_data (data)
+          SELECT 'Test record ' || generate_series(1, 1000);
+
+          CREATE INDEX idx_test_data ON test_data(created_at);
+
+          SELECT COUNT(*) as record_count FROM test_data;
+          EOF
+
+              # Gracefully stop PostgreSQL
+              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+              sleep 5
+
+              # Fix permissions for GitHub Actions runner
+              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+            "
+
+      - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
+        timeout-minutes: 10
+        run: |
+          docker run --rm \
+            ${{ matrix.platform == 'linux/arm64' && '--platform linux/arm64' || '' }} \
+            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
+            -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
+            -e PG_VERSION=${{ matrix.test.to }} \
+            ${{ env.TEST_IMAGE }}
+
+      - name: Verify upgraded data
+        run: |
+          docker run --rm \
+            -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
+            -e POSTGRES_PASSWORD=testpass \
+            postgres:${{ matrix.test.to }}-bookworm \
+            bash -c "
+              docker-entrypoint.sh postgres &
+              PGPID=\$!
+              sleep 10
+
+              # Verify data
+              psql -U testuser -d testdb <<EOF
+          -- Check table exists
+          SELECT COUNT(*) as record_count FROM test_data;
+
+          -- Check index exists
+          SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
+
+          -- Verify data integrity
+          SELECT
+            CASE
+              WHEN COUNT(*) = 1000 THEN 'PASS: All records present'
+              ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
+            END as result
+          FROM test_data;
+          EOF
+
+              # Stop PostgreSQL
+              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+
+              # Fix permissions for GitHub Actions runner
+              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+            "
+
+      - name: Fix permissions after test
+        if: always()
+        run: |
+          # Always fix permissions after test, regardless of success/failure
+          sudo chown -R $USER:$USER test-data/ || true
+
+      - name: Collect and show test artifacts on failure
+        if: failure()
+        run: |
+          echo "=== Test failed, collecting available information ==="
+
+          # Try to fix permissions first
+          sudo chown -R $USER:$USER test-data/ || true
+
+          # Show directory structure
+          echo "Test data directory structure:"
+          find test-data/ -type f -name "*.log" 2>/dev/null || echo "No log files found"
+
+          # Show any pg_upgrade output if available
+          find test-data/ -name "pg_upgrade_output.d" -type d 2>/dev/null | while read dir; do
+            echo "=== Contents of $dir ==="
+            ls -la "$dir" 2>/dev/null || echo "Cannot access $dir"
+          done
+
+          # Show recent log entries
+          find test-data/ -name "*.log" -type f 2>/dev/null | head -5 | while read logfile; do
+            echo "=== Last 20 lines of $logfile ==="
+            tail -20 "$logfile" 2>/dev/null || echo "Cannot read $logfile"
+          done
+
+  test-basic-functionality:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Test Basic Functionality
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set image name
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          else
+            echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
+          fi
+
+      - name: Pull test image
+        run: |
+          echo "Pulling test image: ${{ env.TEST_IMAGE }}"
+          docker pull ${{ env.TEST_IMAGE }}
+
+      - name: Test PostgreSQL basic functionality
+        run: |
+          # Start container
+          docker run -d --name postgres-minimal-test \
+            -e POSTGRES_PASSWORD=testpass \
+            -e POSTGRES_DB=testdb \
+            -e PG_VERSION=17 \
+            ${{ env.TEST_IMAGE }}
+
+          # Wait for PostgreSQL to be ready
+          sleep 15
+
+          # Test basic operations
+          docker exec postgres-minimal-test psql -U postgres -d testdb -c "
+            CREATE TABLE test (id SERIAL PRIMARY KEY, data TEXT);
+            INSERT INTO test (data) VALUES ('test1'), ('test2'), ('test3');
+            SELECT COUNT(*) FROM test;
+          "
+
+          # Test basic contrib extensions that come with PostgreSQL
+          docker exec postgres-minimal-test psql -U postgres -d testdb -c "
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+            CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+            SELECT * FROM pg_available_extensions WHERE name IN ('pgcrypto', 'pg_stat_statements');
+          "
+
+          # Stop container
+          docker stop postgres-minimal-test
+          docker rm postgres-minimal-test
+
+      - name: Test pgconfig CLI
+        run: |
+          # Start container
+          docker run -d --name postgres-minimal-pgconfig \
+            -e POSTGRES_PASSWORD=testpass \
+            -e PG_VERSION=17 \
+            ${{ env.TEST_IMAGE }}
+
+          # Wait for PostgreSQL to be ready
+          sleep 15
+
+          # Test pgconfig functionality
+          docker exec postgres-minimal-pgconfig pgconfig --help
+
+          # Stop container
+          docker stop postgres-minimal-pgconfig
+          docker rm postgres-minimal-pgconfig
