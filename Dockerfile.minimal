@@ -3,7 +3,7 @@
 # Supports both AMD64 and ARM64 architectures
 
 # Build stage for pgconfig binary
-FROM golang:1.24-bookworm AS pgconfig-builder
+FROM golang:1.25-bookworm AS pgconfig-builder
 
 # Copy source code
 WORKDIR /src
