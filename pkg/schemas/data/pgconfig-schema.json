@@ -1,0 +1,739 @@
+{
+  "$id": "https://github.com/flanksource/postgres/schema/pgconfig.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Configuration for PostgreSQL and related services",
+  "properties": {
+    "pgaudit": {
+      "additionalProperties": false,
+      "description": "PostgreSQL Audit Extension configuration",
+      "properties": {
+        "log": {
+          "default": "all",
+          "description": "Statement classes to log",
+          "enum": [
+            "none",
+            "all",
+            "read",
+            "write",
+            "function",
+            "role",
+            "ddl",
+            "misc",
+            "misc_set"
+          ],
+          "type": "string"
+        },
+        "log_catalog": {
+          "default": "on",
+          "description": "Log statements for catalog objects",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_client": {
+          "default": "off",
+          "description": "Log messages to client",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_level": {
+          "default": "log",
+          "description": "Log level for audit logs",
+          "enum": [
+            "debug5",
+            "debug4",
+            "debug3",
+            "debug2",
+            "debug1",
+            "info",
+            "notice",
+            "warning",
+            "error",
+            "log",
+            "fatal",
+            "panic"
+          ],
+          "type": "string"
+        },
+        "log_parameter": {
+          "default": "off",
+          "description": "Include parameters in audit logs",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_parameter_max_size": {
+          "default": "0",
+          "description": "Maximum parameter size to log",
+          "pattern": "^\\d+(B|kB|KB|MB|GB)?$",
+          "type": "string"
+        },
+        "log_relation": {
+          "default": "off",
+          "description": "Create separate log entries per relation",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_statement": {
+          "default": "on",
+          "description": "Include SQL statement text in logs",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "log_statement_once": {
+          "default": "off",
+          "description": "Log statement text only once",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "type": "string"
+        },
+        "role": {
+          "description": "Database role to use for auditing",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "pgbouncer": {
+      "additionalProperties": false,
+      "description": "PgBouncer connection pooler configuration",
+      "properties": {
+        "admin_password": {
+          "description": "Administrative password for PgBouncer",
+          "type": "string"
+        },
+        "admin_user": {
+          "description": "Administrative user for PgBouncer",
+          "type": "string"
+        },
+        "auth_file": {
+          "default": "userlist.txt",
+          "description": "Path to authentication file",
+          "type": "string"
+        },
+        "auth_query": {
+          "type": "string"
+        },
+        "auth_type": {
+          "default": "md5",
+          "description": "Authentication type for PgBouncer",
+          "enum": [
+            "any",
+            "trust",
+            "plain",
+            "md5",
+            "scram-sha-256",
+            "cert",
+            "hba",
+            "pam"
+          ],
+          "type": "string"
+        },
+        "client_idle_timeout": {
+          "default": "0",
+          "description": "Maximum idle time for client connections",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "databases": {
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "connect_query": {
+                "description": "Query to run on each new connection",
+                "type": "string"
+              },
+              "dbname": {
+                "description": "Database name to connect to",
+                "type": "string"
+              },
+              "host": {
+                "default": "localhost",
+                "description": "Database host address",
+                "type": "string"
+              },
+              "password": {
+                "description": "Password for database connection",
+                "type": "string"
+              },
+              "pool_size": {
+                "description": "Maximum pool size for this database",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "port": {
+                "default": 5432,
+                "description": "Database port",
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "user": {
+                "description": "Username for database connection",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "description": "Database connection configurations",
+          "type": "object"
+        },
+        "default_pool_size": {
+          "default": 25,
+          "description": "Default pool size for databases",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "listen_addr": {
+          "description": "Specifies the address to listen on (deprecated use listen_address)",
+          "type": "string"
+        },
+        "listen_address": {
+          "default": "0.0.0.0",
+          "description": "Specifies the address to listen on",
+          "type": "string"
+        },
+        "listen_port": {
+          "default": 6432,
+          "description": "Specifies the port to listen on",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_client_conn": {
+          "default": 100,
+          "description": "Maximum number of client connections allowed",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_pool_size": {
+          "default": 0,
+          "description": "Minimum pool size",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "pool_mode": {
+          "default": "transaction",
+          "description": "Pooling mode to use",
+          "enum": [
+            "session",
+            "transaction",
+            "statement"
+          ],
+          "type": "string"
+        },
+        "query_timeout": {
+          "default": "0",
+          "description": "Query timeout",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "reserve_pool_size": {
+          "description": "Reserved pool size",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "server_idle_timeout": {
+          "description": "Maximum idle time for server connections",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        },
+        "server_lifetime": {
+          "description": "Server connection lifetime",
+          "pattern": "^[0-9]+(us|ms|s|min|h|d)?$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "postgres": {
+      "additionalProperties": true,
+      "description": "PostgreSQL server configuration with commonly used settings",
+      "properties": {
+        "archive_command": {
+          "description": "Sets the shell command that will be called to archive a WAL file",
+          "type": "string"
+        },
+        "archive_mode": {
+          "default": "off",
+          "description": "Allows archiving of WAL files",
+          "enum": [
+            "off",
+            "on",
+            "always"
+          ],
+          "type": "string"
+        },
+        "archive_timeout": {
+          "description": "Sets the amount of time to wait before forcing a switch to the next WAL file",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(us|ms|s|min|h|d)?$",
+          "type": "string",
+          "x-type": "Duration"
+        },
+        "autovacuum": {
+          "default": true,
+          "description": "Starts the autovacuum subprocess",
+          "type": "boolean"
+        },
+        "autovacuum_max_workers": {
+          "default": 3,
+          "description": "Sets the maximum number of simultaneously running autovacuum worker processes",
+          "type": "integer"
+        },
+        "autovacuum_naptime": {
+          "default": "1min",
+          "description": "Time to sleep between autovacuum runs",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(us|ms|s|min|h|d)?$",
+          "type": "string",
+          "x-type": "Duration"
+        },
+        "checkpoint_completion_target": {
+          "default": 0.9,
+          "description": "Time spent flushing dirty buffers during checkpoint as fraction of checkpoint interval",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "default_statistics_target": {
+          "default": 100,
+          "description": "Sets the default statistics target for table columns without a column-specific target",
+          "type": "integer"
+        },
+        "effective_cache_size": {
+          "description": "Sets the planner's assumption about the effective size of the disk cache",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "effective_io_concurrency": {
+          "default": 1,
+          "description": "Number of simultaneous requests that can be handled efficiently by the disk subsystem",
+          "type": "integer"
+        },
+        "huge_pages": {
+          "default": "try",
+          "description": "Use of huge pages on Linux",
+          "enum": [
+            "off",
+            "on",
+            "try"
+          ],
+          "type": "string"
+        },
+        "listen_addresses": {
+          "default": "localhost",
+          "description": "Sets the host name or IP address(es) on which the server listens for connections",
+          "type": "string"
+        },
+        "log_connections": {
+          "default": false,
+          "description": "Logs each successful connection",
+          "type": "boolean"
+        },
+        "log_destination": {
+          "default": "stderr",
+          "description": "Sets the destination for server log output",
+          "enum": [
+            "stderr",
+            "csvlog",
+            "syslog",
+            "eventlog"
+          ],
+          "type": "string"
+        },
+        "log_disconnections": {
+          "default": false,
+          "description": "Logs end of a session including duration",
+          "type": "boolean"
+        },
+        "log_line_prefix": {
+          "default": "%m [%p]",
+          "description": "Controls information prefixed to each log line",
+          "type": "string"
+        },
+        "log_min_duration_statement": {
+          "description": "Sets the minimum execution time above which statements will be logged (0 logs all statements)",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(us|ms|s|min|h|d)?$",
+          "type": "string",
+          "x-type": "Duration"
+        },
+        "log_statement": {
+          "default": "none",
+          "description": "Sets the type of statements logged",
+          "enum": [
+            "none",
+            "ddl",
+            "mod",
+            "all"
+          ],
+          "type": "string"
+        },
+        "maintenance_work_mem": {
+          "description": "Sets the maximum memory to be used for maintenance operations",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "max_connections": {
+          "default": 100,
+          "description": "Sets the maximum number of concurrent connections",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_parallel_maintenance_workers": {
+          "default": 2,
+          "description": "Sets the maximum number of parallel processes per maintenance operation",
+          "type": "integer"
+        },
+        "max_parallel_workers": {
+          "default": 8,
+          "description": "Sets the maximum number of parallel workers that can be started by a single utility command",
+          "type": "integer"
+        },
+        "max_parallel_workers_per_gather": {
+          "default": 2,
+          "description": "Sets the maximum number of parallel processes per executor node",
+          "type": "integer"
+        },
+        "max_wal_senders": {
+          "default": 10,
+          "description": "Sets the maximum number of simultaneously running WAL sender processes",
+          "type": "integer"
+        },
+        "max_wal_size": {
+          "description": "Sets the maximum size to let the WAL grow to between automatic WAL checkpoints",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "max_worker_processes": {
+          "default": 8,
+          "description": "Sets the maximum number of background processes that the system can support",
+          "type": "integer"
+        },
+        "min_wal_size": {
+          "description": "Sets the minimum size to shrink the WAL to",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "password_encryption": {
+          "default": "scram-sha-256",
+          "description": "Sets the algorithm for encrypting passwords",
+          "enum": [
+            "md5",
+            "scram-sha-256"
+          ],
+          "type": "string"
+        },
+        "port": {
+          "default": 5432,
+          "description": "Sets the TCP port the server listens on",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "random_page_cost": {
+          "default": 4,
+          "description": "Sets the planner's estimate of the cost of a nonsequentially fetched disk page",
+          "type": "number"
+        },
+        "shared_buffers": {
+          "description": "Sets the amount of memory the database server uses for shared memory buffers",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "shared_preload_libraries": {
+          "description": "Lists shared libraries to preload into server",
+          "type": "string"
+        },
+        "ssl": {
+          "default": false,
+          "description": "Enables SSL connections",
+          "type": "boolean"
+        },
+        "ssl_cert_file": {
+          "description": "Location of the SSL server certificate file",
+          "type": "string"
+        },
+        "ssl_key_file": {
+          "description": "Location of the SSL server private key file",
+          "type": "string"
+        },
+        "wal_buffers": {
+          "description": "Sets the number of disk-page buffers in shared memory for WAL",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        },
+        "wal_level": {
+          "default": "replica",
+          "description": "Sets the level of information written to the WAL",
+          "enum": [
+            "minimal",
+            "replica",
+            "logical"
+          ],
+          "type": "string"
+        },
+        "work_mem": {
+          "description": "Sets the amount of memory to be used by internal sort operations and hash tables",
+          "pattern": "^\\d+(\\.\\d+)?\\s*(B|kB|KB|MB|GB|TB)?$",
+          "type": "string",
+          "x-type": "Size"
+        }
+      },
+      "type": "object"
+    },
+    "postgrest": {
+      "additionalProperties": false,
+      "description": "PostgREST RESTful API configuration",
+      "properties": {
+        "admin_role": {
+          "description": "Database role for admin access",
+          "type": "string"
+        },
+        "anonymous_role": {
+          "description": "Database role for unauthenticated access",
+          "type": "string"
+        },
+        "db_anon_role": {
+          "description": "Database role for anonymous access",
+          "type": "string"
+        },
+        "db_pool": {
+          "default": 10,
+          "description": "Maximum number of connections in the pool (deprecated use db_pool_size)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "db_pool_size": {
+          "default": 10,
+          "description": "Maximum number of connections in the pool",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "db_schemas": {
+          "default": "public",
+          "description": "Database schemas exposed to the API",
+          "type": "string"
+        },
+        "db_uri": {
+          "description": "PostgreSQL connection string",
+          "type": "string"
+        },
+        "jwt_aud": {
+          "description": "JWT audience claim",
+          "type": "string"
+        },
+        "jwt_secret": {
+          "description": "JWT secret for authentication",
+          "type": "string"
+        },
+        "log_level": {
+          "default": "info",
+          "description": "Log level for PostgREST",
+          "enum": [
+            "crit",
+            "error",
+            "warn",
+            "info"
+          ],
+          "type": "string"
+        },
+        "max_rows": {
+          "description": "Maximum number of rows in a response",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "pre_request": {
+          "description": "Function to call before each request",
+          "type": "string"
+        },
+        "role_claim_key": {
+          "default": ".role",
+          "description": "JWT claim to use for database role",
+          "type": "string"
+        },
+        "server_host": {
+          "default": "0.0.0.0",
+          "description": "Host to bind the PostgREST server",
+          "type": "string"
+        },
+        "server_port": {
+          "default": 3000,
+          "description": "Port to bind the PostgREST server",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "walg": {
+      "additionalProperties": false,
+      "description": "WAL-G backup and recovery configuration",
+      "properties": {
+        "az_account_key": {
+          "description": "Azure Storage account key",
+          "type": "string"
+        },
+        "az_account_name": {
+          "description": "Azure Storage account name",
+          "type": "string"
+        },
+        "az_prefix": {
+          "description": "Azure Storage path prefix",
+          "type": "string"
+        },
+        "backup_retain_count": {
+          "default": 7,
+          "description": "Number of backups to retain",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "backup_schedule": {
+          "description": "Backup schedule in cron format",
+          "type": "string"
+        },
+        "compression_method": {
+          "default": "lz4",
+          "description": "Compression method for backups (deprecated use compression_type)",
+          "enum": [
+            "lz4",
+            "lzo",
+            "zstd",
+            "brotli"
+          ],
+          "type": "string"
+        },
+        "compression_type": {
+          "default": "lz4",
+          "description": "Compression type for backups",
+          "enum": [
+            "lz4",
+            "lzo",
+            "zstd",
+            "brotli"
+          ],
+          "type": "string"
+        },
+        "disk_rate_limit_bps": {
+          "description": "Disk I/O rate limit in bytes per second",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Enable WAL-G backup and recovery",
+          "type": "boolean"
+        },
+        "file_prefix": {
+          "description": "Local filesystem path prefix for backups",
+          "type": "string"
+        },
+        "gs_prefix": {
+          "description": "Google Cloud Storage path prefix",
+          "type": "string"
+        },
+        "gs_service_account_key": {
+          "description": "Google Cloud service account key JSON",
+          "type": "string"
+        },
+        "network_rate_limit_bps": {
+          "description": "Network rate limit in bytes per second",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "postgresql_data_dir": {
+          "default": "/var/lib/postgresql/data",
+          "description": "PostgreSQL data directory path",
+          "type": "string"
+        },
+        "postgresql_password": {
+          "description": "PostgreSQL database password for WAL-G",
+          "type": "string"
+        },
+        "retention_policy": {
+          "description": "Retention policy configuration",
+          "type": "string"
+        },
+        "s3_access_key": {
+          "description": "S3 access key (alternative to s3_access_key_id)",
+          "type": "string"
+        },
+        "s3_access_key_id": {
+          "description": "S3 access key ID",
+          "type": "string"
+        },
+        "s3_bucket": {
+          "description": "S3 bucket name for backups",
+          "type": "string"
+        },
+        "s3_endpoint": {
+          "description": "S3 endpoint URL for S3-compatible storage",
+          "type": "string"
+        },
+        "s3_prefix": {
+          "description": "S3 path prefix for backups",
+          "type": "string"
+        },
+        "s3_region": {
+          "default": "us-east-1",
+          "description": "S3 region",
+          "type": "string"
+        },
+        "s3_secret_access_key": {
+          "description": "S3 secret access key",
+          "type": "string"
+        },
+        "s3_secret_key": {
+          "description": "S3 secret key (alternative to s3_secret_access_key)",
+          "type": "string"
+        },
+        "s3_session_token": {
+          "description": "S3 session token for temporary credentials",
+          "type": "string"
+        },
+        "s3_use_path_style": {
+          "default": false,
+          "description": "Use path-style S3 URLs",
+          "type": "boolean"
+        },
+        "s3_use_ssl": {
+          "default": true,
+          "description": "Use SSL for S3 connections",
+          "type": "boolean"
+        },
+        "stream_create_command": {
+          "description": "Command to create streaming backup",
+          "type": "string"
+        },
+        "stream_restore_command": {
+          "description": "Command to restore from streaming backup",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "PostgreSQL Stack Configuration",
+  "type": "object"
+}
