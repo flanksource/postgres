@@ -2,10 +2,8 @@ module github.com/flanksource/postgres
 
 go 1.25.1
 
-replace github.com/flanksource/commons => /Users/moshe/go/src/github.com/flanksource/commons/
-
 require (
-	github.com/flanksource/commons v1.2.36
+	github.com/flanksource/commons v1.42.3
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/invisionapp/go-health v2.1.0+incompatible
 	github.com/knadh/koanf/parsers/yaml v1.1.0
