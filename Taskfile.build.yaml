@@ -8,10 +8,13 @@ output:
 
 vars:
   IMAGE_NAME: flanksource/postgres:latest
+  MINIMAL_IMAGE_NAME: flanksource/postgres-minimal:latest
   REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
   IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres"}}'
+  MINIMAL_IMAGE_BASE: '{{.MINIMAL_IMAGE_BASE | default "flanksource/postgres-minimal"}}'
   IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
   TARGET_VERSIONS: [15, 16, 17]
+  MINIMAL_VERSIONS: [14, 15, 16, 17]
 
 tasks:
   build:
@@ -122,3 +125,113 @@ tasks:
     desc: List all built flanksource/postgres images
     cmds:
       - docker images | grep -E "{{.IMAGE_BASE}}:to-" | sort || echo "No images found"
+
+  # Minimal image build tasks
+  build-minimal:
+    desc: Build the minimal postgres Docker image (all PostgreSQL versions, no extra services)
+    cmds:
+      - docker build -f Dockerfile.minimal -t {{.MINIMAL_IMAGE_NAME}} .
+    sources:
+      - Dockerfile.minimal
+      - entrypoint-minimal.sh
+      - cmd/pgconfig/**
+      - go.mod
+      - go.sum
+    generates:
+      - .build-minimal-timestamp
+    method: timestamp
+
+  build-minimal-version:
+    desc: Build minimal image for PostgreSQL {{.VERSION}}
+    internal: true
+    vars:
+      VERSION: "{{.VERSION}}"
+    cmds:
+      - docker build -f Dockerfile.minimal --build-arg PG_VERSION={{.VERSION}} -t {{.REGISTRY}}/{{.MINIMAL_IMAGE_BASE}}:{{.VERSION}} -t {{.REGISTRY}}/{{.MINIMAL_IMAGE_BASE}}:{{.VERSION}}-{{.IMAGE_TAG}} .
+    sources:
+      - Dockerfile.minimal
+      - entrypoint-minimal.sh
+      - cmd/pgconfig/**
+      - go.mod
+      - go.sum
+
+  build-minimal-14:
+    desc: Build minimal image for PostgreSQL 14
+    cmds:
+      - task: build-minimal-version
+        vars: { VERSION: "14" }
+
+  build-minimal-15:
+    desc: Build minimal image for PostgreSQL 15
+    cmds:
+      - task: build-minimal-version
+        vars: { VERSION: "15" }
+
+  build-minimal-16:
+    desc: Build minimal image for PostgreSQL 16
+    cmds:
+      - task: build-minimal-version
+        vars: { VERSION: "16" }
+
+  build-minimal-17:
+    desc: Build minimal image for PostgreSQL 17
+    cmds:
+      - task: build-minimal-version
+        vars: { VERSION: "17" }
+
+  build-minimal-all:
+    desc: Build all minimal image versions
+    cmds:
+      - for: { var: MINIMAL_VERSIONS }
+        task: build-minimal-version
+        vars:
+          VERSION: "{{.ITEM}}"
+
+  push-minimal-version:
+    desc: Push minimal PostgreSQL {{.VERSION}} image
+    internal: true
+    vars:
+      VERSION: "{{.VERSION}}"
+    deps:
+      - task: build-minimal-version
+        vars: { VERSION: "{{.VERSION}}" }
+    cmds:
+      - docker push {{.REGISTRY}}/{{.MINIMAL_IMAGE_BASE}}:{{.VERSION}}
+      - docker push {{.REGISTRY}}/{{.MINIMAL_IMAGE_BASE}}:{{.VERSION}}-{{.IMAGE_TAG}}
+
+  push-minimal-14:
+    desc: Push minimal PostgreSQL 14 image
+    cmds:
+      - task: push-minimal-version
+        vars: { VERSION: "14" }
+
+  push-minimal-15:
+    desc: Push minimal PostgreSQL 15 image
+    cmds:
+      - task: push-minimal-version
+        vars: { VERSION: "15" }
+
+  push-minimal-16:
+    desc: Push minimal PostgreSQL 16 image
+    cmds:
+      - task: push-minimal-version
+        vars: { VERSION: "16" }
+
+  push-minimal-17:
+    desc: Push minimal PostgreSQL 17 image
+    cmds:
+      - task: push-minimal-version
+        vars: { VERSION: "17" }
+
+  push-minimal-all:
+    desc: Push all minimal image versions
+    cmds:
+      - for: { var: MINIMAL_VERSIONS }
+        task: push-minimal-version
+        vars:
+          VERSION: "{{.ITEM}}"
+
+  list-minimal-images:
+    desc: List all built minimal postgres images
+    cmds:
+      - docker images | grep -E "{{.MINIMAL_IMAGE_BASE}}" | sort || echo "No minimal images found"
