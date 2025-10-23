@@ -1,3 +1,0 @@
-# Minimal valid PostgreSQL configuration
-postgres:
-  max_connections: 100

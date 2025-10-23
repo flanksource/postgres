@@ -1,9 +1,0 @@
-# Configuration with unknown field in pgbouncer (which doesn't allow additional properties)
-postgres:
-  max_connections: 100
-
-pgbouncer:
-  listen_port: 6432
-  unknown_field: "should not exist"
-  invalid_setting: true
-  nonexistent_option: 42

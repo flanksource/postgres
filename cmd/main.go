@@ -43,7 +43,6 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	// Add command groups
 	rootCmd.AddCommand(
 		createServerCommands(),
-		createSchemaCommands(),
 		createConfigCommands(),
 		createVersionCommand(),
 	)

@@ -7,41 +7,8 @@ output:
     end: "::endgroup::"
 
 vars:
-  SCHEMA_FILE: "schema/pgconfig-schema.json"
-  GENERATED_FILE: "pkg/model_generated.go"
   CLI_NAME: "postgres-cli"
   GOBIN: '{{.GOBIN | default "$(go env GOPATH)/bin"}}'
-
-tasks:
-  generate-schema:
-    desc: Generate JSON schema from Go structs (Go is the source of truth)
-    generates:
-      - "{{.SCHEMA_FILE}}"
-      - "pkg/schemas/data/pgconfig-schema.json"
-    cmds:
-      - echo "Generating JSON schema from Go structs..."
-      - go run ./cmd schema generate-from-go --output {{.SCHEMA_FILE}}
-      - cp {{.SCHEMA_FILE}} pkg/schemas/data/pgconfig-schema.json
-      - "echo ✅ Generated schema from Go structs with additionalProperties enabled"
-
-  validate-schema:
-    desc: Validate the JSON schema file
-    sources:
-      - "{{.SCHEMA_FILE}}"
-    cmds:
-      - echo "Validating JSON schema..."
-      - |
-        if ! command -v jsonschema >/dev/null 2>&1; then
-          echo "Installing jsonschema validation tool..."
-          pip3 install jsonschema[format] 2>/dev/null || pip install jsonschema[format] || echo "Warning: jsonschema tool not available"
-        fi
-      - |
-        if command -v jsonschema >/dev/null 2>&1; then
-          jsonschema --instance {{.SCHEMA_FILE}} --validator meta-schema || echo "Schema validation with jsonschema tool failed"
-        else
-          echo "⚠️  jsonschema tool not available, skipping validation"
-        fi
-      - echo "✅ Schema validation completed"
 
   build:
     desc: Build the postgres-cli and install to GOBIN
@@ -77,14 +44,6 @@ tasks:
       - task: test
       - echo "🎉 CLI CI pipeline completed successfully"
 
-  clean-generated:
-    desc: Remove generated configuration files
-    cmds:
-      - echo "Cleaning generated configuration files..."
-      - rm -f {{.GENERATED_FILE}}
-      - rm -f "$(go env GOPATH)/bin/{{.CLI_NAME}}"
-      - echo "✅ Cleaned generated files"
-
   fmt:
     desc: Format CLI code
     cmds:
@@ -98,44 +57,3 @@ tasks:
       - echo "Linting CLI code..."
       - go vet ./cmd/... ./pkg/...
       - echo "✅ CLI code linting completed"
-
-  check-dependencies:
-    desc: Check that all required dependencies are available
-    cmds:
-      - echo "Checking configuration generation dependencies..."
-      - go version
-      - |
-        if ! go list github.com/atombender/go-jsonschema >/dev/null 2>&1; then
-          echo "❌ go-jsonschema not available"
-          exit 1
-        fi
-      - |
-        if ! go list github.com/xeipuuv/gojsonschema >/dev/null 2>&1; then
-          echo "❌ gojsonschema not available"
-          exit 1
-        fi
-      - echo "✅ All dependencies available"
-
-  help:
-    desc: Show help for CLI tasks
-    cmds:
-      - echo "PostgreSQL CLI Build Tasks:"
-      - echo "============================"
-      - echo ""
-      - echo "Schema Tasks:"
-      - echo "  generate-schema        - Generate JSON schema and Go structs"
-      - echo "  validate-schema        - Validate the JSON schema file"
-      - echo ""
-      - echo "CLI Build Tasks:"
-      - echo "  build                  - Build and install CLI to GOBIN"
-      - echo "  install                - Install the CLI to GOBIN"
-      - echo "  test                   - Run all CLI tests"
-      - echo "  ci                     - Run complete CI pipeline"
-      - echo ""
-      - echo "Utility Tasks:"
-      - echo "  fmt                    - Format CLI code"
-      - echo "  lint                   - Lint CLI code"
-      - echo "  clean-generated        - Remove generated files"
-      - echo "  check-dependencies     - Check required dependencies"
-      - echo "  help                   - Show this help message"
-

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 )
 
-//go:embed data/pgconfig-schema.json
 var pgconfigSchemaJSON []byte
 
 // GetPgconfigSchemaJSON returns the raw JSON bytes for the main pgconfig schema

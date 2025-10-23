@@ -1,5 +1,0 @@
-# Configuration with out-of-range values
-postgres:
-  max_connections: -1  # Must be greater than 0
-  shared_buffers: -100MB  # Must be greater than 0
-  checkpoint_completion_target: 1.5  # Must be less than or equal to 1.0

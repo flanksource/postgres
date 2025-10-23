@@ -239,6 +239,14 @@ func (g *PostgreSQLConfigGenerator) generateResourceSection() string {
 	return sb.String()
 }
 
+func FormatConfigComment(key, prefix string) string {
+
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("%s %s\n", prefix, key))
+	return sb.String()
+}
+
 func (g *PostgreSQLConfigGenerator) generateWALSection() string {
 	sb := strings.Builder{}
 	sb.WriteString(`# -----------------------------
@@ -537,21 +545,6 @@ func (g *PostgreSQLConfigGenerator) generateSharedPreloadLibraries() string {
 // generateIncludeFiles generates the include directive for extension config files
 func (g *PostgreSQLConfigGenerator) generateIncludeFiles() string {
 	var includes []string
-
-	// Check for PGAudit configuration
-	if g.pgauditConf != nil {
-		pgauditGen := NewPGAuditConfigGenerator(g.pgauditConf)
-		if pgauditGen.IsEnabled() {
-			includes = append(includes, "postgres.pgaudit.conf")
-		}
-	}
-
-	// Check for other extensions that need config files
-	for _, ext := range g.extensions {
-		if ext.Enabled && ext.ConfigFile != nil && *ext.ConfigFile != "" {
-			includes = append(includes, *ext.ConfigFile)
-		}
-	}
 
 	if len(includes) == 0 {
 		return ""

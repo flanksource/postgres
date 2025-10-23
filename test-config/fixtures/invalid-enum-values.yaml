@@ -1,8 +1,0 @@
-# Configuration with invalid enum values
-# Using pgbouncer pool_mode which has specific enum values (session, transaction, statement)
-pgbouncer:
-  listen_port: 6432
-  pool_mode: "INVALID_MODE"
-
-pgaudit:
-  log_level: "INVALID"
