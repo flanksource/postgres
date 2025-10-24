@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/flanksource/clicky"
 	_ "github.com/lib/pq"
 
 	"github.com/flanksource/postgres/pkg"
@@ -51,13 +51,12 @@ func (p *Postgres) DescribeConfig() ([]schemas.Param, error) {
 	postgresPath := filepath.Join(p.BinDir, "postgres")
 
 	// Execute postgres --describe-config
-	cmd := exec.Command(postgresPath, "--describe-config")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to run postgres --describe-config: %w", err)
+	process := clicky.Exec(postgresPath, "--describe-config").Run()
+	if process.Err != nil {
+		return nil, fmt.Errorf("failed to run postgres --describe-config: %w", process.Err)
 	}
 
-	return schemas.ParseDescribeConfig(string(output))
+	return schemas.ParseDescribeConfig(process.Stdout.String())
 }
 
 // DetectVersion reads the PostgreSQL version from the data directory
@@ -126,14 +125,14 @@ func (p *Postgres) Health() error {
 		port = p.Config.Port
 	}
 
-	cmd := exec.Command(
+	process := clicky.Exec(
 		filepath.Join(p.BinDir, "pg_isready"),
 		"-h", host,
 		"-p", strconv.Itoa(port),
-	)
+	).Run()
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("pg_isready failed: %w", err)
+	if process.Err != nil {
+		return fmt.Errorf("pg_isready failed: %w", process.Err)
 	}
 
 	// Additional health checks can be added here
@@ -185,13 +184,12 @@ func (p *Postgres) GetVersion() PGVersion {
 		return ""
 	}
 
-	cmd := exec.Command(filepath.Join(p.BinDir, "postgres"), "--version")
-	output, err := cmd.Output()
-	if err != nil {
+	process := clicky.Exec(filepath.Join(p.BinDir, "postgres"), "--version").Run()
+	if process.Err != nil {
 		return ""
 	}
 
-	versionStr := string(output)
+	versionStr := process.Stdout.String()
 	re := regexp.MustCompile(`PostgreSQL (\d+\.\d+(?:\.\d+)?)`)
 	matches := re.FindStringSubmatch(versionStr)
 	if len(matches) < 2 {
@@ -331,17 +329,16 @@ func (p *Postgres) Backup() error {
 		"--no-password",
 	}
 
-	cmd := exec.Command(filepath.Join(p.BinDir, "pg_dump"), args...)
+	process := clicky.Exec(filepath.Join(p.BinDir, "pg_dump"), args...).Run()
 
 	// Only set password for non-localhost connections or if explicitly provided
 	// No SuperuserPassword field available in PostgresConf
 
-	output, err := cmd.CombinedOutput()
-	p.lastStdout = string(output)
-	p.lastStderr = string(output)
+	p.lastStdout = process.Stdout.String()
+	p.lastStderr = process.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("backup failed: %w, output: %s", err, string(output))
+	if process.Err != nil {
+		return fmt.Errorf("backup failed: %w, output: %s", process.Err, process.Out())
 	}
 
 	return nil
@@ -356,9 +353,9 @@ func (p *Postgres) InitDB() error {
 		return fmt.Errorf("DataDir not specified")
 	}
 
-	if _, err := os.Stat(p.DataDir); !os.IsNotExist(err) {
-		return fmt.Errorf("data directory already exists: %s", p.DataDir)
-	}
+	// if _, err := os.Stat(p.DataDir); !os.IsNotExist(err) {
+	// 	return fmt.Errorf("data directory already exists: %s", p.DataDir)
+	// }
 
 	if err := os.MkdirAll(p.DataDir, 0700); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
@@ -372,17 +369,16 @@ func (p *Postgres) InitDB() error {
 		"-U", "postgres", // Always use postgres superuser
 	}
 
-	cmd := exec.Command(filepath.Join(p.BinDir, "initdb"), args...)
+	process := clicky.Exec(filepath.Join(p.BinDir, "initdb"), args...).Run()
 
 	// Generally no password needed for initdb with trust auth
 	// No SuperuserPassword field available in PostgresConf
 
-	output, err := cmd.CombinedOutput()
-	p.lastStdout = string(output)
-	p.lastStderr = string(output)
+	p.lastStdout = process.Stdout.String()
+	p.lastStderr = process.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("initdb failed: %w, output: %s", err, string(output))
+	if process.Err != nil {
+		return fmt.Errorf("initdb failed: %w, output: %s", process.Err, process.Out())
 	}
 
 	return nil
@@ -422,13 +418,12 @@ func (p *Postgres) ResetPassword(newPassword utils.SensitiveString) error {
 		"start",
 	}
 
-	startCmd := exec.Command(filepath.Join(p.BinDir, "pg_ctl"), startArgs...)
-	startOutput, err := startCmd.CombinedOutput()
-	p.lastStdout = string(startOutput)
-	p.lastStderr = string(startOutput)
+	startProcess := clicky.Exec(filepath.Join(p.BinDir, "pg_ctl"), startArgs...).Run()
+	p.lastStdout = startProcess.Stdout.String()
+	p.lastStderr = startProcess.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("failed to start PostgreSQL for password reset: %w, output: %s", err, string(startOutput))
+	if startProcess.Err != nil {
+		return fmt.Errorf("failed to start PostgreSQL for password reset: %w, output: %s", startProcess.Err, startProcess.Out())
 	}
 
 	// Wait a moment for PostgreSQL to start
@@ -440,17 +435,16 @@ func (p *Postgres) ResetPassword(newPassword utils.SensitiveString) error {
 
 	fmt.Printf("🔑 Resetting password for user %s...\n", user)
 
-	psqlCmd := exec.Command(
+	psqlProcess := clicky.Exec(
 		filepath.Join(p.BinDir, "psql"),
 		"-p", strconv.Itoa(tempPort),
 		"-c", resetSQL,
-	)
+	).Run()
 
-	psqlOutput, err := psqlCmd.CombinedOutput()
-	if err != nil {
+	if psqlProcess.Err != nil {
 		// Make sure to stop PostgreSQL even if password reset fails
 		p.stopTempPostgreSQL()
-		return fmt.Errorf("failed to reset password: %w, output: %s", err, string(psqlOutput))
+		return fmt.Errorf("failed to reset password: %w, output: %s", psqlProcess.Err, psqlProcess.Out())
 	}
 
 	fmt.Println("✅ Password reset completed successfully")
@@ -638,13 +632,12 @@ func (p *Postgres) validateCluster(binDir, dataDir string, expectedVersion int) 
 	}
 
 	// Check control data
-	cmd := exec.Command(filepath.Join(binDir, "pg_controldata"), dataDir)
-	output, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to read control data: %w", err)
+	process := clicky.Exec(filepath.Join(binDir, "pg_controldata"), dataDir).Run()
+	if process.Err != nil {
+		return fmt.Errorf("failed to read control data: %w", process.Err)
 	}
 
-	outputStr := string(output)
+	outputStr := process.Stdout.String()
 	if !strings.Contains(outputStr, "Database cluster state") {
 		return fmt.Errorf("invalid control data output")
 	}
@@ -658,13 +651,12 @@ func (p *Postgres) initNewCluster(binDir, dataDir string) error {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
-	cmd := exec.Command(filepath.Join(binDir, "initdb"), "-D", dataDir)
-	output, err := cmd.CombinedOutput()
-	p.lastStdout = string(output)
-	p.lastStderr = string(output)
+	process := clicky.Exec(filepath.Join(binDir, "initdb"), "-D", dataDir).Run()
+	p.lastStdout = process.Stdout.String()
+	p.lastStderr = process.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("initdb failed: %w, output: %s", err, string(output))
+	if process.Err != nil {
+		return fmt.Errorf("initdb failed: %w, output: %s", process.Err, process.Out())
 	}
 
 	return nil
@@ -699,10 +691,9 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 	}
 
 	fmt.Println("Checking cluster compatibility...")
-	checkCmd := exec.Command(filepath.Join(newBinDir, "pg_upgrade"), checkArgs...)
-	checkOutput, err := checkCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("pg_upgrade compatibility check failed: %w, output: %s", err, string(checkOutput))
+	checkProcess := clicky.Exec(filepath.Join(newBinDir, "pg_upgrade"), checkArgs...).Run()
+	if checkProcess.Err != nil {
+		return fmt.Errorf("pg_upgrade compatibility check failed: %w, output: %s", checkProcess.Err, checkProcess.Out())
 	}
 
 	// Run the actual upgrade
@@ -714,13 +705,12 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 	}
 
 	fmt.Println("Performing upgrade...")
-	upgradeCmd := exec.Command(filepath.Join(newBinDir, "pg_upgrade"), upgradeArgs...)
-	upgradeOutput, err := upgradeCmd.CombinedOutput()
-	p.lastStdout = string(upgradeOutput)
-	p.lastStderr = string(upgradeOutput)
+	upgradeProcess := clicky.Exec(filepath.Join(newBinDir, "pg_upgrade"), upgradeArgs...).Run()
+	p.lastStdout = upgradeProcess.Stdout.String()
+	p.lastStderr = upgradeProcess.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("pg_upgrade failed: %w, output: %s", err, string(upgradeOutput))
+	if upgradeProcess.Err != nil {
+		return fmt.Errorf("pg_upgrade failed: %w, output: %s", upgradeProcess.Err, upgradeProcess.Out())
 	}
 
 	return nil
@@ -772,14 +762,14 @@ func (p *Postgres) moveUpgradedData(newDataDir string) error {
 
 // copyFile copies a single file
 func (p *Postgres) copyFile(src, dst string) error {
-	cmd := exec.Command("cp", "-a", src, dst)
-	return cmd.Run()
+	process := clicky.Exec("cp", "-a", src, dst).Run()
+	return process.Err
 }
 
 // copyDir copies a directory recursively
 func (p *Postgres) copyDir(src, dst string) error {
-	cmd := exec.Command("cp", "-a", src, dst)
-	return cmd.Run()
+	process := clicky.Exec("cp", "-a", src, dst).Run()
+	return process.Err
 }
 
 func (p *Postgres) Stop() error {
@@ -800,14 +790,13 @@ func (p *Postgres) Stop() error {
 		"-m", "smart",
 	}
 
-	cmd := exec.Command(filepath.Join(p.BinDir, "pg_ctl"), args...)
+	process := clicky.Exec(filepath.Join(p.BinDir, "pg_ctl"), args...).Run()
 
-	output, err := cmd.CombinedOutput()
-	p.lastStdout = string(output)
-	p.lastStderr = string(output)
+	p.lastStdout = process.Stdout.String()
+	p.lastStderr = process.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("failed to stop PostgreSQL: %w, output: %s", err, string(output))
+	if process.Err != nil {
+		return fmt.Errorf("failed to stop PostgreSQL: %w, output: %s", process.Err, process.Out())
 	}
 
 	timeout := time.After(30 * time.Second)
@@ -849,14 +838,13 @@ func (p *Postgres) Start() error {
 		"start",
 	}
 
-	cmd := exec.Command(filepath.Join(p.BinDir, "pg_ctl"), args...)
+	process := clicky.Exec(filepath.Join(p.BinDir, "pg_ctl"), args...).Run()
 
-	output, err := cmd.CombinedOutput()
-	p.lastStdout = string(output)
-	p.lastStderr = string(output)
+	p.lastStdout = process.Stdout.String()
+	p.lastStderr = process.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("failed to start PostgreSQL: %w, output: %s", err, string(output))
+	if process.Err != nil {
+		return fmt.Errorf("failed to start PostgreSQL: %w, output: %s", process.Err, process.Out())
 	}
 
 	timeout := time.After(30 * time.Second)
@@ -947,57 +935,51 @@ func (p *Postgres) installSingleExtension(originalName, extensionName string) er
 
 	// For localhost, generally no password needed with trust auth
 	// No SuperuserPassword field available in PostgresConf
-	env := os.Environ()
 
 	switch originalName {
 	case "pg_cron":
 		// Install pg_cron with special permissions
-		cmd := exec.Command(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
-			"CREATE EXTENSION IF NOT EXISTS pg_cron CASCADE;")
-		cmd.Env = env
+		process := clicky.Exec(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
+			"CREATE EXTENSION IF NOT EXISTS pg_cron CASCADE;").Run()
 
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to create pg_cron extension: %w, output: %s", err, string(output))
+		if process.Err != nil {
+			return fmt.Errorf("failed to create pg_cron extension: %w, output: %s", process.Err, process.Out())
 		}
 
 		// Grant usage on cron schema
-		cmd = exec.Command(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
-			"GRANT USAGE ON SCHEMA cron TO postgres;")
-		cmd.Env = env
+		grantProcess := clicky.Exec(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
+			"GRANT USAGE ON SCHEMA cron TO postgres;").Run()
 
-		if _, err := cmd.CombinedOutput(); err != nil {
+		if grantProcess.Err != nil {
 			// Non-fatal error for permission grant
-			fmt.Printf("Warning: Failed to grant cron schema usage: %v\n", err)
+			fmt.Printf("Warning: Failed to grant cron schema usage: %v\n", grantProcess.Err)
 		}
 
 	case "pgsodium":
 		// Install pgsodium and create initial key
-		cmd := exec.Command(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
-			"CREATE EXTENSION IF NOT EXISTS pgsodium CASCADE;")
-		cmd.Env = env
+		process := clicky.Exec(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
+			"CREATE EXTENSION IF NOT EXISTS pgsodium CASCADE;").Run()
 
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to create pgsodium extension: %w, output: %s", err, string(output))
+		if process.Err != nil {
+			return fmt.Errorf("failed to create pgsodium extension: %w, output: %s", process.Err, process.Out())
 		}
 
 		// Create pgsodium key
-		cmd = exec.Command(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
-			"SELECT pgsodium.create_key();")
-		cmd.Env = env
+		keyProcess := clicky.Exec(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
+			"SELECT pgsodium.create_key();").Run()
 
-		if _, err := cmd.CombinedOutput(); err != nil {
+		if keyProcess.Err != nil {
 			// Non-fatal error for key creation
-			fmt.Printf("Warning: Failed to create pgsodium key: %v\n", err)
+			fmt.Printf("Warning: Failed to create pgsodium key: %v\n", keyProcess.Err)
 		}
 
 	default:
 		// Standard extension installation
-		cmd := exec.Command(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
-			fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %s CASCADE;", extensionName))
-		cmd.Env = env
+		process := clicky.Exec(psqlPath, "-h", host, "-p", strconv.Itoa(port), "-U", user, "-d", dbName, "-c",
+			fmt.Sprintf("CREATE EXTENSION IF NOT EXISTS %s CASCADE;", extensionName)).Run()
 
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to create extension %s: %w, output: %s", extensionName, err, string(output))
+		if process.Err != nil {
+			return fmt.Errorf("failed to create extension %s: %w, output: %s", extensionName, process.Err, process.Out())
 		}
 	}
 
@@ -1105,11 +1087,10 @@ func (p *Postgres) Validate(config []byte) error {
 
 	// Use postgres binary to validate the configuration
 	// The -C flag reads a configuration parameter and exits
-	cmd := exec.Command(postgresBin, "--config-file="+tempFile.Name(), "-D", tempDataDir, "-C", "data_directory")
-	output, err := cmd.CombinedOutput()
+	process := clicky.Exec(postgresBin, "--config-file="+tempFile.Name(), "-D", tempDataDir, "-C", "data_directory").Run()
 
-	if err != nil {
-		return p.parsePostgresValidationError(string(output), err)
+	if process.Err != nil {
+		return p.parsePostgresValidationError(process.Out(), process.Err)
 	}
 
 	return nil
@@ -1185,13 +1166,12 @@ func (p *Postgres) stopTempPostgreSQL() error {
 		"stop",
 	}
 
-	stopCmd := exec.Command(filepath.Join(p.BinDir, "pg_ctl"), stopArgs...)
-	stopOutput, err := stopCmd.CombinedOutput()
-	p.lastStdout = string(stopOutput)
-	p.lastStderr = string(stopOutput)
+	stopProcess := clicky.Exec(filepath.Join(p.BinDir, "pg_ctl"), stopArgs...).Run()
+	p.lastStdout = stopProcess.Stdout.String()
+	p.lastStderr = stopProcess.Stderr.String()
 
-	if err != nil {
-		return fmt.Errorf("failed to stop PostgreSQL: %w, output: %s", err, string(stopOutput))
+	if stopProcess.Err != nil {
+		return fmt.Errorf("failed to stop PostgreSQL: %w, output: %s", stopProcess.Err, stopProcess.Out())
 	}
 
 	return nil

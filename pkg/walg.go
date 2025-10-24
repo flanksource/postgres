@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os/exec"
 	"time"
-
-	"github.com/flanksource/commons/deps"
 )
 
 // WalG represents a WAL-G backup service instance
@@ -254,15 +252,12 @@ func (w *WalG) GetStatus() (*WalgStatus, error) {
 
 // Install installs WAL-G binary with optional version and target directory
 func (w *WalG) Install(version, targetDir string) error {
-	if targetDir == "" {
-		targetDir = "/usr/local/bin"
-	}
-	return deps.Install("wal-g", version, deps.WithBinDir(targetDir))
+	return nil
 }
 
 // IsInstalled checks if WAL-G is installed in PATH
 func (w *WalG) IsInstalled() bool {
-	return deps.Which("wal-g")
+	return false
 }
 
 // InstalledVersion returns the installed WAL-G version

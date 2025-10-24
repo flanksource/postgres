@@ -1,5 +1,3 @@
-//go:build !pgtune_none
-
 package pgtune
 
 import (

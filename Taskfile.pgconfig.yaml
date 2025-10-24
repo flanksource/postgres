@@ -10,11 +10,10 @@ vars:
   CLI_NAME: "postgres-cli"
   GOBIN: '{{.GOBIN | default "$(go env GOPATH)/bin"}}'
 
+tasks:
   build:
     desc: Build the postgres-cli and install to GOBIN
-    sources:
-      - "cmd/**/*.go"
-      - "pkg/**/*.go"
+
     cmds:
       - echo "Building postgres-cli..."
       - |
