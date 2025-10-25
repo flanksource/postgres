@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/server"
 	"github.com/flanksource/postgres/pkg/utils"
 )
@@ -322,27 +323,24 @@ func createStatusCommand() *cobra.Command {
 
 // getPostgresInstance creates a PostgreSQL instance with auto-detected or configured directories
 func getPostgresInstance() *server.Postgres {
-	var config *pkg.PostgresConf
+	var pgConfig *pkg.PostgresConf
 
 	// Load configuration if specified
 	if configFile != "" {
 		var err error
-		config, err = loadConfig(configFile)
+		pgConfig, err = config.LoadPostgresConf(configFile)
 		if err != nil && verbose {
 			fmt.Fprintf(os.Stderr, "Warning: Failed to load config: %v\n", err)
 		}
 	}
 
 	// Use default configuration if none provided
-	if config == nil {
-		config = &pkg.PostgresConf{
-			Port:            5432,
-			ListenAddresses: "localhost",
-		}
+	if pgConfig == nil {
+		pgConfig = config.DefaultPostgresConf()
 	}
 
 	// Initialize PostgreSQL instance with auto-detected data directory
-	postgres := server.NewPostgres(config, getDataDir())
+	postgres := server.NewPostgres(pgConfig, getDataDir())
 
 	// Set binary directory if detected or specified
 	if binDir := getBinDir(); binDir != "" {
@@ -350,21 +348,6 @@ func getPostgresInstance() *server.Postgres {
 	}
 
 	return postgres
-}
-
-// loadConfig loads PostgreSQL configuration from file
-func loadConfig(filename string) (*pkg.PostgresConf, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var config pkg.PostgresConf
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
 }
 
 // outputResult formats and outputs results based on the specified format
