@@ -84,8 +84,6 @@ RUN apt-get update --allow-insecure-repositories && \
 ARG POSTGREST_VERSION=12.2.3
 ARG WALG_VERSION=3.0.5
 
-
-
 # Install binary tools using Taskfile
 COPY Taskfile.binaries.yaml /tmp/Taskfile.binaries.yaml
 

@@ -9,6 +9,7 @@ output:
 vars:
   TEST_DIR: ./test
   GO_TEST_FLAGS: -v -timeout 30m
+  MINIMAL_IMAGE_NAME: postgres-minimal:latest
 
 tasks:
   # Database seeding tasks
@@ -266,3 +267,194 @@ tasks:
         echo "  task test:test-extensions        # Test PostgreSQL extensions"
         echo "  task test:test-services          # Test integrated services"
         echo "  task test:clean                  # Clean up test resources"
+
+  # Minimal image test tasks
+  build-minimal:
+    desc: Build the minimal PostgreSQL image
+    cmds:
+      - task build:build-minimal
+
+  test-minimal-basic:
+    desc: Test minimal image basic functionality
+    deps: [build-minimal]
+    cmds:
+      - |
+        echo "🧪 Testing minimal image basic functionality..."
+        # Start container
+        docker run -d --name postgres-minimal-test \
+          -e POSTGRES_PASSWORD=testpass \
+          -e POSTGRES_DB=testdb \
+          -e PG_VERSION=17 \
+          {{.MINIMAL_IMAGE_NAME}}
+
+        # Wait for PostgreSQL to be ready
+        sleep 15
+
+        # Test basic operations
+        docker exec postgres-minimal-test psql -U postgres -d testdb -c "
+          CREATE TABLE test (id SERIAL PRIMARY KEY, data TEXT);
+          INSERT INTO test (data) VALUES ('test1'), ('test2'), ('test3');
+          SELECT COUNT(*) FROM test;
+        "
+
+        # Test basic contrib extensions
+        docker exec postgres-minimal-test psql -U postgres -d testdb -c "
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+          SELECT * FROM pg_available_extensions WHERE name IN ('pgcrypto', 'pg_stat_statements');
+        "
+
+        # Cleanup
+        docker stop postgres-minimal-test
+        docker rm postgres-minimal-test
+        echo "✅ Basic functionality test passed"
+
+  test-minimal-pgconfig:
+    desc: Test minimal image pgconfig CLI
+    deps: [build-minimal]
+    cmds:
+      - |
+        echo "🧪 Testing pgconfig CLI..."
+        # Start container
+        docker run -d --name postgres-minimal-pgconfig \
+          -e POSTGRES_PASSWORD=testpass \
+          -e PG_VERSION=17 \
+          {{.MINIMAL_IMAGE_NAME}}
+
+        # Wait for PostgreSQL to be ready
+        sleep 15
+
+        # Test pgconfig functionality
+        docker exec postgres-minimal-pgconfig pgconfig --help
+
+        # Cleanup
+        docker stop postgres-minimal-pgconfig
+        docker rm postgres-minimal-pgconfig
+        echo "✅ pgconfig CLI test passed"
+
+  test-minimal-upgrade:
+    desc: Test minimal image upgrade from {{.FROM}} to {{.TO}}
+    deps: [build-minimal]
+    vars:
+      FROM: '{{.FROM | default "14"}}'
+      TO: '{{.TO | default "17"}}'
+    cmds:
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL {{.FROM}} to {{.TO}}..."
+
+        # Create test data directory
+        mkdir -p test-data-minimal/pg{{.FROM}}
+        chmod 777 test-data-minimal/pg{{.FROM}}
+
+        # Initialize PostgreSQL {{.FROM}} with test data
+        docker run --rm \
+          -v $PWD/test-data-minimal/pg{{.FROM}}:/var/lib/postgresql/data \
+          -e POSTGRES_PASSWORD=testpass \
+          -e POSTGRES_DB=testdb \
+          postgres:{{.FROM}}-bookworm \
+          bash -c "
+            docker-entrypoint.sh postgres &
+            PGPID=\$!
+            sleep 10
+
+            # Create test data
+            psql -U postgres -d testdb <<EOF
+        CREATE TABLE test_data (
+          id SERIAL PRIMARY KEY,
+          data TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT INTO test_data (data)
+        SELECT 'Test record ' || generate_series(1, 1000);
+
+        CREATE INDEX idx_test_data ON test_data(created_at);
+
+        SELECT COUNT(*) as record_count FROM test_data;
+        EOF
+
+            # Stop PostgreSQL
+            pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+          "
+
+        # Run upgrade
+        docker run --rm \
+          -v $PWD/test-data-minimal/pg{{.FROM}}:/var/lib/postgresql/data \
+          -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
+          -e PG_VERSION={{.TO}} \
+          {{.MINIMAL_IMAGE_NAME}}
+
+        # Verify upgraded data
+        docker run --rm \
+          -v $PWD/test-data-minimal/pg{{.FROM}}:/var/lib/postgresql/data \
+          -e POSTGRES_PASSWORD=testpass \
+          postgres:{{.TO}}-bookworm \
+          bash -c "
+            docker-entrypoint.sh postgres &
+            PGPID=\$!
+            sleep 10
+
+            # Verify data
+            psql -U postgres -d testdb <<EOF
+        SELECT COUNT(*) as record_count FROM test_data;
+        SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
+        SELECT
+          CASE
+            WHEN COUNT(*) = 1000 THEN 'PASS: All records present'
+            ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
+          END as result
+        FROM test_data;
+        EOF
+
+            # Stop PostgreSQL
+            pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+          "
+
+        # Cleanup
+        rm -rf test-data-minimal/pg{{.FROM}}
+        echo "✅ Upgrade test passed"
+
+  test-minimal-14-to-17:
+    desc: Test minimal image upgrade from PostgreSQL 14 to 17
+    cmds:
+      - task: test-minimal-upgrade
+        vars: { FROM: "14", TO: "17" }
+
+  test-minimal-15-to-17:
+    desc: Test minimal image upgrade from PostgreSQL 15 to 17
+    cmds:
+      - task: test-minimal-upgrade
+        vars: { FROM: "15", TO: "17" }
+
+  test-minimal-16-to-17:
+    desc: Test minimal image upgrade from PostgreSQL 16 to 17
+    cmds:
+      - task: test-minimal-upgrade
+        vars: { FROM: "16", TO: "17" }
+
+  test-minimal-all-upgrades:
+    desc: Test all minimal image upgrade paths
+    deps: [build-minimal]
+    cmds:
+      - task: test-minimal-14-to-17
+      - task: test-minimal-15-to-17
+      - task: test-minimal-16-to-17
+
+  test-minimal-all:
+    desc: Run all minimal image tests
+    deps: [build-minimal]
+    cmds:
+      - task: test-minimal-basic
+      - task: test-minimal-pgconfig
+      - task: test-minimal-all-upgrades
+      - echo "✅ All minimal image tests completed"
+
+  clean-minimal:
+    desc: Clean up minimal image test resources
+    cmds:
+      - |
+        echo "🧹 Cleaning up minimal image test resources..."
+        docker stop postgres-minimal-test postgres-minimal-pgconfig 2>/dev/null || true
+        docker rm postgres-minimal-test postgres-minimal-pgconfig 2>/dev/null || true
+        rm -rf test-data-minimal/
+        echo "✅ Cleanup completed"

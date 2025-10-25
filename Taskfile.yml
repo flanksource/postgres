@@ -30,6 +30,16 @@ tasks:
     cmds:
       - task: build:build-all
 
+  build-minimal:
+    desc: Build the minimal postgres Docker image
+    cmds:
+      - task: build:build-minimal
+
+  build-minimal-all:
+    desc: Build all minimal image versions
+    cmds:
+      - task: build:build-minimal-all
+
   # Test shortcuts
   test:
     desc: Test all PostgreSQL upgrades
@@ -42,10 +52,25 @@ tasks:
     cmds:
       - task: test:test-image
 
+  test-minimal:
+    desc: Run all minimal image tests
+    cmds:
+      - task: test:test-minimal-all
+
+  test-minimal-basic:
+    desc: Test minimal image basic functionality
+    cmds:
+      - task: test:test-minimal-basic
+
   clean:
     desc: Clean up everything
     cmds:
       - task: test:clean
+
+  clean-minimal:
+    desc: Clean up minimal image test resources
+    cmds:
+      - task: test:clean-minimal
 
   status:
     desc: Show status of volumes and images
@@ -210,6 +235,8 @@ tasks:
       - echo "  task build:build-16     - Build image that upgrades to PostgreSQL 16"
       - echo "  task build:build-17     - Build image that upgrades to PostgreSQL 17"
       - echo "  task build:build-all    - Build all target version images"
+      - echo "  task build-minimal      - Build the minimal postgres image"
+      - echo "  task build-minimal-all  - Build all minimal image versions"
       - 'echo ""'
       - echo "Test Tasks:"
       - echo "  task test               - Run all upgrade tests"
@@ -217,6 +244,8 @@ tasks:
       - echo "  task test:upgrade-14-to-17 - Test PostgreSQL 14 to 17 upgrade"
       - echo "  task test:upgrade-15-to-17 - Test PostgreSQL 15 to 17 upgrade"
       - echo "  task test:upgrade-16-to-17 - Test PostgreSQL 16 to 17 upgrade"
+      - echo "  task test-minimal       - Run all minimal image tests"
+      - echo "  task test-minimal-basic - Test minimal image basic functionality"
       - 'echo ""'
       - echo "Extension Tasks:"
       - echo "  task extensions-list    - List all available PostgreSQL extensions"
@@ -241,6 +270,7 @@ tasks:
       - 'echo ""'
       - echo "Utility Tasks:"
       - echo "  task clean              - Clean up volumes and images"
+      - echo "  task clean-minimal      - Clean up minimal image test resources"
       - echo "  task status             - Show status of volumes and images"
       - echo "  task dev-setup          - Set up development environment"
       - echo "  task dev-test-quick     - Quick test (14 to 17 only)"
