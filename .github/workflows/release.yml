@@ -2,13 +2,13 @@ name: Release PostgreSQL Upgrade Images
 
 on:
   push:
-    tags: [ 'v*' ]
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag'
+        description: "Release tag"
         required: true
-        default: 'v1.0.0'
+        default: "v1.0.0"
 
 env:
   REGISTRY: ghcr.io
@@ -35,20 +35,20 @@ jobs:
           build-args: |
             TARGET_VERSION=${{ matrix.pg_version }}
           push: false
-          tags: postgres-upgrade:${{ matrix.pg_version }}
+          tags: postgres:${{ matrix.pg_version }}
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Save image as artifact
         run: |
-          docker save postgres-upgrade:${{ matrix.pg_version }} > postgres-upgrade-${{ matrix.pg_version }}.tar
+          docker save postgres:${{ matrix.pg_version }} > postgres-${{ matrix.pg_version }}.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: postgres-upgrade-${{ matrix.pg_version }}
-          path: postgres-upgrade-${{ matrix.pg_version }}.tar
+          name: postgres-${{ matrix.pg_version }}
+          path: postgres-${{ matrix.pg_version }}.tar
           retention-days: 1
 
   get-postgres-versions:
@@ -64,17 +64,17 @@ jobs:
       - name: Download PostgreSQL 16 image
         uses: actions/download-artifact@v4
         with:
-          name: postgres-upgrade-16
+          name: postgres-16
 
       - name: Download PostgreSQL 17 image
         uses: actions/download-artifact@v4
         with:
-          name: postgres-upgrade-17
+          name: postgres-17
 
       - name: Load Docker images
         run: |
-          docker load < postgres-upgrade-16.tar
-          docker load < postgres-upgrade-17.tar
+          docker load < postgres-16.tar
+          docker load < postgres-17.tar
 
       - name: Get PostgreSQL versions from built images
         id: versions
