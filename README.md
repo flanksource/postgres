@@ -13,6 +13,96 @@ PostgreSQL distribution with automatic version upgrades, password recovery, perf
 - **Backup integration** - WAL-G configured for S3/GCS/Azure backups
 - **Helm charts** - Kubernetes deployment with StatefulSets, probes, and PVCs
 
+## ⚠️ Breaking Change: Security Update
+
+**Version 2.x** introduces a security improvement where the container now runs as the `postgres` user (UID 999) by default instead of root. This follows container security best practices and reduces the attack surface.
+
+### What Changed
+
+- **Previous behavior**: Container ran as root user
+- **New behavior**: Container runs as `postgres` user (UID 999) by default
+- **Impact**: Existing volumes with incorrect ownership will cause permission errors
+
+### Migration Guide
+
+#### For Docker Users
+
+If you encounter permission errors after upgrading, fix volume ownership:
+
+```bash
+# Check current volume ownership
+docker run --rm -v your-volume:/data alpine ls -la /data
+
+# Fix permissions (if owned by root or other user)
+docker run --rm --user root -v your-volume:/data alpine chown -R 999:999 /data
+
+# Then start normally (will run as postgres user)
+docker run -v your-volume:/var/lib/postgresql/data flanksource/postgres:latest
+```
+
+**Recommended**: Use named volumes (Docker handles permissions automatically):
+
+```bash
+docker run -d \
+  -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=mypassword \
+  ghcr.io/flanksource/postgres:latest
+```
+
+#### For Kubernetes Users
+
+Add `securityContext` to your Pod/StatefulSet spec:
+
+```yaml
+apiVersion: v1
+kind: Pod
+spec:
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999  # Ensures PVC is owned by postgres
+  containers:
+  - name: postgres
+    image: ghcr.io/flanksource/postgres:latest
+    volumeMounts:
+    - name: pgdata
+      mountPath: /var/lib/postgresql/data
+```
+
+#### Permission Fix Mode
+
+If you need to fix permissions on existing volumes, temporarily run as root:
+
+```bash
+# Run once as root to fix permissions
+docker run --user root \
+  -v your-volume:/var/lib/postgresql/data \
+  ghcr.io/flanksource/postgres:latest
+
+# Container will detect wrong ownership, fix it, and exit
+# Then restart without --user flag (runs as postgres by default)
+docker run -v your-volume:/var/lib/postgresql/data \
+  ghcr.io/flanksource/postgres:latest
+```
+
+#### Validation
+
+Use `--dry-run` to validate permissions before starting:
+
+```bash
+docker run --rm \
+  -v your-volume:/var/lib/postgresql/data \
+  --entrypoint postgres-cli \
+  ghcr.io/flanksource/postgres:latest \
+  auto-start --dry-run --data-dir /var/lib/postgresql/data
+```
+
+### Why This Change?
+
+- **Security**: Running as non-root reduces attack surface and follows least-privilege principle
+- **Compliance**: Aligns with container security best practices and PodSecurityStandards
+- **Consistency**: Matches official PostgreSQL Docker image behavior
+
 ## Quick Start
 
 ### Helm (Kubernetes)

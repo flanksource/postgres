@@ -329,7 +329,8 @@ Examples:
   pgconfig auto-start --pg-tune                 Optimize config before starting
   pgconfig auto-start --auto-upgrade            Upgrade if needed, then start
   pgconfig auto-start --auto-reset-password     Reset password, then start
-  pgconfig auto-start --auto-init --pg-tune     Initialize, optimize, then start`,
+  pgconfig auto-start --auto-init --pg-tune     Initialize, optimize, then start
+  pgconfig auto-start --dry-run                 Validate permissions without starting`,
 		RunE: runAutoStart,
 	}
 
@@ -339,6 +340,7 @@ Examples:
 	cmd.Flags().Bool("auto-reset-password", false, "Reset postgres superuser password on start")
 	cmd.Flags().Int("upgrade-to", 0, "Target PostgreSQL version for upgrade (default: auto-detect latest)")
 	cmd.Flags().String("new-password", "", "New password for auto-reset (prompted if not provided)")
+	cmd.Flags().Bool("dry-run", false, "Validate permissions and configuration without making changes")
 
 	return cmd
 }
@@ -351,6 +353,42 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	autoResetPassword, _ := cmd.Flags().GetBool("auto-reset-password")
 	upgradeTo, _ := cmd.Flags().GetInt("upgrade-to")
 	newPassword, _ := cmd.Flags().GetString("new-password")
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+	// Log current user context
+	uid, gid, username, err := utils.GetCurrentUserInfo()
+	if err != nil {
+		return fmt.Errorf("failed to get user info: %w", err)
+	}
+	fmt.Printf("Running as user: %s (UID: %d, GID: %d)\n", username, uid, gid)
+
+	// Perform pre-flight permission checks
+	dataDir := getDataDir()
+	if dataDir == "" {
+		return fmt.Errorf("data directory not detected, use --data-dir flag")
+	}
+
+	fmt.Printf("Checking permissions for PGDATA: %s\n", dataDir)
+	if err := utils.CheckPGDATAPermissions(dataDir); err != nil {
+		if permErr, ok := err.(*utils.PermissionError); ok {
+			// Exit with code 126 (permission denied)
+			fmt.Fprintf(os.Stderr, "\n❌ %s\n", permErr.Error())
+			os.Exit(126)
+		}
+		// For non-directory-exists errors during dry-run, just warn
+		if !os.IsNotExist(err) || !dryRun {
+			return fmt.Errorf("permission check failed: %w", err)
+		}
+	}
+
+	fmt.Println("✅ Permission checks passed")
+
+	// If dry-run mode, exit successfully
+	if dryRun {
+		fmt.Println("\n✅ Dry-run validation completed successfully")
+		fmt.Println("All permission checks passed. Ready to start PostgreSQL.")
+		return nil
+	}
 
 	// Get PostgreSQL instance
 	postgres := getPostgresInstance()

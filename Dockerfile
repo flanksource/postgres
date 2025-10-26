@@ -72,6 +72,11 @@ RUN apt-get update && \
 COPY --from=pgconfig-builder /src/postgres-cli /usr/local/bin/postgres-cli
 RUN chmod +x /usr/local/bin/postgres-cli
 
+# Ensure postgres user has UID 999 and GID 999 for consistency
+RUN usermod -u 999 postgres && groupmod -g 999 postgres && \
+    find / -user 100 -exec chown -h postgres {} + 2>/dev/null || true && \
+    find / -group 102 -exec chgrp -h postgres {} + 2>/dev/null || true
+
 # Set environment variables for all PostgreSQL versions
 ENV PG14BIN=/usr/lib/postgresql/14/bin
 ENV PG15BIN=/usr/lib/postgresql/15/bin
@@ -117,9 +122,8 @@ WORKDIR /var/lib/postgresql
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD pg_isready -U postgres || exit 1
 
-# Run as root initially (entrypoint will switch to postgres user)
+# Run as postgres user for security (can override with --user root if needed for permission fixes)
 USER postgres
-
 
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
