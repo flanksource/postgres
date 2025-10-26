@@ -58,7 +58,7 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %+w\n", err)
+		fmt.Printf("Error: %+v\n", err)
 		os.Exit(1)
 	}
 }

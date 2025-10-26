@@ -15,8 +15,8 @@ tasks:
   seed-postgres:
     desc: Initialize and seed PostgreSQL {{.VERSION}} test data
     vars:
-      VERSION: '{{.VERSION}}'
-      VOLUME_NAME: 'pg{{.VERSION}}-test-data'
+      VERSION: "{{.VERSION}}"
+      VOLUME_NAME: "pg{{.VERSION}}-test-data"
     cmds:
       - docker volume create {{.VOLUME_NAME}} || true
       - |
@@ -32,25 +32,25 @@ tasks:
     desc: Seed PostgreSQL 14 test data
     cmds:
       - task: seed-postgres
-        vars: {VERSION: "14"}
+        vars: { VERSION: "14" }
 
   seed-pg15:
-    desc: Seed PostgreSQL 15 test data  
+    desc: Seed PostgreSQL 15 test data
     cmds:
       - task: seed-postgres
-        vars: {VERSION: "15"}
+        vars: { VERSION: "15" }
 
   seed-pg16:
     desc: Seed PostgreSQL 16 test data
     cmds:
       - task: seed-postgres
-        vars: {VERSION: "16"}
+        vars: { VERSION: "16" }
 
   seed-pg17:
     desc: Seed PostgreSQL 17 test data
     cmds:
       - task: seed-postgres
-        vars: {VERSION: "17"}
+        vars: { VERSION: "17" }
 
   seed-all:
     desc: Seed all PostgreSQL versions with test data
@@ -80,7 +80,6 @@ tasks:
         echo "🧪 Running comprehensive integration tests..."
         go test {{.GO_TEST_FLAGS}} -run TestPostgresIntegration
 
-
   test-extensions:
     desc: Test all PostgreSQL extensions functionality
     dir: "{{.TEST_DIR}}"
@@ -98,7 +97,6 @@ tasks:
       - |
         echo "⚙️ Testing integrated services..."
         go test {{.GO_TEST_FLAGS}} -run "TestPostgresIntegration.*(PgBouncer|PostgREST|WAL)"
-
 
   test-enhanced:
     desc: Run enhanced integration tests (Kubernetes-based)
@@ -135,7 +133,6 @@ tasks:
     deps: [test-integration, test-extensions, test-services, test-enhanced]
     cmds:
       - echo "✅ All feature tests completed"
-
 
   upgrade-14-to-17:
     desc: Test upgrade from PostgreSQL 14 to 17
@@ -174,7 +171,7 @@ tasks:
         go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_15_to_16"
 
   # Quick test for development
-  dev-test-quick:
+  quick:
     desc: Quick development test (14 to 17 upgrade only)
     dir: "{{.TEST_DIR}}"
     deps: [build, seed-pg14]
@@ -238,8 +235,6 @@ tasks:
 
   # Clean task
   # Utility and maintenance tasks
-
-
 
   clean:
     desc: Clean up test resources and Docker volumes

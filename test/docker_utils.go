@@ -145,6 +145,25 @@ type Container struct {
 	client *DockerClient
 }
 
+func (c *Container) WaitFor(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		result := c.client.runner.RunCommandQuiet("docker", "inspect", "-f", "{{.State.Running}}", c.ID)
+		if result.ExitCode != 0 {
+			return fmt.Errorf("failed to inspect container: %v", result.Err)
+		}
+
+		if strings.TrimSpace(result.Stdout) == "false" {
+			return nil // Container has stopped
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("container did not complete within %v", timeout)
+}
+
 // ContainerOptions provides options for running a container
 type ContainerOptions struct {
 	Name       string

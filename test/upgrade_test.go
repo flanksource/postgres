@@ -39,9 +39,9 @@ func NewPostgresUpgradeTest(config *PostgresUpgradeConfig) *PostgresUpgradeTest 
 func TestPostgresUpgrade(t *testing.T) {
 
 	config := &PostgresUpgradeConfig{
-		ImageName:      "postgres-upgrade:latest",
+		ImageName:      "postgres:latest",
 		Registry:       "ghcr.io",
-		ImageBase:      "flanksource/postgres-upgrade",
+		ImageBase:      "flanksource/postgres",
 		SourceVersions: []string{"14", "15", "16"},
 		TargetVersion:  "17",
 		TestUser:       "testuser",
@@ -97,18 +97,7 @@ func (put *PostgresUpgradeTest) buildUpgradeImage() error {
 
 	// Check if Dockerfile exists in the current directory
 	if _, err := os.Stat("Dockerfile"); os.IsNotExist(err) {
-		// Try the modules directory
-		dockerfilePath := "/Users/moshe/go/src/github.com/flanksource/docs-fix/modules/docker-postgres-upgrade"
-		if _, err := os.Stat(dockerfilePath + "/Dockerfile"); err != nil {
-			return fmt.Errorf("Dockerfile not found in current directory or modules path")
-		}
-
-		// Change to the docker-postgres-upgrade directory for building
-		originalDir, _ := os.Getwd()
-		if err := os.Chdir(dockerfilePath); err != nil {
-			return fmt.Errorf("failed to change to dockerfile directory: %w", err)
-		}
-		defer os.Chdir(originalDir)
+		return err
 	}
 
 	result := put.client.runner.RunCommand("docker", "build", "-t", put.config.ImageName, ".")
@@ -126,7 +115,7 @@ func (put *PostgresUpgradeTest) testUpgrade(fromVersion, toVersion string) error
 
 	// Use existing seeded volume (created by Taskfile seed tasks)
 	sourceVolumeName := fmt.Sprintf("pg%s-test-data", fromVersion)
-	
+
 	// Create a copy of the source volume for this test to avoid conflicts
 	testVolumeName := fmt.Sprintf("pg%s-to-%s-test-%d", fromVersion, toVersion, time.Now().Unix())
 	testVolume, err := put.copyVolume(sourceVolumeName, testVolumeName, fromVersion)
@@ -185,8 +174,8 @@ func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, v
 			sourceVolumeName: "/source:ro",
 			targetVolumeName: "/target",
 		},
-		Entrypoint: []string{"sh", "-c", "cp -a /source/. /target/"},
-		Remove:     true,
+		Command: []string{"sh", "-c", "cp -a /source/. /target/"},
+		Remove:  true,
 	})
 	if err != nil {
 		targetVolume.Delete() // Clean up on failure
@@ -194,7 +183,7 @@ func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, v
 	}
 
 	// Wait for copy to complete
-	if err := container.Wait(); err != nil {
+	if err := container.WaitFor(time.Minute); err != nil {
 		targetVolume.Delete() // Clean up on failure
 		return nil, fmt.Errorf("volume copy failed: %w", err)
 	}
@@ -202,11 +191,6 @@ func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, v
 	put.client.runner.Printf(colorGray, "", "✅ Volume copied successfully")
 	return targetVolume, nil
 }
-
-
-
-
-
 
 // runUpgrade runs the PostgreSQL upgrade process
 func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersion string) error {
@@ -225,9 +209,9 @@ func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersio
 		imageName = fmt.Sprintf("%s/%s:to-%s", put.config.Registry, put.config.ImageBase, toVersion)
 	}
 
-	// Run the upgrade container  
+	// Run the upgrade container
 	containerName := fmt.Sprintf("upgrade-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
-	
+
 	// Run upgrade with docker run to get proper exit code and output
 	args := []string{
 		"run",
@@ -239,16 +223,16 @@ func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersio
 		"-w", "/var/lib/postgresql",
 		imageName,
 	}
-	
+
 	put.client.runner.Printf(colorGray, "", "Running upgrade container...")
 	result := put.client.runner.RunCommand("docker", args...)
-	
+
 	// Always try to get logs, even on failure
 	logsResult := put.client.runner.RunCommandQuiet("docker", "logs", containerName)
-	
+
 	// Clean up container
 	put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
-	
+
 	// Check result
 	if result.ExitCode != 0 {
 		put.client.runner.Errorf("Upgrade failed with exit code %d", result.ExitCode)
@@ -257,7 +241,7 @@ func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersio
 		put.client.runner.Errorf("Container logs:\n%s", logsResult.Stdout)
 		return fmt.Errorf("upgrade process failed with exit code %d", result.ExitCode)
 	}
-	
+
 	// Check for error indicators in output
 	allOutput := result.Stdout + result.Stderr + logsResult.Stdout
 	if strings.Contains(allOutput, "ERROR") || strings.Contains(allOutput, "FATAL") {
@@ -278,10 +262,10 @@ func (put *PostgresUpgradeTest) verifyUpgrade(volume *Volume, fromVersion, toVer
 
 	containerName := fmt.Sprintf("verify-upgrade-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
 
-	// Use direct docker run command to get output  
+	// Use direct docker run command to get output
 	result := put.client.runner.RunCommand("docker", "run",
 		"--name", containerName,
-		"-u", "postgres", 
+		"-u", "postgres",
 		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
 		fmt.Sprintf("postgres:%s", toVersion),
 		"bash", "-c", fmt.Sprintf(`
@@ -413,9 +397,9 @@ func versionToInt(version string) int {
 func TestPostgresUpgradeQuick(t *testing.T) {
 
 	config := &PostgresUpgradeConfig{
-		ImageName:      "postgres-upgrade:latest",
+		ImageName:      "postgres:latest",
 		Registry:       "ghcr.io",
-		ImageBase:      "flanksource/postgres-upgrade",
+		ImageBase:      "flanksource/postgres",
 		SourceVersions: []string{"14"},
 		TargetVersion:  "17",
 		TestUser:       "testuser",
@@ -519,13 +503,13 @@ func (put *PostgresUpgradeTest) testUpgradeWithExtensions(fromVersion, toVersion
 
 	// Create enhanced test volume with extensions
 	sourceVolumeName := fmt.Sprintf("pg%s-enhanced-test-data", fromVersion)
-	
+
 	// Create and populate test volume with extensions
 	if err := put.createTestVolumeWithExtensions(sourceVolumeName, fromVersion); err != nil {
 		return fmt.Errorf("failed to create test volume with extensions: %w", err)
 	}
 	defer put.removeTestVolume(sourceVolumeName)
-	
+
 	// Create a copy for testing
 	testVolumeName := fmt.Sprintf("pg%s-to-%s-extensions-test-%d", fromVersion, toVersion, time.Now().Unix())
 	testVolume, err := put.copyVolume(sourceVolumeName, testVolumeName, fromVersion)
@@ -571,7 +555,7 @@ func (put *PostgresUpgradeTest) createTestVolumeWithExtensions(volumeName, versi
 
 	// Use enhanced image to initialize with extensions
 	containerName := fmt.Sprintf("seed-extensions-%s-%d", version, time.Now().Unix())
-	
+
 	args := []string{
 		"run", "--rm",
 		"--name", containerName,
@@ -586,7 +570,7 @@ func (put *PostgresUpgradeTest) createTestVolumeWithExtensions(volumeName, versi
 			docker-entrypoint.sh postgres &
 			PGPID=$!
 			sleep 15
-			
+
 			# Create test data
 			psql -U %s -d %s <<EOF
 CREATE TABLE test_upgrade_extensions (
@@ -596,7 +580,7 @@ CREATE TABLE test_upgrade_extensions (
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO test_upgrade_extensions (data, vector_data) VALUES 
+INSERT INTO test_upgrade_extensions (data, vector_data) VALUES
 ('Test with extensions 1', '[1,2,3]'),
 ('Test with extensions 2', '[4,5,6]'),
 ('Test with extensions 3', '[7,8,9]'),
@@ -613,10 +597,10 @@ CREATE VIEW test_upgrade_extensions_summary AS
 SELECT COUNT(*) as total_records, AVG(vector_data <-> '[0,0,0]') as avg_distance
 FROM test_upgrade_extensions;
 EOF
-			
+
 			# Stop PostgreSQL gracefully
 			pg_ctl -D /var/lib/postgresql/data stop -m smart -w
-			
+
 			# Fix permissions
 			chown -R $(id -u):$(id -g) /var/lib/postgresql/data
 		`, put.config.TestUser, put.config.TestDatabase),
@@ -637,7 +621,7 @@ func (put *PostgresUpgradeTest) runUpgradeWithExtensions(volume *Volume, fromVer
 	put.client.runner.Statusf("🚀 Starting upgrade with extensions from PostgreSQL %s to %s...", fromVersion, toVersion)
 
 	containerName := fmt.Sprintf("upgrade-extensions-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
-	
+
 	// Use enhanced image for upgrade
 	args := []string{
 		"run", "--rm",
@@ -650,9 +634,9 @@ func (put *PostgresUpgradeTest) runUpgradeWithExtensions(volume *Volume, fromVer
 		"-w", "/var/lib/postgresql",
 		"ghcr.io/flanksource/postgres:17-latest", // Use enhanced image
 	}
-	
+
 	result := put.client.runner.RunCommand("docker", args...)
-	
+
 	if result.ExitCode != 0 {
 		return fmt.Errorf("upgrade with extensions failed with exit code %d: %v", result.ExitCode, result.Stderr)
 	}
@@ -669,7 +653,7 @@ func (put *PostgresUpgradeTest) verifyUpgradeWithExtensions(volume *Volume, from
 
 	result := put.client.runner.RunCommand("docker", "run", "--rm",
 		"--name", containerName,
-		"-u", "postgres", 
+		"-u", "postgres",
 		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
 		fmt.Sprintf("postgres:%s", toVersion),
 		"bash", "-c", fmt.Sprintf(`
@@ -691,7 +675,7 @@ for ext in %s; do
         "pgvector") ext_name="vector" ;;
         "pg-safeupdate") ext_name="safeupdate" ;;
     esac
-    
+
     if ! psql -U postgres -d %s -t -c "SELECT 1 FROM pg_extension WHERE extname = '$ext_name';" | grep -q 1; then
         echo "ERROR: Extension $ext ($ext_name) is not installed after upgrade"
         exit 1

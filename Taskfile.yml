@@ -29,7 +29,8 @@ tasks:
     desc: Test all PostgreSQL upgrades
     cmds:
       - task: build:build
-      - task: test:all
+      - task: cli:build
+      - task: test:quick
 
   test-image:
     desc: Build and test Docker image with integration tests

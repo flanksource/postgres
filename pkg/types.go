@@ -44,4 +44,5 @@ type Postgres interface {
 	Exists() bool
 	GetVersion() PgVersion
 	Validate(config []byte) error
+	SQL(sqlQuery string) ([]map[string]interface{}, error)
 }

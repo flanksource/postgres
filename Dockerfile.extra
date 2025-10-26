@@ -28,6 +28,8 @@ ENV TARGETOS=${TARGETOS}
 ARG TARGET_VERSION=17
 ENV TARGET_VERSION=${TARGET_VERSION}
 
+# Task version for consistent builds
+ARG TASK_VERSION=3.44.1
 
 # Labels
 LABEL maintainer="flanksource"
@@ -65,14 +67,14 @@ RUN apt-get update --allow-insecure-repositories && \
         jq \
         socat \
         postgresql-14 postgresql-15 postgresql-16 \
-        # pgbouncer \
-        # postgresql-${TARGET_VERSION}-pgtap \
-        # postgresql-${TARGET_VERSION}-pgvector \
-        # postgresql-${TARGET_VERSION}-pgaudit \
-        # postgresql-${TARGET_VERSION}-repack \
-        # postgresql-${TARGET_VERSION}-cron \
-        # postgresql-${TARGET_VERSION}-wal2json \
-        # postgresql-${TARGET_VERSION}-hypopg \
+        pgbouncer \
+        postgresql-${TARGET_VERSION}-pgtap \
+        postgresql-${TARGET_VERSION}-pgvector \
+        postgresql-${TARGET_VERSION}-pgaudit \
+        postgresql-${TARGET_VERSION}-repack \
+        postgresql-${TARGET_VERSION}-cron \
+        postgresql-${TARGET_VERSION}-wal2json \
+        postgresql-${TARGET_VERSION}-hypopg \
         pgtop \
 		&& \
 	apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
