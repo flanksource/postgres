@@ -2,6 +2,9 @@ name: Release PostgreSQL Upgrade Images
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -15,7 +18,66 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/postgres
 
 jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_new_version: ${{ steps.version.outputs.is_new_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install svu
+        run: |
+          wget -qO /tmp/svu.tar.gz https://github.com/caarlos0/svu/releases/download/v2.3.0/svu_2.3.0_linux_amd64.tar.gz
+          tar -xzf /tmp/svu.tar.gz -C /tmp
+          sudo mv /tmp/svu /usr/local/bin/
+          chmod +x /usr/local/bin/svu
+
+      - name: Determine next version
+        id: version
+        run: |
+          # If triggered by a tag, use that tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # If workflow_dispatch with tag input, use that
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            VERSION="${{ github.event.inputs.tag }}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Otherwise, determine next patch version using svu
+          CURRENT_VERSION=$(svu current || echo "v0.0.0")
+          NEXT_VERSION=$(svu patch)
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "Next version: $NEXT_VERSION"
+
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "is_new_version=true" >> $GITHUB_OUTPUT
+
+      - name: Create and push version tag
+        if: steps.version.outputs.is_new_version == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "${{ steps.version.outputs.version }}" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+
   build-images-for-version-detection:
+    needs: determine-version
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -82,8 +144,44 @@ jobs:
           chmod +x scripts/get-postgres-versions.sh
           ./scripts/get-postgres-versions.sh
 
+  build-postgres-cli:
+    needs: determine-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build postgres-cli
+        env:
+          VERSION: ${{ needs.determine-version.outputs.version }}
+        run: |
+          # Remove 'v' prefix if present
+          VERSION_NO_V="${VERSION#v}"
+
+          # Build for multiple architectures
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o postgres-cli-linux-amd64 ./cmd
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o postgres-cli-linux-arm64 ./cmd
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o postgres-cli-darwin-amd64 ./cmd
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o postgres-cli-darwin-arm64 ./cmd
+          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o postgres-cli-windows-amd64.exe ./cmd
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-cli-binaries
+          path: postgres-cli-*
+          retention-days: 7
+
   build-per-arch:
-    needs: [build-images-for-version-detection, get-postgres-versions]
+    needs: [determine-version, build-images-for-version-detection, get-postgres-versions]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -228,7 +326,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17-arm64
 
   create-release:
-    needs: [merge-manifests, get-postgres-versions]
+    needs: [determine-version, build-postgres-cli, merge-manifests, get-postgres-versions]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -236,15 +334,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download postgres-cli binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: postgres-cli-binaries
+          path: ./binaries
+
       - name: Set version variables
         id: versions
         run: |
-          # Extract git tag (remove 'v' prefix if present)
-          TAG="${{ github.ref_name }}"
-          if [[ "$TAG" == v* ]]; then
-            TAG="${TAG#v}"
-          fi
+          # Use version from determine-version job
+          VERSION="${{ needs.determine-version.outputs.version }}"
+          # Remove 'v' prefix if present
+          TAG="${VERSION#v}"
           echo "release_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Generate SHA short
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -311,22 +415,38 @@ jobs:
           - **AMD64 builds**: Native build on \`ubuntu-latest\`
           - **ARM64 builds**: Native build on \`ubuntu-24.04-arm\`
           - **Manifests**: Merged using Docker Buildx imagetools
+
+          ## postgres-cli
+
+          Download the CLI binary for your platform:
+          - [Linux AMD64](https://github.com/${{ github.repository }}/releases/download/${{ steps.versions.outputs.version }}/postgres-cli-linux-amd64)
+          - [Linux ARM64](https://github.com/${{ github.repository }}/releases/download/${{ steps.versions.outputs.version }}/postgres-cli-linux-arm64)
+          - [macOS AMD64](https://github.com/${{ github.repository }}/releases/download/${{ steps.versions.outputs.version }}/postgres-cli-darwin-amd64)
+          - [macOS ARM64 (Apple Silicon)](https://github.com/${{ github.repository }}/releases/download/${{ steps.versions.outputs.version }}/postgres-cli-darwin-arm64)
+          - [Windows AMD64](https://github.com/${{ github.repository }}/releases/download/${{ steps.versions.outputs.version }}/postgres-cli-windows-amd64.exe)
+
+          Checksums are automatically generated by GitHub for all release assets.
           EOF
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: create_release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: PostgreSQL Upgrade Images ${{ steps.versions.outputs.release_tag }}
+          tag_name: ${{ steps.versions.outputs.version }}
+          name: PostgreSQL Upgrade Images ${{ steps.versions.outputs.release_tag }}
           body_path: release-notes.md
           draft: false
           prerelease: false
+          files: ./binaries/postgres-cli-*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   create-git-tags:
-    needs: [get-postgres-versions, merge-manifests]
+    needs: [determine-version, get-postgres-versions, merge-manifests]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
