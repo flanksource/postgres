@@ -32,5 +32,10 @@ fi
 # Run postgres-cli auto-start (includes permission checks)
 postgres-cli auto-start --pg-tune --auto-upgrade --auto-init --data-dir "$PGDATA" -vvvv
 
+if [ "$AUTO_UPGRADE" = "true" ] && [ "$UPGRADE_ONLY" = "true" ]; then
+    echo "UPGRADE_ONLY is set. Exiting after upgrade."
+    exit 0
+fi
+
 # Start PostgreSQL server
 exec "$PGBIN/postgres" "$@"

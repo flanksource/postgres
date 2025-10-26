@@ -645,13 +645,67 @@ func (p *Postgres) validateCluster(binDir, dataDir string, expectedVersion int) 
 	return nil
 }
 
+// fixLocaleSettings fixes invalid locale settings in postgresql.conf files
+func (p *Postgres) fixLocaleSettings(dataDir string) error {
+	// Fix both postgresql.conf and postgresql.auto.conf
+	configFiles := []string{
+		filepath.Join(dataDir, "postgresql.conf"),
+		filepath.Join(dataDir, "postgresql.auto.conf"),
+	}
+
+	for _, configPath := range configFiles {
+		// Skip if file doesn't exist
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			continue
+		}
+
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", configPath, err)
+		}
+
+		lines := strings.Split(string(content), "\n")
+		modified := false
+
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			// Replace invalid locale settings (en_US.utf8) with valid C locale
+			if strings.HasPrefix(trimmed, "lc_") && strings.Contains(line, "en_US.utf8") {
+				// Extract the parameter name
+				parts := strings.SplitN(trimmed, "=", 2)
+				if len(parts) == 2 {
+					paramName := strings.TrimSpace(parts[0])
+					lines[i] = fmt.Sprintf("%s = 'C'", paramName)
+					modified = true
+				}
+			}
+		}
+
+		if modified {
+			newContent := strings.Join(lines, "\n")
+			if err := os.WriteFile(configPath, []byte(newContent), 0600); err != nil {
+				return fmt.Errorf("failed to write %s: %w", configPath, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // initNewCluster initializes a new PostgreSQL cluster
 func (p *Postgres) initNewCluster(binDir, dataDir string) error {
 	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
-	process := clicky.Exec(filepath.Join(binDir, "initdb"), "-D", dataDir).Run()
+	// Initialize with UTF8 encoding and en_US.UTF-8 locale for compatibility
+	// This matches most common PostgreSQL deployments and allows for upgrade compatibility
+	process := clicky.Exec(
+		filepath.Join(binDir, "initdb"),
+		"-D", dataDir,
+		"--encoding=UTF8",
+		"--locale=en_US.UTF-8",
+	).Run()
 	p.lastStdout = process.Stdout.String()
 	p.lastStderr = process.Stderr.String()
 
@@ -670,6 +724,12 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 		return fmt.Errorf("failed to create socket directory: %w", err)
 	}
 
+	// Fix locale settings in old cluster's config files
+	// PostgreSQL won't start if config file has invalid locales, even with command-line overrides
+	if err := p.fixLocaleSettings(oldDataDir); err != nil {
+		return fmt.Errorf("failed to fix locale settings: %w", err)
+	}
+
 	// Change to parent directory for pg_upgrade
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -682,11 +742,21 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 	defer os.Chdir(originalDir)
 
 	// Run compatibility check first
+	// Use --socketdir to explicitly control where pg_upgrade creates Unix sockets
+	// This is critical when running as postgres user to avoid permission issues
+	//
+	// Use --old-options to override locale settings from old config that may be invalid
+	// in the current environment (e.g., en_US.utf8 vs en_US.UTF-8)
+	localeOpts := "-c lc_messages=C -c lc_monetary=C -c lc_numeric=C -c lc_time=C"
+
 	checkArgs := []string{
 		"--old-bindir=" + oldBinDir,
 		"--new-bindir=" + newBinDir,
 		"--old-datadir=" + oldDataDir,
 		"--new-datadir=" + newDataDir,
+		"--socketdir=" + socketDir,
+		"--old-options=" + localeOpts,
+		"--new-options=" + localeOpts,
 		"--check",
 	}
 
@@ -702,6 +772,9 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 		"--new-bindir=" + newBinDir,
 		"--old-datadir=" + oldDataDir,
 		"--new-datadir=" + newDataDir,
+		"--socketdir=" + socketDir,
+		"--old-options=" + localeOpts,
+		"--new-options=" + localeOpts,
 	}
 
 	fmt.Println("Performing upgrade...")

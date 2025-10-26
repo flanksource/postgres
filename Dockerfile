@@ -33,14 +33,18 @@ LABEL maintainer="flanksource"
 LABEL description="PostgreSQL with pgconfig for auto-upgrades and tuning"
 LABEL architecture="multi-arch"
 
-# Add PostgreSQL repository
+# Add PostgreSQL repository and configure locales
 RUN set -eux; \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         wget \
         gnupg \
-        lsb-release && \
+        lsb-release \
+        locales && \
+    # Generate en_US.UTF-8 locale for database compatibility
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen en_US.UTF-8 && \
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
@@ -100,8 +104,8 @@ ENV PGCONFIG_AUTO_TUNE=true
 # Create postgres user and directories
 RUN set -eux; \
     # useradd -r -g postgres --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash postgres; \
-    mkdir -p /var/lib/postgresql ${PGDATA} ${PGCONFIG_CONFIG_DIR} /docker-entrypoint-initdb.d; \
-    chown -R postgres:postgres /var/lib/postgresql
+    mkdir -p /var/lib/postgresql ${PGDATA} ${PGCONFIG_CONFIG_DIR} /docker-entrypoint-initdb.d /var/run/postgresql; \
+    chown -R postgres:postgres /var/lib/postgresql /var/run/postgresql
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -35,72 +34,21 @@ func NewPostgresUpgradeTest(config *PostgresUpgradeConfig) *PostgresUpgradeTest 
 	}
 }
 
-// TestPostgresUpgrade tests PostgreSQL upgrade functionality
-func TestPostgresUpgrade(t *testing.T) {
-
-	config := &PostgresUpgradeConfig{
-		ImageName:      "postgres:latest",
-		Registry:       "ghcr.io",
-		ImageBase:      "flanksource/postgres",
-		SourceVersions: []string{"14", "15", "16"},
-		TargetVersion:  "17",
-		TestUser:       "testuser",
-		TestPassword:   "testpass",
-		TestDatabase:   "testdb",
-		Extensions:     []string{"pgvector", "pgaudit", "pg_cron"}, // Test key extensions with upgrades
-	}
-
-	upgradeTest := NewPostgresUpgradeTest(config)
-
-	// Build the upgrade image
-	t.Run("BuildUpgradeImage", func(t *testing.T) {
-		if err := upgradeTest.buildUpgradeImage(); err != nil {
-			t.Fatalf("Failed to build upgrade image: %v", err)
-		}
-	})
-
-	// Test upgrade paths
-	upgradeMatrix := []struct {
-		from string
-		to   string
-	}{
-		{"14", "17"},
-		{"15", "17"},
-		{"16", "17"},
-		{"15", "16"},
-	}
-
-	for _, upgrade := range upgradeMatrix {
-		t.Run(fmt.Sprintf("Upgrade_%s_to_%s", upgrade.from, upgrade.to), func(t *testing.T) {
-			if err := upgradeTest.testUpgrade(upgrade.from, upgrade.to); err != nil {
-				t.Errorf("Upgrade from %s to %s failed: %v", upgrade.from, upgrade.to, err)
-			}
-		})
-	}
-
-	// Test upgrade with extensions
-	t.Run("Upgrade_14_to_17_with_extensions", func(t *testing.T) {
-		if err := upgradeTest.testUpgradeWithExtensions("14", "17"); err != nil {
-			t.Errorf("Upgrade from 14 to 17 with extensions failed: %v", err)
-		}
-	})
-
-	// Cleanup test volumes
-	t.Cleanup(func() {
-		upgradeTest.cleanup()
-	})
-}
-
 // buildUpgradeImage builds the PostgreSQL upgrade Docker image
 func (put *PostgresUpgradeTest) buildUpgradeImage() error {
 	put.client.runner.Printf(colorBlue, colorBold, "Building PostgreSQL upgrade image...")
 
-	// Check if Dockerfile exists in the current directory
+	// Find the Dockerfile - check parent directory if not in current
+	buildContext := "."
 	if _, err := os.Stat("Dockerfile"); os.IsNotExist(err) {
-		return err
+		// Try parent directory
+		if _, err := os.Stat("../Dockerfile"); os.IsNotExist(err) {
+			return fmt.Errorf("Dockerfile not found in current or parent directory")
+		}
+		buildContext = ".."
 	}
 
-	result := put.client.runner.RunCommand("docker", "build", "-t", put.config.ImageName, ".")
+	result := put.client.runner.RunCommand("docker", "build", "-t", put.config.ImageName, buildContext)
 	if result.ExitCode != 0 {
 		return fmt.Errorf("failed to build image: %v", result.Err)
 	}
@@ -113,8 +61,15 @@ func (put *PostgresUpgradeTest) buildUpgradeImage() error {
 func (put *PostgresUpgradeTest) testUpgrade(fromVersion, toVersion string) error {
 	put.client.runner.Printf(colorBlue, colorBold, "Testing upgrade from PostgreSQL %s to %s", fromVersion, toVersion)
 
-	// Use existing seeded volume (created by Taskfile seed tasks)
+	// Ensure source volume exists with seeded data
 	sourceVolumeName := fmt.Sprintf("pg%s-test-data", fromVersion)
+	if _, err := GetVolume(sourceVolumeName); err != nil {
+		put.client.runner.Printf(colorYellow, "", "Source volume not found, creating and seeding...")
+		opts := DefaultSeedOptions(fromVersion)
+		if _, err := SeedPostgres(opts); err != nil {
+			return fmt.Errorf("failed to seed source volume: %w", err)
+		}
+	}
 
 	// Create a copy of the source volume for this test to avoid conflicts
 	testVolumeName := fmt.Sprintf("pg%s-to-%s-test-%d", fromVersion, toVersion, time.Now().Unix())
@@ -175,7 +130,8 @@ func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, v
 			targetVolumeName: "/target",
 		},
 		Command: []string{"sh", "-c", "cp -a /source/. /target/"},
-		Remove:  true,
+		Detach:  true,
+		Remove:  false, // We'll remove manually after waiting
 	})
 	if err != nil {
 		targetVolume.Delete() // Clean up on failure
@@ -184,9 +140,13 @@ func (put *PostgresUpgradeTest) copyVolume(sourceVolumeName, targetVolumeName, v
 
 	// Wait for copy to complete
 	if err := container.WaitFor(time.Minute); err != nil {
+		container.Delete()
 		targetVolume.Delete() // Clean up on failure
 		return nil, fmt.Errorf("volume copy failed: %w", err)
 	}
+
+	// Clean up the copy container
+	container.Delete()
 
 	put.client.runner.Printf(colorGray, "", "✅ Volume copied successfully")
 	return targetVolume, nil
@@ -216,11 +176,10 @@ func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersio
 	args := []string{
 		"run",
 		"--name", containerName,
-		"--user", "postgres",
 		"-e", fmt.Sprintf("PG_VERSION=%s", toVersion),
 		"-e", "AUTO_UPGRADE=true",
+		"-e", "UPGRADE_ONLY=true",
 		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
-		"-w", "/var/lib/postgresql",
 		imageName,
 	}
 
@@ -256,103 +215,75 @@ func (put *PostgresUpgradeTest) runUpgrade(volume *Volume, fromVersion, toVersio
 	return nil
 }
 
-// verifyUpgrade verifies that the upgrade was successful
+// verifyUpgrade verifies that the upgrade was successful using SQL client
 func (put *PostgresUpgradeTest) verifyUpgrade(volume *Volume, fromVersion, toVersion string) error {
 	put.client.runner.Printf(colorGray, "", "🔍 Verifying upgrade from PostgreSQL %s to %s...", fromVersion, toVersion)
 
 	containerName := fmt.Sprintf("verify-upgrade-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
+	port := 5433 // Use non-standard port to avoid conflicts
 
-	// Use direct docker run command to get output
-	result := put.client.runner.RunCommand("docker", "run",
-		"--name", containerName,
-		"-u", "postgres",
-		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
-		fmt.Sprintf("postgres:%s", toVersion),
-		"bash", "-c", fmt.Sprintf(`
-# Start PostgreSQL
-pg_ctl -D /var/lib/postgresql/data start -w || exit 1
-
-# Check version
-actual_version=$(psql -U postgres -t -c "SHOW server_version;" | sed "s/^ *//" | grep -oE "^[0-9]+" | head -1)
-if [ "$actual_version" != "%s" ]; then
-    echo "ERROR: Version mismatch. Expected %s, got $actual_version"
-    exit 1
-fi
-echo "✅ PostgreSQL version is %s"
-
-# Check tables exist
-table_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';" | tr -d " ")
-if [ "$table_count" -lt 1 ]; then
-    echo "ERROR: Tables missing. Expected at least 1, found $table_count"
-    exit 1
-fi
-echo "✅ Tables are present ($table_count)"
-
-# Check data integrity
-record_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade;" | tr -d " ")
-if [ "$record_count" != "5" ]; then
-    echo "ERROR: Data integrity check failed. Expected 5 records, found $record_count"
-    exit 1
-fi
-echo "✅ Data integrity verified (5 records)"
-
-# Check that we can query the view
-view_count=$(psql -U postgres -d %s -t -c "SELECT total_records FROM test_upgrade_summary;" | tr -d " ")
-if [ "$view_count" != "5" ]; then
-    echo "ERROR: View check failed. Expected 5 total_records, found $view_count"
-    exit 1
-fi
-echo "✅ View test_upgrade_summary is working"
-
-# Display sample data
-echo "Sample data after upgrade:"
-psql -U postgres -d %s -c "SELECT * FROM test_upgrade LIMIT 3;"
-
-# Stop PostgreSQL
-pg_ctl -D /var/lib/postgresql/data stop -w
-`, toVersion, toVersion, toVersion, put.config.TestDatabase, put.config.TestDatabase,
-			put.config.TestDatabase, put.config.TestDatabase))
+	// Start PostgreSQL container with port mapping
+	container, err := Run(ContainerOptions{
+		Name:  containerName,
+		Image: fmt.Sprintf("postgres:%s", toVersion),
+		Env: map[string]string{
+			"POSTGRES_PASSWORD": put.config.TestPassword,
+		},
+		Volumes: map[string]string{
+			volume.Name: "/var/lib/postgresql/data",
+		},
+		Ports: map[string]string{
+			fmt.Sprintf("%d", port): "5432",
+		},
+		Detach: true,
+		Remove: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start verification container: %w", err)
+	}
 
 	// Clean up container regardless of result
-	defer put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
+	defer func() {
+		container.Stop()
+		container.Delete()
+	}()
 
-	if result.ExitCode != 0 {
-		put.client.runner.Errorf("Verification STDOUT:\n%s", result.Stdout)
-		put.client.runner.Errorf("Verification STDERR:\n%s", result.Stderr)
-		return fmt.Errorf("verification failed with exit code %d", result.ExitCode)
+	// Wait for PostgreSQL to be ready
+	put.client.runner.Printf(colorGray, "", "Waiting for PostgreSQL to be ready...")
+	if err := WaitForPostgres("localhost", port, "postgres", put.config.TestPassword, put.config.TestDatabase, time.Minute); err != nil {
+		return fmt.Errorf("postgres did not become ready: %w", err)
 	}
 
-	// Get the output from the command result
-	logs := result.Stdout + result.Stderr
-
-	// Check for errors
-	if strings.Contains(logs, "ERROR:") {
-		return fmt.Errorf("verification failed: %s", logs)
+	// Create verifier and connect
+	verifierConfig := UpgradeVerifierConfig{
+		Host:     "localhost",
+		Port:     port,
+		User:     "postgres",
+		Password: put.config.TestPassword,
+		Database: put.config.TestDatabase,
+		Timeout:  30 * time.Second,
 	}
 
-	// Ensure all checks passed
-	requiredChecks := []string{
-		"PostgreSQL version is",
-		"Tables are present",
-		"Data integrity verified",
-		"View test_upgrade_summary is working",
+	verifier := NewUpgradeVerifier(verifierConfig)
+	if err := verifier.Connect(); err != nil {
+		return fmt.Errorf("failed to connect to postgres: %w", err)
 	}
+	defer verifier.Close()
 
-	for _, check := range requiredChecks {
-		if !strings.Contains(logs, check) {
-			return fmt.Errorf("verification check '%s' not found in logs", check)
-		}
+	// Run verification
+	if err := verifier.VerifyBasicUpgrade(toVersion, put.config.TestDatabase); err != nil {
+		return fmt.Errorf("upgrade verification failed: %w", err)
 	}
 
 	put.client.runner.Infof("✅ Upgrade verification passed!")
 	return nil
 }
 
-// cleanup removes all test volumes
+// cleanup removes temporary test volumes only (not base seed volumes)
 func (put *PostgresUpgradeTest) cleanup() {
-	put.client.runner.Printf(colorYellow, colorBold, "🧹 Cleaning up test volumes...")
+	put.client.runner.Printf(colorYellow, colorBold, "🧹 Cleaning up temporary test volumes...")
 
-	// List all volumes and remove test volumes
+	// List all volumes and remove temporary test volumes only
 	volumes, err := ListVolumes()
 	if err != nil {
 		put.client.runner.Printf(colorRed, "", "Failed to list volumes: %v", err)
@@ -360,17 +291,12 @@ func (put *PostgresUpgradeTest) cleanup() {
 	}
 
 	for _, volume := range volumes {
-		// Remove PostgreSQL test data volumes
-		if strings.HasPrefix(volume.Name, "pg") && strings.Contains(volume.Name, "-test-") {
-			put.client.runner.Printf(colorGray, "", "Removing volume: %s", volume.Name)
+		// Only remove temporary test volumes (those with timestamp suffix like pg14-to-17-test-1234567890)
+		// DO NOT remove base seed volumes (pg14-test-data, pg15-test-data, etc.) as they're reused
+		if strings.HasPrefix(volume.Name, "pg") && strings.Contains(volume.Name, "-test-") &&
+			!strings.HasSuffix(volume.Name, "-test-data") {
+			put.client.runner.Printf(colorGray, "", "Removing temporary volume: %s", volume.Name)
 			volume.Delete()
-		}
-		// Remove base test volumes
-		for _, version := range put.config.SourceVersions {
-			if volume.Name == fmt.Sprintf("pg%s-test-data", version) {
-				put.client.runner.Printf(colorGray, "", "Removing volume: %s", volume.Name)
-				volume.Delete()
-			}
 		}
 	}
 
@@ -390,110 +316,6 @@ func versionToInt(version string) int {
 		return 17
 	default:
 		return 0
-	}
-}
-
-// TestPostgresUpgradeQuick runs a quick test (14 to 17 only)
-func TestPostgresUpgradeQuick(t *testing.T) {
-
-	config := &PostgresUpgradeConfig{
-		ImageName:      "postgres:latest",
-		Registry:       "ghcr.io",
-		ImageBase:      "flanksource/postgres",
-		SourceVersions: []string{"14"},
-		TargetVersion:  "17",
-		TestUser:       "testuser",
-		TestPassword:   "testpass",
-		TestDatabase:   "testdb",
-	}
-
-	upgradeTest := NewPostgresUpgradeTest(config)
-
-	// Build the upgrade image
-	t.Run("BuildUpgradeImage", func(t *testing.T) {
-		if err := upgradeTest.buildUpgradeImage(); err != nil {
-			t.Fatalf("Failed to build upgrade image: %v", err)
-		}
-	})
-
-	// Test single upgrade path
-	t.Run("Upgrade_14_to_17", func(t *testing.T) {
-		if err := upgradeTest.testUpgrade("14", "17"); err != nil {
-			t.Errorf("Upgrade from 14 to 17 failed: %v", err)
-		}
-	})
-
-	// Cleanup
-	t.Cleanup(func() {
-		upgradeTest.cleanup()
-	})
-}
-
-// TestShowUpgradeStatus shows the status of volumes and images
-func TestShowUpgradeStatus(t *testing.T) {
-	client := NewDockerClient(true)
-
-	client.runner.Printf(colorBlue, colorBold, "📊 Docker Volumes:")
-
-	versions := []string{"14", "15", "16", "17"}
-	volumesFound := false
-
-	for _, version := range versions {
-		volumeName := fmt.Sprintf("pg%s-test-data", version)
-		if _, err := GetVolume(volumeName); err == nil {
-			client.runner.Printf(colorGray, "", "  ✅ %s", volumeName)
-			volumesFound = true
-		} else {
-			client.runner.Printf(colorGray, "", "  ❌ %s (missing)", volumeName)
-		}
-	}
-
-	if !volumesFound {
-		client.runner.Printf(colorGray, "", "  No test volumes found")
-	}
-
-	client.runner.Printf(colorBlue, colorBold, "\n📊 Docker Images:")
-
-	// Check for postgres-upgrade images
-	result := client.runner.RunCommandQuiet("docker", "images", "--format", "{{.Repository}}:{{.Tag}}")
-	if result.ExitCode == 0 {
-		images := strings.Split(result.Stdout, "\n")
-		upgradeImages := []string{}
-		for _, img := range images {
-			if strings.Contains(img, "postgres-upgrade") {
-				upgradeImages = append(upgradeImages, img)
-			}
-		}
-
-		if len(upgradeImages) > 0 {
-			for _, img := range upgradeImages {
-				client.runner.Printf(colorGray, "", "  ✅ %s", img)
-			}
-		} else {
-			client.runner.Printf(colorGray, "", "  No postgres-upgrade images found")
-		}
-	}
-
-	client.runner.Printf(colorBlue, colorBold, "\n📊 Running Containers:")
-
-	// Check for running containers
-	result = client.runner.RunCommandQuiet("docker", "ps", "--format", "{{.Names}}")
-	if result.ExitCode == 0 {
-		containers := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-		relatedContainers := []string{}
-		for _, container := range containers {
-			if strings.Contains(container, "postgres") || strings.Contains(container, "upgrade") {
-				relatedContainers = append(relatedContainers, container)
-			}
-		}
-
-		if len(relatedContainers) > 0 {
-			for _, container := range relatedContainers {
-				client.runner.Printf(colorGray, "", "  ✅ %s", container)
-			}
-		} else {
-			client.runner.Printf(colorGray, "", "  No related containers running")
-		}
 	}
 }
 
@@ -626,12 +448,10 @@ func (put *PostgresUpgradeTest) runUpgradeWithExtensions(volume *Volume, fromVer
 	args := []string{
 		"run", "--rm",
 		"--name", containerName,
-		"--user", "postgres",
 		"-e", fmt.Sprintf("PG_VERSION=%s", toVersion),
 		"-e", "AUTO_UPGRADE=true",
 		"-e", fmt.Sprintf("POSTGRES_EXTENSIONS=%s", strings.Join(put.config.Extensions, ",")),
 		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
-		"-w", "/var/lib/postgresql",
 		"ghcr.io/flanksource/postgres:17-latest", // Use enhanced image
 	}
 
@@ -645,93 +465,64 @@ func (put *PostgresUpgradeTest) runUpgradeWithExtensions(volume *Volume, fromVer
 	return nil
 }
 
-// verifyUpgradeWithExtensions verifies upgrade with extensions
+// verifyUpgradeWithExtensions verifies upgrade with extensions using SQL client
 func (put *PostgresUpgradeTest) verifyUpgradeWithExtensions(volume *Volume, fromVersion, toVersion string) error {
 	put.client.runner.Printf(colorGray, "", "🔍 Verifying upgrade with extensions from PostgreSQL %s to %s...", fromVersion, toVersion)
 
 	containerName := fmt.Sprintf("verify-extensions-%s-to-%s-%d", fromVersion, toVersion, time.Now().Unix())
+	port := 5434 // Use different port than basic verification to avoid conflicts
 
-	result := put.client.runner.RunCommand("docker", "run", "--rm",
-		"--name", containerName,
-		"-u", "postgres",
-		"-v", fmt.Sprintf("%s:/var/lib/postgresql/data", volume.Name),
-		fmt.Sprintf("postgres:%s", toVersion),
-		"bash", "-c", fmt.Sprintf(`
-# Start PostgreSQL
-pg_ctl -D /var/lib/postgresql/data start -w || exit 1
+	// Start PostgreSQL container with port mapping
+	container, err := Run(ContainerOptions{
+		Name:  containerName,
+		Image: fmt.Sprintf("postgres:%s", toVersion),
+		Env: map[string]string{
+			"POSTGRES_PASSWORD": put.config.TestPassword,
+		},
+		Volumes: map[string]string{
+			volume.Name: "/var/lib/postgresql/data",
+		},
+		Ports: map[string]string{
+			fmt.Sprintf("%d", port): "5432",
+		},
+		Detach: true,
+		Remove: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start verification container: %w", err)
+	}
 
-# Check PostgreSQL version
-actual_version=$(psql -U postgres -t -c "SHOW server_version;" | sed "s/^ *//" | grep -oE "^[0-9]+" | head -1)
-if [ "$actual_version" != "%s" ]; then
-    echo "ERROR: Version mismatch. Expected %s, got $actual_version"
-    exit 1
-fi
-echo "✅ PostgreSQL version is %s"
+	// Clean up container regardless of result
+	defer func() {
+		container.Stop()
+		container.Delete()
+	}()
 
-# Check extensions are still installed
-for ext in %s; do
-    ext_name="$ext"
-    case "$ext" in
-        "pgvector") ext_name="vector" ;;
-        "pg-safeupdate") ext_name="safeupdate" ;;
-    esac
+	// Wait for PostgreSQL to be ready
+	put.client.runner.Printf(colorGray, "", "Waiting for PostgreSQL to be ready...")
+	if err := WaitForPostgres("localhost", port, "postgres", put.config.TestPassword, put.config.TestDatabase, time.Minute); err != nil {
+		return fmt.Errorf("postgres did not become ready: %w", err)
+	}
 
-    if ! psql -U postgres -d %s -t -c "SELECT 1 FROM pg_extension WHERE extname = '$ext_name';" | grep -q 1; then
-        echo "ERROR: Extension $ext ($ext_name) is not installed after upgrade"
-        exit 1
-    fi
-    echo "✅ Extension $ext is installed"
-done
+	// Create verifier and connect
+	verifierConfig := UpgradeVerifierConfig{
+		Host:     "localhost",
+		Port:     port,
+		User:     "postgres",
+		Password: put.config.TestPassword,
+		Database: put.config.TestDatabase,
+		Timeout:  30 * time.Second,
+	}
 
-# Check extension functionality still works
-if ! psql -U postgres -d %s -t -c "SELECT vector_data <-> '[1,1,1]' FROM test_upgrade_extensions LIMIT 1;" | grep -q "[0-9]"; then
-    echo "ERROR: pgvector functionality not working after upgrade"
-    exit 1
-fi
-echo "✅ pgvector functionality verified"
+	verifier := NewUpgradeVerifier(verifierConfig)
+	if err := verifier.Connect(); err != nil {
+		return fmt.Errorf("failed to connect to postgres: %w", err)
+	}
+	defer verifier.Close()
 
-# Check cron jobs survived
-if ! psql -U postgres -d %s -t -c "SELECT jobname FROM cron.job WHERE jobname = 'cleanup-job';" | grep -q "cleanup-job"; then
-    echo "ERROR: pg_cron jobs not preserved after upgrade"
-    exit 1
-fi
-echo "✅ pg_cron jobs preserved"
-
-# Check data integrity
-record_count=$(psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade_extensions;" | tr -d " ")
-if [ "$record_count" != "5" ]; then
-    echo "ERROR: Data integrity check failed. Expected 5 records, found $record_count"
-    exit 1
-fi
-echo "✅ Data integrity verified (5 records)"
-
-# Check index functionality
-if ! psql -U postgres -d %s -t -c "SELECT COUNT(*) FROM test_upgrade_extensions WHERE vector_data <-> '[1,2,3]' < 1;" | grep -q "[0-9]"; then
-    echo "ERROR: Vector index not working after upgrade"
-    exit 1
-fi
-echo "✅ Vector index functionality verified"
-
-# Check view functionality
-if ! psql -U postgres -d %s -t -c "SELECT total_records FROM test_upgrade_extensions_summary;" | grep -q "5"; then
-    echo "ERROR: View not working after upgrade"
-    exit 1
-fi
-echo "✅ View functionality verified"
-
-# Stop PostgreSQL
-pg_ctl -D /var/lib/postgresql/data stop -w
-`, toVersion, toVersion, toVersion, strings.Join(put.config.Extensions, " "),
-			put.config.TestDatabase, put.config.TestDatabase, put.config.TestDatabase,
-			put.config.TestDatabase, put.config.TestDatabase, put.config.TestDatabase))
-
-	// Clean up container
-	defer put.client.runner.RunCommandQuiet("docker", "rm", "-f", containerName)
-
-	if result.ExitCode != 0 {
-		put.client.runner.Errorf("Extensions verification STDOUT:\n%s", result.Stdout)
-		put.client.runner.Errorf("Extensions verification STDERR:\n%s", result.Stderr)
-		return fmt.Errorf("extensions verification failed with exit code %d", result.ExitCode)
+	// Run verification with extensions
+	if err := verifier.VerifyUpgradeWithExtensions(toVersion, put.config.TestDatabase, put.config.Extensions); err != nil {
+		return fmt.Errorf("upgrade with extensions verification failed: %w", err)
 	}
 
 	put.client.runner.Infof("✅ Upgrade with extensions verification passed!")

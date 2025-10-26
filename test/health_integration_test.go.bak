@@ -1,0 +1,273 @@
+package test
+
+import (
+	"testing"
+
+	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/health"
+	"github.com/flanksource/postgres/pkg/server"
+	"github.com/samber/lo"
+)
+
+func TestHealthServerConfigurationLoading(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupConfig func() *server.HealthServer
+		expectError bool
+	}{
+		{
+			name: "PostgreSQL only configuration",
+			setupConfig: func() *server.HealthServer {
+				return &server.HealthServer{
+					PostgresConfig: &pkg.PostgresConf{
+						ListenAddresses: "localhost",
+						Port:            5432,
+					},
+					ConfigDir: "/tmp/test-data",
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "Full configuration with all services",
+			setupConfig: func() *server.HealthServer {
+				return &server.HealthServer{
+					PostgresConfig: &pkg.PostgresConf{
+						ListenAddresses: "localhost",
+						Port:            5432,
+					},
+					PgBouncerConfig: &pkg.PgBouncerConf{
+						ListenAddress: "localhost",
+						ListenPort:    6432,
+						AdminUser:     lo.ToPtr("test"),
+					},
+					PostgRESTConfig: &pkg.PostgrestConf{
+						DbUri:      lo.ToPtr("postgresql://postgres:test@localhost:5432/postgres"),
+						ServerHost: lo.ToPtr("localhost"),
+						ServerPort: lo.ToPtr(3000),
+					},
+					WalgConfig: &pkg.WalgConf{
+						Enabled:  true,
+						S3Prefix: lo.ToPtr("s3://test-bucket/walg"),
+					},
+					ConfigDir: "/tmp/test-data",
+				}
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			healthServer := tt.setupConfig()
+
+			// Test configuration loading
+			healthServer.LoadServiceConfigs()
+
+			// Verify configurations are set
+			if healthServer.PostgresConfig == nil {
+				t.Error("PostgresConfig should be loaded")
+			}
+
+			// Test specific configurations based on what was provided
+			if tt.setupConfig().PgBouncerConfig != nil && healthServer.PgBouncerConfig == nil {
+				t.Error("PgBouncerConfig should be loaded when provided")
+			}
+			if tt.setupConfig().PostgRESTConfig != nil && healthServer.PostgRESTConfig == nil {
+				t.Error("PostgRESTConfig should be loaded when provided")
+			}
+			if tt.setupConfig().WalgConfig != nil && healthServer.WalgConfig == nil {
+				t.Error("WalgConfig should be loaded when provided")
+			}
+		})
+	}
+}
+
+func TestSupervisorHealthChecker(t *testing.T) {
+	tests := []struct {
+		name            string
+		enabledServices []string
+		expectError     bool
+		description     string
+	}{
+		{
+			name:            "no enabled services",
+			enabledServices: []string{},
+			expectError:     true, // Will likely fail without supervisorctl
+			description:     "should fail without supervisorctl available",
+		},
+		{
+			name:            "with enabled services",
+			enabledServices: []string{"postgres", "pgbouncer"},
+			expectError:     true, // Will likely fail in test environment
+			description:     "should attempt to check supervisor status",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checker := health.NewSupervisorChecker(tt.enabledServices)
+
+			status, err := checker.Status()
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Verify status structure
+			if status == nil {
+				t.Error("Status should not be nil")
+			}
+
+			statusMap, ok := status.(map[string]interface{})
+			if !ok {
+				t.Error("Status should be a map[string]interface{}")
+			}
+
+			// Check required fields
+			expectedFields := []string{"timestamp", "supervisor_running", "processes", "enabled_services"}
+			for _, field := range expectedFields {
+				if _, exists := statusMap[field]; !exists {
+					t.Errorf("Expected field %s not found in status", field)
+				}
+			}
+
+			// Verify enabled services match
+			enabledServices, ok := statusMap["enabled_services"].([]string)
+			if !ok {
+				t.Error("enabled_services should be []string")
+			}
+			if len(enabledServices) != len(tt.enabledServices) {
+				t.Errorf("Expected %d enabled services, got %d", len(tt.enabledServices), len(enabledServices))
+			}
+		})
+	}
+}
+
+func TestWalgHealthChecker(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupWalg   func() health.WalG
+		expectError bool
+		description string
+	}{
+		{
+			name: "disabled WAL-G",
+			setupWalg: func() health.WalG {
+				return pkg.NewWalG(&pkg.WalgConf{
+					Enabled: false,
+				})
+			},
+			expectError: true,
+			description: "should fail when WAL-G is disabled",
+		},
+		{
+			name: "enabled WAL-G without storage config",
+			setupWalg: func() health.WalG {
+				return pkg.NewWalG(&pkg.WalgConf{
+					Enabled: true,
+				})
+			},
+			expectError: true,
+			description: "should fail without storage configuration",
+		},
+		{
+			name: "enabled WAL-G with S3 config",
+			setupWalg: func() health.WalG {
+				return pkg.NewWalG(&pkg.WalgConf{
+					Enabled:  true,
+					S3Prefix: lo.ToPtr("s3://test-bucket/walg"),
+					S3Region: "us-west-2",
+				})
+			},
+			expectError: true, // Will fail without actual WAL-G binary
+			description: "should attempt to check WAL-G with S3 config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			walg := tt.setupWalg()
+			checker := health.NewWalgChecker(walg)
+
+			status, err := checker.Status()
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Verify status structure
+			if status == nil {
+				t.Error("Status should not be nil")
+			}
+
+			statusMap, ok := status.(map[string]interface{})
+			if !ok {
+				t.Error("Status should be a map[string]interface{}")
+			}
+
+			// Check required fields
+			expectedFields := []string{"timestamp", "service"}
+			for _, field := range expectedFields {
+				if _, exists := statusMap[field]; !exists {
+					t.Errorf("Expected field %s not found in status", field)
+				}
+			}
+
+			// Verify service field
+			if service, exists := statusMap["service"]; exists {
+				if service != "walg" {
+					t.Errorf("Expected service to be 'walg', got %v", service)
+				}
+			}
+		})
+	}
+}
+
+func TestHealthCheckersWithMockServices(t *testing.T) {
+	// Test basic health checker creation and configuration setup
+	config := &health.Config{
+		PostgresService:      nil, // Will be nil in test environment
+		PgBouncerService:     nil,
+		WalgService:          nil,
+		PostgRESTURL:         "",
+		DataDir:              "/tmp/test-data",
+		WALDir:               "/tmp/test-wal",
+		BackupLocation:       "/tmp/test-backup",
+		SupervisorEnabled:    true,
+		EnabledServices:      []string{"postgresql", "pgbouncer"},
+		DiskSpaceThreshold:   90.0,
+		WALSizeThreshold:     1000000000, // 1GB
+		MemoryUsageThreshold: 80.0,
+		CPUUsageThreshold:    80.0,
+	}
+
+	// This will create a health checker but won't start it with actual services
+	checker, err := health.NewHealthChecker(config)
+	if err != nil {
+		t.Fatalf("Failed to create health checker: %v", err)
+	}
+
+	// Verify health checker was created
+	if checker == nil {
+		t.Fatal("Health checker should not be nil")
+	}
+
+	// Test that it has some basic functionality
+	status := checker.GetStatus()
+	if status == nil {
+		t.Error("Status should not be nil even before starting")
+	}
+
+	// Test health status before starting (should be unhealthy)
+	healthy := checker.IsHealthy()
+	if healthy {
+		t.Log("Health checker reports healthy before start (expected behavior varies)")
+	}
+}

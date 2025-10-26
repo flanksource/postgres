@@ -1,4 +1,4 @@
-package test
+package helm
 
 import (
 	"fmt"
