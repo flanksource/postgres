@@ -50,16 +50,58 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image (multi-platform)
+        id: build
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build Docker image for PR (AMD64)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image-amd64.tar
+
+      - name: Build Docker image for PR (ARM64)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image-arm64.tar
+
+      - name: Upload AMD64 image artifact for PR
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-amd64
+          path: /tmp/image-amd64.tar
+          retention-days: 1
+
+      - name: Upload ARM64 image artifact for PR
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-arm64
+          path: /tmp/image-arm64.tar
+          retention-days: 1
 
       - name: Output image
         id: image
@@ -97,11 +139,37 @@ jobs:
         if: matrix.platform == 'linux/arm64'
         uses: docker/setup-qemu-action@v3
 
+      - name: Download image artifact for PR
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: /tmp
+
+      - name: Load image from artifact for PR
+        if: github.event_name == 'pull_request'
+        run: |
+          PLATFORM_SUFFIX=${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          docker load --input /tmp/image-${PLATFORM_SUFFIX}.tar
+          echo "Loaded ${PLATFORM_SUFFIX} image from artifact"
+          docker images
+
+          # Get the loaded image name and retag it to :main for consistency
+          LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ env.IMAGE_NAME }}" | head -n 1)
+          echo "Loaded image: $LOADED_IMAGE"
+          docker tag $LOADED_IMAGE ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+          echo "Retagged to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+
       - name: Set image name
         run: |
-          echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          else
+            echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
+          fi
 
       - name: Pull test image
+        if: github.event_name != 'pull_request'
         run: |
           echo "Pulling test image: ${{ env.TEST_IMAGE }}"
           docker pull ${{ env.TEST_IMAGE }}
