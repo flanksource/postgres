@@ -37,5 +37,7 @@ if [ "$AUTO_UPGRADE" = "true" ] && [ "$UPGRADE_ONLY" = "true" ]; then
     exit 0
 fi
 
+export PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
+
 # Start PostgreSQL server
 exec "$PGBIN/postgres" "$@"
