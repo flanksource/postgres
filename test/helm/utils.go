@@ -95,8 +95,7 @@ func loadDockerImages() error {
 	fmt.Printf("Loading Docker Images into Kind\n")
 
 	images := []string{
-		"ghcr.io/flanksource/docker-postgres-upgrade-upgrade:latest",
-		"supabase/postgres:15.1.0.147",
+		"flanksource/postgres:latest",
 		"postgres:14-bookworm",
 		"postgres:15-bookworm",
 		"postgres:16-bookworm",

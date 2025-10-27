@@ -1,155 +1,42 @@
-# Default values for postgres-upgrade chart
+# Default values for postgres chart
 
-# Main PostgreSQL container (Enhanced PostgreSQL with extensions)
-postgresql:
-  image:
-    registry: ghcr.io
-    repository: flanksource/postgres
-    tag: "17-latest"
-    pullPolicy: IfNotPresent
+# PostgreSQL container image
+image:
+  registry: ghcr.io
+  repository: flanksource/postgres
+  tag: "17"
+  pullPolicy: IfNotPresent
 
-# PostgreSQL upgrade init container
-upgradeContainer:
-  image:
-    registry: ghcr.io
-    repository: flanksource/docker-postgres-upgrade-upgrade
-    # Tag options: to-15-latest, to-16-latest, to-17-latest, latest
-    tag: "latest"
-    pullPolicy: IfNotPresent
-
-  # Whether to run upgrade on startup
+# Automatic upgrade configuration
+autoUpgrade:
   enabled: true
 
-# PostgreSQL database configuration
+# Database configuration
 database:
-  # PostgreSQL version to run (will upgrade to this version on startup if data exists)
-  version: "17"
-
-  # Database configuration
   name: postgres
   username: postgres
-  # Leave password empty to generate a random one
-  password: ""
 
-  # Admin password reset on startup (handled by init container)
-  resetPassword: false
+# Password secret reference
+passwordRef:
+  secretName: postgres-password
+  key: "password"
+  create: true # false = use existing secret
 
-  # Automatic upgrade on startup (handled by init container)
-  autoUpgrade: true
+# PostgreSQL configuration settings
+# Individual settings - auto-tuned based on resources if empty
+conf:
+  max_connections: "100"
+  shared_buffers: "" # Auto-calculated from resources.limits.memory
+  effective_cache_size: "" # Auto-calculated from resources.limits.memory
+  work_mem: "" # Auto-calculated from resources.limits.memory
+  maintenance_work_mem: "" # Auto-calculated from resources.limits.memory
+  wal_buffers: "" # Auto-calculated from resources.limits.memory
+  checkpoint_completion_target: "0.9"
+  random_page_cost: "1.1"
+  effective_io_concurrency: "200"
 
-  # PostgreSQL configuration settings
-  # These will be dynamically adjusted based on resource limits if not explicitly set
-  config:
-    # Memory settings (will be auto-calculated if not set)
-    shared_buffers: ""
-    effective_cache_size: ""
-    work_mem: ""
-    maintenance_work_mem: ""
-
-    # Connection settings
-    max_connections: "100"
-
-    # WAL settings
-    wal_buffers: ""
-    checkpoint_completion_target: "0.9"
-
-    # Performance settings
-    random_page_cost: "1.1"
-    effective_io_concurrency: "200"
-
-    # Custom configuration (key-value pairs)
-    custom: {}
-
-  # PostgreSQL Extensions Configuration
-  extensions:
-    enabled: true
-    # List of extensions to enable
-    # Available: pgvector, pgsodium, pgjwt, pgaudit, pg_tle, pg_stat_monitor, 
-    #           pg_repack, pg_plan_filter, pg_net, pg_jsonschema, pg_hashids, 
-    #           pg_cron, pg-safeupdate, index_advisor, wal2json
-    list: ["pgvector", "pgaudit", "pg_cron"]
-  
-    # Extension-specific configuration
-    pgvector:
-      # Enable pgvector for vector similarity search
-      enabled: true
-    
-    pgaudit:
-      # Audit logging configuration
-      enabled: true
-      log: "all"
-      log_level: "notice"
-    
-    pg_cron:
-      # Cron job scheduler configuration
-      enabled: true
-      database_name: "postgres"
-
-# PgBouncer connection pooling configuration
-pgbouncer:
-  enabled: false
-  port: 6432
-  poolMode: transaction
-  maxClientConn: 100
-  defaultPoolSize: 25
-  serverLifetime: 3600
-  serverIdleTimeout: 600
-  authType: md5
-
-# PostgREST API configuration
-postgrest:
-  enabled: false
-  port: 3000
-  dbSchemas: "public"
-  dbAnonRole: "postgres"
-  dbPool: 10
-  dbPoolTimeout: 10
-  jwtSecret: ""
-  jwtAud: ""
-  logLevel: "error"
-
-# Backup configuration
-backup:
-  enabled: false
-
-# WAL-G backup configuration
-walg:
-  enabled: false
-  # Storage configuration (choose one)
-  storage:
-    # S3 configuration
-    s3:
-      enabled: false
-      prefix: ""
-      region: ""
-      endpoint: ""
-      accessKey: ""
-      secretKey: ""
-    
-    # Google Cloud Storage configuration
-    gcs:
-      enabled: false
-      prefix: ""
-      credentials: ""
-    
-    # Azure Blob Storage configuration
-    azure:
-      enabled: false
-      prefix: ""
-      accountName: ""
-      accountKey: ""
-    
-    # File system storage configuration
-    file:
-      enabled: false
-      prefix: "/backup"
-  
-  # Backup scheduling
-  backup:
-    schedule: "0 2 * * *"  # Daily at 2 AM
-    retainCount: 7
-    compress: "lz4"
-    initialBackup: false
+# Custom postgresql.conf override (takes precedence over conf)
+custom_conf: ""
 
 # Resource configuration
 resources:
@@ -172,7 +59,6 @@ persistence:
 service:
   type: ClusterIP
   port: 5432
-  targetPort: 5432
   annotations: {}
 
 # ServiceAccount configuration
@@ -186,6 +72,7 @@ podSecurityContext:
   fsGroup: 999
   runAsUser: 999
   runAsGroup: 999
+  fsGroupChangePolicy: "OnRootMismatch"
 
 # Container security context
 securityContext:
@@ -239,8 +126,13 @@ livenessProbe:
   failureThreshold: 3
   successThreshold: 1
 
-# Init containers
-initContainers: []
+## Change ownership and permissions of mounted volumes on startup to postgres:postgres
+resetVolumePermissions: true
+
+# Additional environment variables
+env: []
+# - name: EXAMPLE_ENV
+#   value: "example-value"
 
 # Additional volumes
 extraVolumes: []
@@ -248,25 +140,11 @@ extraVolumes: []
 # Additional volume mounts
 extraVolumeMounts: []
 
-# Environment variables
-env: []
+# Image pull secrets
+imagePullSecrets: []
 
-# PodDisruptionBudget
-podDisruptionBudget:
-  enabled: false
-  minAvailable: 1
+# Name override
+nameOverride: ""
 
-# Metrics configuration (for monitoring integration)
-metrics:
-  enabled: false
-  serviceMonitor:
-    enabled: false
-    namespace: ""
-    labels: {}
-    annotations: {}
-
-# Network policy
-networkPolicy:
-  enabled: false
-  ingress: []
-  egress: []
+# Full name override
+fullnameOverride: ""

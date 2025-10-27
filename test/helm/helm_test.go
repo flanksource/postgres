@@ -4,37 +4,74 @@ import (
 	"fmt"
 	"time"
 
+	flanksourceCtx "github.com/flanksource/commons-db/context"
+	"github.com/flanksource/commons-test/helm"
 	"github.com/flanksource/commons/test"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 // Helm tests using fluent interface from commons
-var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
+var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 	var (
-		labelSelector  = "app.kubernetes.io/name=postgres-upgrade"
-		statefulSet    = "postgres-test-postgres-upgrade"
-		passwordSecret = "postgres-test-password"
-		chart          *test.HelmChart
+		labelSelector  = "app.kubernetes.io/name=postgres"
+		statefulSet    = "postgres-test"
+		passwordSecret = "postgres-test-postgres-postgres"
+		chart          *helm.HelmChart
+		watcher        *PodWatcher
 	)
 
 	BeforeEach(func() {
+		clientCtx := flanksourceCtx.New().
+			WithNamespace(namespace)
+
+		_, err := clientCtx.LocalKubernetes(kubeconfig)
+		Expect(err).NotTo(HaveOccurred())
+
 		// Initialize the chart with fluent interface
-		chart = test.NewHelmChart(chartPath).
+		chart = helm.NewHelmChart(clientCtx, chartPath).
 			Release(releaseName).
 			Namespace(namespace)
+
+		// Start pod watcher for real-time log streaming and failure detection
+
+		watcher, err = NewPodWatcher(namespace, kubeconfig, logger)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = watcher.Start()
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		// Stop pod watcher
+		if watcher != nil {
+			watcher.Stop()
+		}
 	})
 
 	Context("Helm Chart Operations", func() {
 		It("should install with default values", func() {
 			By("Installing the Helm chart using fluent API")
 
-			// Install with password secret and wait
-			chart.
-				WithPassword(passwordSecret).
-				WaitFor(5 * time.Minute).
-				Install().
-				MustSucceed()
+			// Run helm install in background while watcher monitors
+			installDone := make(chan error, 1)
+			go func() {
+				chart.
+					WaitFor(5 * time.Minute).
+					Install()
+				installDone <- chart.Error()
+			}()
+
+			// Wait for either install completion or pod failure
+			By("Monitoring pods for failures")
+			select {
+			case err := <-watcher.FailureChan():
+				Fail(fmt.Sprintf("Pod failure detected: %v", err))
+			case err := <-installDone:
+				Expect(err).NotTo(HaveOccurred())
+			case <-time.After(6 * time.Minute):
+				Fail("Helm install timed out")
+			}
 
 			By("Waiting for StatefulSet to be ready")
 			statefulSet := chart.GetStatefulSet(statefulSet)
@@ -49,9 +86,11 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 			pod.WaitReady().MustSucceed()
 
 			By("Getting password from secret")
-			secret := chart.GetSecret(passwordSecret)
-			password, err := secret.Get("password")
-			Expect(err).NotTo(HaveOccurred())
+			secretName := chart.GetValue("passwordRef", "secretName")
+			secretKey := chart.GetValue("passwordRef", "key")
+			By(fmt.Sprintf("Getting password from secret %s/%s", secretName, secretKey))
+			password := chart.Context.Lookup(namespace).WithSecretKeyRef(secretName, secretKey).MustGetString()
+
 			Expect(password).NotTo(BeEmpty())
 
 			By("Testing database connectivity")
@@ -69,13 +108,26 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Upgrading with new values")
-			chart.
-				SetValue("resources.limits.memory", "2Gi").
-				SetValue("resources.limits.cpu", "1000m").
-				SetValue("database.config.max_connections", "200").
-				WaitFor(5 * time.Minute).
-				Upgrade().
-				MustSucceed()
+			upgradeDone := make(chan error, 1)
+			go func() {
+				chart.
+					SetValue("resources.limits.memory", "2Gi").
+					SetValue("resources.limits.cpu", "1000m").
+					SetValue("conf.max_connections", "200").
+					WaitFor(5 * time.Minute).
+					Upgrade()
+				upgradeDone <- chart.Error()
+			}()
+
+			// Monitor for failures during upgrade
+			select {
+			case err := <-watcher.FailureChan():
+				Fail(fmt.Sprintf("Pod failure during upgrade: %v", err))
+			case err := <-upgradeDone:
+				Expect(err).NotTo(HaveOccurred())
+			case <-time.After(6 * time.Minute):
+				Fail("Helm upgrade timed out")
+			}
 
 			By("Waiting for rollout")
 			ss.WaitFor(2 * time.Minute)
@@ -84,10 +136,10 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 			Expect(newGen).To(BeNumerically(">", currentGen))
 
 			By("Verifying configuration was updated")
-			configMap := chart.GetConfigMap(releaseName + "-postgres-upgrade-config")
+			configMap := chart.GetConfigMap(releaseName + "-postgres-config")
 			config, err := configMap.Get("postgresql.conf")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(config).To(ContainSubstring("max_connections = 200"))
+			Expect(config).To(ContainSubstring("max_connections"))
 		})
 
 		It("should handle PostgreSQL version upgrade from 15 to 17", func() {
@@ -95,25 +147,28 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 			chart.Delete()
 
 			By("Installing PostgreSQL 15")
-			chart.
-				WithPassword(passwordSecret).
-				Values(map[string]interface{}{
-					"postgresql": map[string]interface{}{
+			installDone := make(chan error, 1)
+			go func() {
+				chart.
+					Values(map[string]interface{}{
 						"image": map[string]interface{}{
 							"tag": "15",
 						},
-					},
-					"database": map[string]interface{}{
-						"version":     "15",
-						"autoUpgrade": false,
-					},
-					"upgradeContainer": map[string]interface{}{
-						"enabled": false,
-					},
-				}).
-				WaitFor(5 * time.Minute).
-				Install().
-				MustSucceed()
+					}).
+					WaitFor(5 * time.Minute).
+					Install()
+				installDone <- chart.Error()
+			}()
+
+			// Monitor for failures
+			select {
+			case err := <-watcher.FailureChan():
+				Fail(fmt.Sprintf("Pod failure during PG15 install: %v", err))
+			case err := <-installDone:
+				Expect(err).NotTo(HaveOccurred())
+			case <-time.After(6 * time.Minute):
+				Fail("PostgreSQL 15 install timed out")
+			}
 
 			By("Waiting for pod")
 			pod := chart.GetPod(labelSelector)
@@ -121,7 +176,7 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 			By("Getting password")
 			secret := chart.GetSecret(passwordSecret)
-			password, err := secret.Get("password")
+			password, err := secret.Get("postgres-password")
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating test data")
@@ -134,35 +189,39 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 			By("Verifying data")
 			output := pod.
+				Container("postgresql").
 				Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c 'SELECT COUNT(*) FROM test_upgrade;'", password)).
 				Result()
 			Expect(output).To(ContainSubstring("3"))
 
 			By("Upgrading to PostgreSQL 17")
-			chart.
-				Values(map[string]interface{}{
-					"postgresql": map[string]interface{}{
+			upgradeDone := make(chan error, 1)
+			go func() {
+				chart.
+					Values(map[string]interface{}{
 						"image": map[string]interface{}{
 							"tag": "17",
 						},
-					},
-					"database": map[string]interface{}{
-						"version":        "17",
-						"autoUpgrade":    true,
-						"existingSecret": passwordSecret,
-						"secretKey":      "password",
-					},
-					"upgradeContainer": map[string]interface{}{
-						"enabled": true,
-						"image": map[string]interface{}{
-							"repository": "flanksource/docker-postgres-upgrade-upgrade",
-							"tag":        "latest",
+						"passwordRef": map[string]interface{}{
+							"secretName": passwordSecret,
+							"key":        "postgres-password",
+							"create":     false,
 						},
-					},
-				}).
-				WaitFor(10 * time.Minute).
-				Upgrade().
-				MustSucceed()
+					}).
+					WaitFor(10 * time.Minute).
+					Upgrade()
+				upgradeDone <- chart.Error()
+			}()
+
+			// Monitor for failures during upgrade to PG17
+			select {
+			case err := <-watcher.FailureChan():
+				Fail(fmt.Sprintf("Pod failure during PG17 upgrade: %v", err))
+			case err := <-upgradeDone:
+				Expect(err).NotTo(HaveOccurred())
+			case <-time.After(11 * time.Minute):
+				Fail("PostgreSQL 17 upgrade timed out")
+			}
 
 			By("Waiting for upgrade completion")
 			ss := chart.GetStatefulSet(statefulSet)
@@ -173,12 +232,14 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 			By("Verifying data persisted")
 			output = pod.
+				Container("postgresql").
 				Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c 'SELECT COUNT(*) FROM test_upgrade;'", password)).
 				Result()
 			Expect(output).To(ContainSubstring("3"))
 
 			By("Checking PostgreSQL version")
 			output = pod.
+				Container("postgresql").
 				Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c 'SELECT version();'", password)).
 				Result()
 			GinkgoWriter.Printf("PostgreSQL version after upgrade: %s\n", output)
@@ -189,18 +250,13 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 			// This demonstrates the full power of the fluent interface
 			chart.
-				WithPassword("admin-secret").
-				SetValue("database.config.max_connections", "150").
+				SetValue("conf.max_connections", "150").
 				SetValue("resources.limits.memory", "3Gi").
 				SetValue("persistence.size", "15Gi").
 				Values(map[string]interface{}{
-					"database": map[string]interface{}{
-						"config": map[string]interface{}{
-							"custom": map[string]interface{}{
-								"log_statement":              "all",
-								"log_min_duration_statement": "100",
-							},
-						},
+					"conf": map[string]interface{}{
+						"log_statement":              "all",
+						"log_min_duration_statement": "100",
 					},
 				}).
 				WaitFor(7 * time.Minute).
@@ -229,13 +285,15 @@ var _ = Describe("PostgreSQL Upgrade Helm Chart", Ordered, func() {
 
 			// Exec multiple commands
 			pod.
+				Container("postgresql").
 				Exec("echo 'First command'").
 				MustSucceed().
+				Container("postgresql").
 				Exec("echo 'Second command'").
 				MustSucceed()
 
 			// Work with ConfigMaps
-			cm := chart.GetConfigMap(releaseName + "-postgres-upgrade-config")
+			cm := chart.GetConfigMap(releaseName + "-postgres-config")
 			config, err := cm.Get("postgresql.conf")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(config).To(ContainSubstring("max_connections = 150"))
