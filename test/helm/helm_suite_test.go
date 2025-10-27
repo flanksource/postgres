@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	commonsLogger "github.com/flanksource/commons/logger"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -22,7 +24,10 @@ var (
 	pollInterval = 5 * time.Second
 )
 
+var logger commonsLogger.Logger
+
 func TestHelm(t *testing.T) {
+	logger = commonsLogger.NewWithWriter(GinkgoWriter)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "PostgreSQL Upgrade Helm Chart Suite")
 }
@@ -63,6 +68,15 @@ var _ = BeforeSuite(func() {
 	}
 
 	releaseName = "postgres-test"
+
+	logger.Infof("KUBECONFIG=%s ns=%s, chart=%s", kubeconfig, namespace, chartPath)
+
+	if stat, err := os.Stat(kubeconfig); err != nil || stat.IsDir() {
+		path, _ := filepath.Abs(kubeconfig)
+		Skip(fmt.Sprintf("KUBECONFIG %s is not valid, skipping helm tests", path))
+	}
+
+	By("Creating test namespace")
 
 	// Create namespace
 	err := createNamespace(namespace)
