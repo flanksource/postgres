@@ -95,7 +95,7 @@ jobs:
           context: .
           platforms: linux/amd64
           build-args: |
-            TARGET_VERSION=${{ matrix.pg_version }}
+            PG_VERSION=${{ matrix.pg_version }}
           push: false
           tags: postgres:${{ matrix.pg_version }}
           load: true
