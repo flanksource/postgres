@@ -198,11 +198,11 @@ jobs:
 
       - name: Verify upgraded data
         run: |
-          docker run --rm \
+          cat <<'EOF' | docker run --rm -i \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
-            bash <<'EOF'
+            bash
           set -e
           set -o pipefail
 
