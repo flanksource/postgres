@@ -202,42 +202,51 @@ jobs:
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
-            bash -c "
-              set -e
-              set -o pipefail
+            bash <<'EOF'
+          set -e
+          set -o pipefail
 
-              docker-entrypoint.sh postgres &
-              PGPID=\$!
-              sleep 10
+          docker-entrypoint.sh postgres &
+          PGPID=$!
+          sleep 10
 
-              # Verify data
-              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<'EOF'
-          -- Check table exists
-          SELECT COUNT(*) as record_count FROM test_data;
+          # Check record count
+          echo 'Checking record count...'
+          RECORD_COUNT=$(psql -U testuser -d testdb -t -A -c 'SELECT COUNT(*) FROM test_data;')
+          echo "Found $RECORD_COUNT records"
+          if [ "$RECORD_COUNT" != "10000" ]; then
+            echo "FAIL: Expected 1000 records, found $RECORD_COUNT"
+            exit 1
+          fi
+          echo 'PASS: All 1000 records present'
 
-          -- Check index exists
-          SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
+          # Check index exists
+          echo 'Checking if index exists...'
+          INDEX_NAME=$(psql -U testuser -d testdb -t -A -c "SELECT indexname FROM pg_indexes WHERE tablename = 'test_data' AND indexname = 'idx_test_data';")
+          if [ -z "$INDEX_NAME" ]; then
+            echo 'FAIL: Index idx_test_data not found'
+            exit 1
+          fi
+          echo "PASS: Index $INDEX_NAME exists"
 
-          -- Verify data integrity - this will fail if count is not 1000
-          DO $$
-          DECLARE
-            record_count INT;
-          BEGIN
-            SELECT COUNT(*) INTO record_count FROM test_data;
-            IF record_count != 10000 THEN
-              RAISE EXCEPTION 'FAIL: Expected 1000 records, found %', record_count;
-            END IF;
-            RAISE NOTICE 'PASS: All 1000 records present';
-          END $$;
+          # Verify we can query the data
+          echo 'Verifying data integrity...'
+          SAMPLE_DATA=$(psql -U testuser -d testdb -t -A -c "SELECT data FROM test_data WHERE id = 1;")
+          echo "Sample record: $SAMPLE_DATA"
+          EXPECTED_DATA='Test record 1'
+          if [ "$SAMPLE_DATA" != "$EXPECTED_DATA" ]; then
+            echo "FAIL: Expected '$EXPECTED_DATA', found '$SAMPLE_DATA'"
+            exit 1
+          fi
+          echo 'PASS: Data is accessible and intact'
+
+          # Stop PostgreSQL
+          su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
+          sleep 5
+
+          # Fix permissions for GitHub Actions runner
+          chown -R $(id -u):$(id -g) /var/lib/postgresql/data
           EOF
-
-              # Stop PostgreSQL
-              su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
-              sleep 5
-
-              # Fix permissions for GitHub Actions runner
-              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
-            "
 
       - name: Fix permissions after test
         if: always()
