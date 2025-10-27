@@ -1,18 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/clicky"
-	"github.com/flanksource/postgres/pkg/generators"
 	"github.com/flanksource/postgres/pkg/pgtune"
-	"github.com/flanksource/postgres/pkg/sysinfo"
 	"github.com/flanksource/postgres/pkg/utils"
 )
 
@@ -23,11 +19,23 @@ var (
 	dataDir    string
 	binDir     string
 	verbose    bool
+	createDb   string
 	configFile string
-
+	encoding   string
+	locale     string
+	opts       pgtune.OptimizeOptions
 	// Auto-detected directories
 	detectedDirs *utils.PostgreSQLDirs
 )
+
+func getIntVar(name string) int {
+	val := os.Getenv(name)
+	if val == "" {
+		return 0
+	}
+	result, _ := strconv.Atoi(val)
+	return result
+}
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -46,13 +54,20 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "", "PostgreSQL data directory (auto-detected if not specified)")
 	rootCmd.PersistentFlags().StringVar(&binDir, "bin-dir", "", "PostgreSQL binary directory (auto-detected if not specified)")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Configuration file path")
+	rootCmd.PersistentFlags().StringVar(&locale, "locale", "C", "Locale for initialized database")
+	rootCmd.PersistentFlags().StringVar(&encoding, "encoding", "UTF8", "Encoding for initialized database")
+	rootCmd.PersistentFlags().BoolVar(&opts.Enabled, "pg-tune", os.Getenv("PG_TUNE") == "true", "Enable pg_tune optimization")
+	rootCmd.PersistentFlags().IntVar(&opts.MaxConnections, "max-connections", getIntVar("PG_TUNE_MAX_CONNECTIONS"), "Max connections for pg_tune (0 = auto-calculate)")
+	rootCmd.PersistentFlags().IntVar(&opts.MemoryMB, "memory", getIntVar("PG_TUNE_MEMORY"), "Override detected memory in MB for pg_tune")
+	rootCmd.PersistentFlags().IntVar(&opts.Cores, "cpus", getIntVar("PG_TUNE_CPUS"), "Override detected CPU count for pg_tune")
+	rootCmd.PersistentFlags().StringVar(&opts.DBType, "type", "web", "Database type for pg_tune: web, oltp, dw, desktop, mixed")
+	rootCmd.PersistentFlags().StringVar(&createDb, "create-db", "postgres", "Database name to create on initialization")
 
 	clicky.BindAllFlags(rootCmd.PersistentFlags())
 
 	// Add command groups
 	rootCmd.AddCommand(
 		createServerCommands(),
-		createPgTuneCommand(),
 		createAutoStartCommand(),
 		createVersionCommand(),
 	)
@@ -86,227 +101,6 @@ func initializeDirectories() {
 		fmt.Fprintf(os.Stderr, "Using binary directory: %s\n", binDir)
 		fmt.Fprintf(os.Stderr, "Using data directory: %s\n", dataDir)
 	}
-}
-
-// createPgTuneCommand creates the pg-tune command
-func createPgTuneCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pg-tune",
-		Short: "Generate optimized PostgreSQL configuration",
-		Long: `Generate tuned PostgreSQL configuration parameters based on system resources.
-
-This command analyzes your system (memory, CPUs, disk type) and generates
-optimal PostgreSQL configuration parameters for your workload type.
-
-Examples:
-  pgconfig pg-tune                                Generate config with defaults (web type)
-  pgconfig pg-tune --type oltp                    Generate config for OLTP workload
-  pgconfig pg-tune --type web --max-connections 200  Tune for web with 200 connections
-  pgconfig pg-tune --memory 16 --cpus 8           Override detected resources
-  pgconfig pg-tune --output full                  Generate full postgresql.conf`,
-		RunE: runPgTune,
-	}
-
-	cmd.Flags().String("type", "web", "Database type: web, oltp, dw, desktop, mixed")
-	cmd.Flags().Int("max-connections", 0, "Maximum connections (0 = auto-calculate based on type)")
-	cmd.Flags().String("output", "snippet", "Output format: snippet, full, json")
-	cmd.Flags().Float64("memory", 0, "Override detected memory in GB")
-	cmd.Flags().Int("cpus", 0, "Override detected CPU count")
-	cmd.Flags().Bool("save", false, "Save to data-dir/postgresql.conf")
-	cmd.Flags().Bool("update", false, "Update data-dir/postgresql.auto.conf (merges with existing params)")
-
-	return cmd
-}
-
-// runPgTune handles the pg-tune command execution
-func runPgTune(cmd *cobra.Command, args []string) error {
-	dbTypeStr, _ := cmd.Flags().GetString("type")
-	maxConnections, _ := cmd.Flags().GetInt("max-connections")
-	outputFormat, _ := cmd.Flags().GetString("output")
-	memoryGB, _ := cmd.Flags().GetFloat64("memory")
-	cpus, _ := cmd.Flags().GetInt("cpus")
-	save, _ := cmd.Flags().GetBool("save")
-	update, _ := cmd.Flags().GetBool("update")
-
-	// Validate mutually exclusive flags
-	if save && update {
-		return fmt.Errorf("--save and --update flags are mutually exclusive")
-	}
-
-	// Parse database type
-	var dbType sysinfo.DBType
-	switch dbTypeStr {
-	case "web":
-		dbType = sysinfo.DBTypeWeb
-	case "oltp":
-		dbType = sysinfo.DBTypeOLTP
-	case "dw":
-		dbType = sysinfo.DBTypeDW
-	case "desktop":
-		dbType = sysinfo.DBTypeDesktop
-	case "mixed":
-		dbType = sysinfo.DBTypeMixed
-	default:
-		return fmt.Errorf("invalid database type: %s (valid: web, oltp, dw, desktop, mixed)", dbTypeStr)
-	}
-
-	// Detect system information
-	sysInfo, err := sysinfo.DetectSystemInfo()
-	if err != nil {
-		return fmt.Errorf("failed to detect system info: %w", err)
-	}
-
-	// Apply overrides
-	if memoryGB > 0 {
-		sysInfo.TotalMemoryBytes = uint64(memoryGB * float64(pgtune.GB))
-	}
-	if cpus > 0 {
-		sysInfo.CPUCount = cpus
-	}
-
-	// Calculate max connections if not specified
-	if maxConnections == 0 {
-		maxConnections = pgtune.GetRecommendedMaxConnections(dbType)
-	}
-
-	// Create tuning config
-	tuningConfig := &pgtune.TuningConfig{
-		SystemInfo:     sysInfo,
-		MaxConnections: maxConnections,
-		DBType:         dbType,
-	}
-
-	// Calculate optimal configuration
-	params, err := pgtune.CalculateOptimalConfig(tuningConfig)
-	if err != nil {
-		return fmt.Errorf("failed to calculate optimal config: %w", err)
-	}
-
-	// Generate output based on format
-	var output string
-	switch outputFormat {
-	case "snippet":
-		output = generateConfigSnippet(sysInfo, params, dbType)
-	case "full":
-		generator := generators.NewPostgreSQLConfigGenerator(sysInfo, params)
-		output = generator.GenerateConfigFile()
-	case "json":
-		// Generate JSON representation of tuned parameters
-		output, err = generateJSONConfig(params)
-		if err != nil {
-			return fmt.Errorf("failed to generate JSON: %w", err)
-		}
-	default:
-		return fmt.Errorf("invalid output format: %s (valid: snippet, full, json)", outputFormat)
-	}
-
-	// Update postgres.auto.conf if requested
-	if update {
-		dataDir := getDataDir()
-		if dataDir == "" {
-			return fmt.Errorf("data directory not detected, use --data-dir flag")
-		}
-
-		autoConfPath := filepath.Join(dataDir, "postgresql.auto.conf")
-
-		// Parse existing auto.conf
-		autoConf, err := pgtune.ParseAutoConf(autoConfPath)
-		if err != nil {
-			return fmt.Errorf("failed to parse postgresql.auto.conf: %w", err)
-		}
-
-		// Merge with tuned parameters
-		autoConf.MergeWithTunedParams(params)
-
-		// Write back to file
-		if err := autoConf.WriteToFile(autoConfPath); err != nil {
-			return fmt.Errorf("failed to write postgresql.auto.conf: %w", err)
-		}
-
-		fmt.Printf("✅ Configuration updated in: %s\n", autoConfPath)
-		fmt.Println("ℹ️  Only pg_tune managed parameters were updated, other settings preserved")
-		return nil
-	}
-
-	// Save to file if requested
-	if save {
-		dataDir := getDataDir()
-		if dataDir == "" {
-			return fmt.Errorf("data directory not detected, use --data-dir flag")
-		}
-
-		configPath := filepath.Join(dataDir, "postgresql.conf")
-		if err := os.WriteFile(configPath, []byte(output), 0644); err != nil {
-			return fmt.Errorf("failed to write postgresql.conf: %w", err)
-		}
-
-		fmt.Printf("✅ Configuration saved to: %s\n", configPath)
-		return nil
-	}
-
-	// Print to stdout
-	fmt.Print(output)
-	return nil
-}
-
-// generateConfigSnippet generates a snippet of key tuning parameters
-func generateConfigSnippet(sysInfo *sysinfo.SystemInfo, params *pgtune.TunedParameters, dbType sysinfo.DBType) string {
-	var snippet strings.Builder
-
-	snippet.WriteString("# Generated by pgconfig pg-tune\n")
-	snippet.WriteString(fmt.Sprintf("# System: %.1f GB RAM, %d CPUs\n",
-		float64(sysInfo.TotalMemoryBytes)/float64(pgtune.GB), sysInfo.CPUCount))
-	snippet.WriteString(fmt.Sprintf("# Type: %s, Max Connections: %d\n\n", dbType, params.MaxConnections))
-
-	// Memory settings
-	snippet.WriteString("# Memory Configuration\n")
-	snippet.WriteString(fmt.Sprintf("shared_buffers = %dMB\n", params.SharedBuffers/1024))
-	snippet.WriteString(fmt.Sprintf("effective_cache_size = %dMB\n", params.EffectiveCacheSize/1024))
-	snippet.WriteString(fmt.Sprintf("maintenance_work_mem = %dMB\n", params.MaintenanceWorkMem/1024))
-	snippet.WriteString(fmt.Sprintf("work_mem = %dMB\n\n", params.WorkMem/1024))
-
-	// WAL settings
-	snippet.WriteString("# WAL Configuration\n")
-	snippet.WriteString(fmt.Sprintf("wal_buffers = %dMB\n", params.WalBuffers/1024))
-	snippet.WriteString(fmt.Sprintf("min_wal_size = %dMB\n", params.MinWalSize/1024))
-	snippet.WriteString(fmt.Sprintf("max_wal_size = %dMB\n", params.MaxWalSize/1024))
-	snippet.WriteString(fmt.Sprintf("checkpoint_completion_target = %.2f\n\n", params.CheckpointCompletionTarget))
-
-	// Performance settings
-	snippet.WriteString("# Query Planner Configuration\n")
-	snippet.WriteString(fmt.Sprintf("random_page_cost = %.1f\n", params.RandomPageCost))
-	if params.EffectiveIoConcurrency != nil {
-		snippet.WriteString(fmt.Sprintf("effective_io_concurrency = %d\n", *params.EffectiveIoConcurrency))
-	}
-	snippet.WriteString(fmt.Sprintf("default_statistics_target = %d\n\n", params.DefaultStatisticsTarget))
-
-	// Parallel processing
-	snippet.WriteString("# Parallel Processing\n")
-	snippet.WriteString(fmt.Sprintf("max_worker_processes = %d\n", params.MaxWorkerProcesses))
-	snippet.WriteString(fmt.Sprintf("max_parallel_workers = %d\n", params.MaxParallelWorkers))
-	snippet.WriteString(fmt.Sprintf("max_parallel_workers_per_gather = %d\n", params.MaxParallelWorkersPerGather))
-	if params.MaxParallelMaintenanceWorkers != nil {
-		snippet.WriteString(fmt.Sprintf("max_parallel_maintenance_workers = %d\n", *params.MaxParallelMaintenanceWorkers))
-	}
-
-	// Add warnings if any
-	if len(params.Warnings) > 0 {
-		snippet.WriteString("\n# Warnings:\n")
-		for _, warning := range params.Warnings {
-			snippet.WriteString(fmt.Sprintf("# %s\n", warning))
-		}
-	}
-
-	return snippet.String()
-}
-
-// generateJSONConfig generates JSON representation of tuned parameters
-func generateJSONConfig(params *pgtune.TunedParameters) (string, error) {
-	data, err := json.MarshalIndent(params, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }
 
 // createAutoStartCommand creates the auto-start command
@@ -348,11 +142,9 @@ Examples:
 // runAutoStart handles the auto-start command execution
 func runAutoStart(cmd *cobra.Command, args []string) error {
 	autoInit, _ := cmd.Flags().GetBool("auto-init")
-	pgTune, _ := cmd.Flags().GetBool("pg-tune")
 	autoUpgrade, _ := cmd.Flags().GetBool("auto-upgrade")
 	autoResetPassword, _ := cmd.Flags().GetBool("auto-reset-password")
 	upgradeTo, _ := cmd.Flags().GetInt("upgrade-to")
-	newPassword, _ := cmd.Flags().GetString("new-password")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 	// Log current user context
@@ -437,18 +229,15 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 3: Run pg_tune if requested
-	if pgTune {
+	if opts.Enabled {
 		fmt.Println("🔧 Running pg_tune to optimize configuration...")
 
-		dataDir := getDataDir()
-		if dataDir == "" {
+		opts.DataDir = getDataDir()
+		if opts.DataDir == "" {
 			return fmt.Errorf("data directory not detected")
 		}
 
-		err := pgtune.OptimizeAndSave(pgtune.OptimizeOptions{
-			DataDir: dataDir,
-			DBType:  sysinfo.DBTypeWeb,
-		})
+		err := pgtune.OptimizeAndSave(opts)
 		if err != nil {
 			return fmt.Errorf("failed to run pg_tune: %w", err)
 		}
@@ -457,24 +246,23 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 4: Reset password if requested
-	if autoResetPassword {
-		fmt.Println("🔑 Resetting postgres superuser password...")
+	if autoResetPassword && os.Getenv("POSTGRES_PASSWORD") != "" {
+		fmt.Println("🔑 Resetting postgres superuser password from POSTGRES_PASSWORD")
 
-		// Prompt for password if not provided
-		if newPassword == "" {
-			fmt.Print("Enter new password for postgres superuser: ")
-			// Read password from stdin (without echoing)
-			fmt.Scanln(&newPassword)
-			if newPassword == "" {
-				return fmt.Errorf("password cannot be empty")
-			}
-		}
-
+		newPassword := os.Getenv("POSTGRES_PASSWORD")
 		sensitivePassword := utils.NewSensitiveString(newPassword)
 		if err := postgres.ResetPassword(sensitivePassword); err != nil {
 			return fmt.Errorf("failed to reset password: %w", err)
 		}
 		fmt.Println("✅ Password reset completed successfully")
+	}
+
+	if createDb != "" {
+		fmt.Printf("🛠️  Ensuring database '%s' exists...\n", createDb)
+		if err := postgres.CreateDatabase(createDb); err != nil {
+			return fmt.Errorf("failed to create database '%s': %w", createDb, err)
+		}
+		fmt.Printf("✅ Database '%s' is ready\n", createDb)
 	}
 
 	// // Step 5: Start PostgreSQL

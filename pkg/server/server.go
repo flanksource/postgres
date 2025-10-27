@@ -28,7 +28,7 @@ type HealthServer struct {
 	ConfigDir     string
 	SystemInfo    *sysinfo.SystemInfo
 	TunedParams   *pgtune.TunedParameters
-	DBType        sysinfo.DBType
+	DBType        string
 	MaxConn       int
 	server        *http.Server
 	healthChecker *health.HealthChecker
@@ -152,7 +152,7 @@ func (s *HealthServer) Stop(ctx context.Context) error {
 }
 
 // SetConfiguration sets the tuning configuration for the server
-func (s *HealthServer) SetConfiguration(maxConn int, dbType sysinfo.DBType, tunedParams *pgtune.TunedParameters) {
+func (s *HealthServer) SetConfiguration(maxConn int, dbType string, tunedParams *pgtune.TunedParameters) {
 	s.MaxConn = maxConn
 	s.DBType = dbType
 	s.TunedParams = tunedParams
@@ -375,7 +375,7 @@ func (s *HealthServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 // ConfigFromFile loads configuration from files in the config directory
-func (s *HealthServer) ConfigFromFile(maxConn int, dbType sysinfo.DBType) error {
+func (s *HealthServer) ConfigFromFile(maxConn int, dbType string) error {
 	// This would load existing configuration files if they exist
 	// For now, we'll just set the parameters and generate new config
 	s.MaxConn = maxConn

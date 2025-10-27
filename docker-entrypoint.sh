@@ -29,6 +29,8 @@ if [ "$CURRENT_USER" = "0" ]; then
     echo "Continuing as root (not recommended). Consider restarting as postgres user."
 fi
 
+export PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
+
 # Run postgres-cli auto-start (includes permission checks)
 postgres-cli auto-start --pg-tune --auto-upgrade --upgrade-to=$PG_VERSION --auto-init --data-dir "$PGDATA" -vvvv
 
@@ -37,7 +39,8 @@ if [ "$AUTO_UPGRADE" = "true" ] && [ "$UPGRADE_ONLY" = "true" ]; then
     exit 0
 fi
 
-export PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
+
+cat $PGDATA/postgresql.auto.conf
 
 # Start PostgreSQL server
 exec "$PGBIN/postgres" "$@"

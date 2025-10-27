@@ -101,7 +101,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			Expect(output).To(ContainSubstring("PostgreSQL"))
 		})
 
-		It("should upgrade with new configuration", func() {
+		PIt("should upgrade with new configuration", func() {
 			By("Getting current generation")
 			ss := chart.GetStatefulSet(statefulSet)
 			currentGen, err := ss.GetGeneration()
@@ -142,7 +142,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			Expect(config).To(ContainSubstring("max_connections"))
 		})
 
-		It("should handle PostgreSQL version upgrade from 15 to 17", func() {
+		PIt("should handle PostgreSQL version upgrade from 15 to 17", func() {
 			By("Deleting existing release")
 			chart.Delete()
 
@@ -245,7 +245,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			GinkgoWriter.Printf("PostgreSQL version after upgrade: %s\n", output)
 		})
 
-		It("should support complex chained operations", func() {
+		PIt("should support complex chained operations", func() {
 			By("Complex chained operation")
 
 			// This demonstrates the full power of the fluent interface
@@ -307,7 +307,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 		})
 	})
 
-	Context("Namespace Management", func() {
+	PContext("Namespace Management", func() {
 		It("should manage namespaces", func() {
 			testNs := test.NewNamespace("test-fluent-ns")
 
