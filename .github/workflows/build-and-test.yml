@@ -150,7 +150,7 @@ jobs:
           EOF
               
               # Gracefully stop PostgreSQL
-              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+              su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
               sleep 5
               
               # Fix permissions for GitHub Actions runner
