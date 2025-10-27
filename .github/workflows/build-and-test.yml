@@ -214,7 +214,7 @@ jobs:
           echo 'Checking record count...'
           RECORD_COUNT=$(psql -U testuser -d testdb -t -A -c 'SELECT COUNT(*) FROM test_data;')
           echo "Found $RECORD_COUNT records"
-          if [ "$RECORD_COUNT" != "10000" ]; then
+          if [ "$RECORD_COUNT" != "1000" ]; then
             echo "FAIL: Expected 1000 records, found $RECORD_COUNT"
             exit 1
           fi
