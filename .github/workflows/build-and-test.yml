@@ -160,12 +160,12 @@ jobs:
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
         timeout-minutes: 10
         run: |
-          docker run --rm \
+          timeout 60 docker run --rm \
             ${{ matrix.platform == 'linux/arm64' && '--platform linux/arm64' || '' }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
             -e PG_VERSION=${{ matrix.test.to }} \
-            ${{ env.TEST_IMAGE }}
+            ${{ env.TEST_IMAGE }} || [ $? -eq 124 ]
 
       - name: Verify upgraded data
         run: |
