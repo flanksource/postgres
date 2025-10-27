@@ -133,6 +133,8 @@ jobs:
               psql -U postgres -d testdb <<EOF
           CREATE USER testuser WITH PASSWORD 'testpass';
           GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
+          GRANT ALL ON SCHEMA public TO testuser;
+          GRANT CREATE ON SCHEMA public TO testuser;
           EOF
               
               # Create test data as testuser
