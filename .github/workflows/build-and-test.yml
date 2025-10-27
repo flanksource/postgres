@@ -1,4 +1,4 @@
-name: Build and Test PostgreSQL Upgrade Container (AMD64)
+name: Build and Test PostgreSQL Upgrade Container
 
 on:
   push:
@@ -31,7 +31,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -50,9 +49,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
 
-      - name: Build and push Docker image (multi-platform)
+      - name: Build and push Docker image
         id: build
-        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -60,32 +58,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=gha,scope=amd64
-            type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=multiplatform
-
-      - name: Build Docker image for PR (AMD64)
-        if: github.event_name == 'pull_request'
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=gha,scope=amd64
-            type=gha,scope=multiplatform
-          cache-to: type=gha,mode=max,scope=amd64
-          outputs: type=docker,dest=/tmp/image-amd64.tar
-
-      - name: Upload AMD64 image artifact for PR
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-amd64
-          path: /tmp/image-amd64.tar
-          retention-days: 1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Output image
         id: image
@@ -97,48 +71,44 @@ jobs:
     strategy:
       fail-fast: false  # Don't cancel other tests if one fails
       matrix:
-        test:
-          - { from: 14, to: 15, name: "14 to 15" }
-          - { from: 15, to: 16, name: "15 to 16" }
-          - { from: 16, to: 17, name: "16 to 17" }
-          - { from: 14, to: 16, name: "14 to 16 (multi-step)" }
-          - { from: 15, to: 17, name: "15 to 17 (multi-step)" }
-          - { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
-    name: Test AMD64 - ${{ matrix.test.name }}
+        include:
+          # AMD64 tests - full matrix
+          - platform: linux/amd64
+            test: { from: 14, to: 15, name: "14 to 15" }
+          - platform: linux/amd64
+            test: { from: 15, to: 16, name: "15 to 16" }
+          - platform: linux/amd64
+            test: { from: 16, to: 17, name: "16 to 17" }
+          - platform: linux/amd64
+            test: { from: 14, to: 16, name: "14 to 16 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          # ARM64 test - just one to verify it works
+          - platform: linux/arm64
+            test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+    name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download image artifact for PR
-        if: github.event_name == 'pull_request'
-        uses: actions/download-artifact@v4
+      - name: Set up QEMU
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
         with:
-          name: docker-image-amd64
-          path: /tmp
-
-      - name: Load image from artifact for PR
-        if: github.event_name == 'pull_request'
-        run: |
-          docker load --input /tmp/image-amd64.tar
-          echo "Loaded AMD64 image from artifact"
-          docker images
-
-          # Get the loaded image name and retag it to :main for consistency
-          LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ env.IMAGE_NAME }}" | head -n 1)
-          echo "Loaded image: $LOADED_IMAGE"
-          docker tag $LOADED_IMAGE ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
-          echo "Retagged to: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main"
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image name
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          else
-            echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
-          fi
+          echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
 
       - name: Pull test image
-        if: github.event_name != 'pull_request'
         run: |
           echo "Pulling test image: ${{ env.TEST_IMAGE }}"
           docker pull ${{ env.TEST_IMAGE }}
@@ -158,38 +128,41 @@ jobs:
             -e POSTGRES_DB=testdb \
             postgres:${{ matrix.test.from }}-bookworm \
             bash -c "
+              set -e
+              set -o pipefail
+
               docker-entrypoint.sh postgres &
               PGPID=\$!
               sleep 10
-              
+
               # Create testuser and test database
-              psql -U postgres -d testdb <<EOF
+              psql -U postgres -d testdb -v ON_ERROR_STOP=1 <<EOF
           CREATE USER testuser WITH PASSWORD 'testpass';
           GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
           GRANT ALL ON SCHEMA public TO testuser;
           GRANT CREATE ON SCHEMA public TO testuser;
           EOF
-              
+
               # Create test data as testuser
-              psql -U testuser -d testdb <<EOF
+              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<EOF
           CREATE TABLE test_data (
             id SERIAL PRIMARY KEY,
             data TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
-          
-          INSERT INTO test_data (data) 
+
+          INSERT INTO test_data (data)
           SELECT 'Test record ' || generate_series(1, 1000);
-          
+
           CREATE INDEX idx_test_data ON test_data(created_at);
-          
+
           SELECT COUNT(*) as record_count FROM test_data;
           EOF
-              
+
               # Gracefully stop PostgreSQL
               su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
               sleep 5
-              
+
               # Fix permissions for GitHub Actions runner
               chown -R 999:999 /var/lib/postgresql/data
             "
@@ -198,11 +171,23 @@ jobs:
         timeout-minutes: 10
         run: |
           CONTAINER_ID=$(docker run -d \
+            ${{ matrix.platform == 'linux/arm64' && '--platform linux/arm64' || '' }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
             -e PG_VERSION=${{ matrix.test.to }} \
             ${{ env.TEST_IMAGE }})
+          echo "Container started: $CONTAINER_ID"
+
+          # Stream logs in real-time
+          docker logs -f $CONTAINER_ID &
+          LOGS_PID=$!
+
           sleep 60
+
+          # Stop streaming logs
+          kill $LOGS_PID 2>/dev/null || true
+
+          # Stop and remove container
           docker stop -t 10 $CONTAINER_ID 2>/dev/null || true
           docker rm $CONTAINER_ID 2>/dev/null || true
           exit 0
@@ -214,30 +199,34 @@ jobs:
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
             bash -c "
+              set -e
+              set -o pipefail
+
               docker-entrypoint.sh postgres &
               PGPID=\$!
               sleep 10
-              
+
               # Verify data
-              psql -U testuser -d testdb <<EOF
+              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<EOF
           -- Check table exists
           SELECT COUNT(*) as record_count FROM test_data;
-          
+
           -- Check index exists
           SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
-          
+
           -- Verify data integrity
-          SELECT 
-            CASE 
-              WHEN COUNT(*) = 1000 THEN 'PASS: All records present'
+          SELECT
+            CASE
+              WHEN COUNT(*) = 10000 THEN 'PASS: All records present'
               ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
             END as result
           FROM test_data;
           EOF
-              
+
               # Stop PostgreSQL
-              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
-              
+              su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
+              sleep 5
+
               # Fix permissions for GitHub Actions runner
               chown -R $(id -u):$(id -g) /var/lib/postgresql/data
             "
