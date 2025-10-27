@@ -154,7 +154,7 @@ jobs:
               sleep 5
               
               # Fix permissions for GitHub Actions runner
-              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+              chown -R 999:999 /var/lib/postgresql/data
             "
 
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
