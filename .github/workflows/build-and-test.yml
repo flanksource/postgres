@@ -182,7 +182,7 @@ jobs:
           docker logs -f $CONTAINER_ID &
           LOGS_PID=$!
 
-          sleep 60
+          sleep 150
 
           # Stop streaming logs
           kill $LOGS_PID 2>/dev/null || true
