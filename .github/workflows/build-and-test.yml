@@ -31,7 +31,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -51,15 +50,20 @@ jobs:
             type=sha
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
       - name: Output image
         id: image
@@ -97,13 +101,16 @@ jobs:
         if: matrix.platform == 'linux/arm64'
         uses: docker/setup-qemu-action@v3
 
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set image name
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "TEST_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          else
-            echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
-          fi
+          echo "TEST_IMAGE=${{ needs.build.outputs.image }}" >> $GITHUB_ENV
 
       - name: Pull test image
         run: |
@@ -125,49 +132,69 @@ jobs:
             -e POSTGRES_DB=testdb \
             postgres:${{ matrix.test.from }}-bookworm \
             bash -c "
+              set -e
+              set -o pipefail
+
               docker-entrypoint.sh postgres &
               PGPID=\$!
               sleep 10
-              
+
               # Create testuser and test database
-              psql -U postgres -d testdb <<EOF
+              psql -U postgres -d testdb -v ON_ERROR_STOP=1 <<EOF
           CREATE USER testuser WITH PASSWORD 'testpass';
           GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;
+          GRANT ALL ON SCHEMA public TO testuser;
+          GRANT CREATE ON SCHEMA public TO testuser;
           EOF
-              
+
               # Create test data as testuser
-              psql -U testuser -d testdb <<EOF
+              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<EOF
           CREATE TABLE test_data (
             id SERIAL PRIMARY KEY,
             data TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
-          
-          INSERT INTO test_data (data) 
+
+          INSERT INTO test_data (data)
           SELECT 'Test record ' || generate_series(1, 1000);
-          
+
           CREATE INDEX idx_test_data ON test_data(created_at);
-          
+
           SELECT COUNT(*) as record_count FROM test_data;
           EOF
-              
+
               # Gracefully stop PostgreSQL
-              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+              su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
               sleep 5
-              
+
               # Fix permissions for GitHub Actions runner
-              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+              chown -R 999:999 /var/lib/postgresql/data
             "
 
       - name: Run upgrade from ${{ matrix.test.from }} to ${{ matrix.test.to }}
         timeout-minutes: 10
         run: |
-          docker run --rm \
+          CONTAINER_ID=$(docker run -d \
             ${{ matrix.platform == 'linux/arm64' && '--platform linux/arm64' || '' }} \
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_INITDB_ARGS="--auth-local=trust --auth-host=md5" \
             -e PG_VERSION=${{ matrix.test.to }} \
-            ${{ env.TEST_IMAGE }}
+            ${{ env.TEST_IMAGE }})
+          echo "Container started: $CONTAINER_ID"
+
+          # Stream logs in real-time
+          docker logs -f $CONTAINER_ID &
+          LOGS_PID=$!
+
+          sleep 150
+
+          # Stop streaming logs
+          kill $LOGS_PID 2>/dev/null || true
+
+          # Stop and remove container
+          docker stop -t 10 $CONTAINER_ID 2>/dev/null || true
+          docker rm $CONTAINER_ID 2>/dev/null || true
+          exit 0
 
       - name: Verify upgraded data
         run: |
@@ -176,30 +203,38 @@ jobs:
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
             bash -c "
+              set -e
+              set -o pipefail
+
               docker-entrypoint.sh postgres &
               PGPID=\$!
               sleep 10
-              
+
               # Verify data
-              psql -U testuser -d testdb <<EOF
+              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<'EOF'
           -- Check table exists
           SELECT COUNT(*) as record_count FROM test_data;
-          
+
           -- Check index exists
           SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
-          
-          -- Verify data integrity
-          SELECT 
-            CASE 
-              WHEN COUNT(*) = 1000 THEN 'PASS: All records present'
-              ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
-            END as result
-          FROM test_data;
+
+          -- Verify data integrity - this will fail if count is not 1000
+          DO $$
+          DECLARE
+            record_count INT;
+          BEGIN
+            SELECT COUNT(*) INTO record_count FROM test_data;
+            IF record_count != 10000 THEN
+              RAISE EXCEPTION 'FAIL: Expected 1000 records, found %', record_count;
+            END IF;
+            RAISE NOTICE 'PASS: All 1000 records present';
+          END $$;
           EOF
-              
+
               # Stop PostgreSQL
-              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
-              
+              su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
+              sleep 5
+
               # Fix permissions for GitHub Actions runner
               chown -R $(id -u):$(id -g) /var/lib/postgresql/data
             "
