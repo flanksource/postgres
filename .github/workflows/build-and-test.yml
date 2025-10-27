@@ -211,7 +211,7 @@ jobs:
               sleep 10
 
               # Verify data
-              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<EOF
+              psql -U testuser -d testdb -v ON_ERROR_STOP=1 <<'EOF'
           -- Check table exists
           SELECT COUNT(*) as record_count FROM test_data;
 
@@ -219,7 +219,7 @@ jobs:
           SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
 
           -- Verify data integrity - this will fail if count is not 1000
-          DO \$\$
+          DO $$
           DECLARE
             record_count INT;
           BEGIN
@@ -228,7 +228,7 @@ jobs:
               RAISE EXCEPTION 'FAIL: Expected 1000 records, found %', record_count;
             END IF;
             RAISE NOTICE 'PASS: All 1000 records present';
-          END \$\$;
+          END $$;
           EOF
 
               # Stop PostgreSQL

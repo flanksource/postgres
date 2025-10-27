@@ -91,7 +91,7 @@ ENV PG17BIN=/usr/lib/postgresql/17/bin
 
 # Data directory
 ENV PGDATA=/var/lib/postgresql/data
-ENV PGBIN=${PG17BIN}
+ENV PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
 
 # PostgreSQL default configuration
 ENV POSTGRES_DB=postgres
