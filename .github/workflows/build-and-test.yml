@@ -58,8 +58,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
       - name: Output image
         id: image
@@ -214,13 +218,17 @@ jobs:
           -- Check index exists
           SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
 
-          -- Verify data integrity
-          SELECT
-            CASE
-              WHEN COUNT(*) = 10000 THEN 'PASS: All records present'
-              ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
-            END as result
-          FROM test_data;
+          -- Verify data integrity - this will fail if count is not 1000
+          DO \$\$
+          DECLARE
+            record_count INT;
+          BEGIN
+            SELECT COUNT(*) INTO record_count FROM test_data;
+            IF record_count != 10000 THEN
+              RAISE EXCEPTION 'FAIL: Expected 1000 records, found %', record_count;
+            END IF;
+            RAISE NOTICE 'PASS: All 1000 records present';
+          END \$\$;
           EOF
 
               # Stop PostgreSQL
