@@ -10,9 +10,9 @@ keywords:
   - database
   - upgrade
 
-home: https://github.com/flanksource/docker-postgres-upgrade
+home: https://github.com/flanksource/postgres
 sources:
-  - https://github.com/flanksource/docker-postgres-upgrade
+  - https://github.com/flanksource/postgres
 
 maintainers:
   - name: Flanksource

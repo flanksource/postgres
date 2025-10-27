@@ -475,3 +475,67 @@ jobs:
           git push origin "$PG17_TAG"
 
           echo "Created tags: $PG16_TAG, $PG17_TAG"
+
+  publish-helm-chart:
+    needs: [merge-manifests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout postgres repository
+        uses: actions/checkout@v4
+        with:
+          path: postgres
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Extract version from git tag
+        id: version
+        run: |
+          # Extract git tag (remove 'v' prefix if present)
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == v* ]]; then
+            TAG="${TAG#v}"
+          fi
+          echo "chart_version=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Update Chart.yaml with release version
+        run: |
+          cd postgres/chart
+          sed -i "s/^version:.*/version: ${{ steps.version.outputs.chart_version }}/" Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"17\"/" Chart.yaml
+
+      - name: Package Helm chart
+        run: |
+          cd postgres
+          helm package chart/
+          echo "Packaged chart: $(ls -1 *.tgz)"
+
+      - name: Checkout flanksource/charts repository
+        uses: actions/checkout@v4
+        with:
+          repository: flanksource/charts
+          path: charts
+          token: ${{ secrets.FLANKBOT }}
+
+      - name: Copy chart to charts repository
+        run: |
+          mkdir -p charts/docs
+          cp postgres/postgres-*.tgz charts/docs/
+
+      - name: Update Helm repository index
+        run: |
+          cd charts/docs
+          helm repo index . --url https://flanksource.github.io/charts
+
+      - name: Commit and push to charts repository
+        run: |
+          cd charts
+          git config user.name "flankbot"
+          git config user.email "flankbot@users.noreply.github.com"
+          git add docs/
+          git commit -m "Add postgres chart version ${{ steps.version.outputs.chart_version }}"
+          git push

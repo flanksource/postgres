@@ -1,4 +1,4 @@
-module github.com/flanksource/docker-postgres-upgrade/test
+module github.com/flanksource/postgres/test
 
 go 1.25.1
 

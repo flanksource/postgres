@@ -223,19 +223,19 @@ tasks:
     cmds:
       - |
         echo "🚀 Starting Helm E2E tests with chart-testing (ct) and kind..."
-        
+
         # Check prerequisites
         echo "📋 Checking prerequisites..."
         command -v ct >/dev/null 2>&1 || { echo "❌ ct (chart-testing) not installed"; exit 1; }
         command -v kind >/dev/null 2>&1 || { echo "❌ kind not installed"; exit 1; }
         command -v helm >/dev/null 2>&1 || { echo "❌ helm not installed"; exit 1; }
         command -v kubectl >/dev/null 2>&1 || { echo "❌ kubectl not installed"; exit 1; }
-        
+
         # Variables
         CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
         KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
         IMAGE_NAME="{{.POSTGRES_IMAGE}}"
-        
+
         # Check if cluster already exists
         if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
           echo "♻️  Reusing existing kind cluster: $CLUSTER_NAME"
@@ -247,14 +247,14 @@ tasks:
             --kubeconfig "$KUBECONFIG_PATH" \
             --wait 60s
         fi
-        
+
         # Export kubeconfig
         export KUBECONFIG="$KUBECONFIG_PATH"
-        
+
         # Wait for cluster to be ready
         echo "⏳ Waiting for cluster to be ready..."
         kubectl wait --for=condition=ready node --all --timeout=60s
-        
+
         # Load local docker image into kind (if it exists)
         echo "📦 Loading local postgres image into kind cluster..."
         if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
@@ -264,28 +264,28 @@ tasks:
           echo "⚠️  Image not found: $IMAGE_NAME"
           echo "    Chart will use registry image or you can specify with: IMAGE=myimage:tag task test:helm:e2e"
         fi
-        
+
         # Run chart-testing lint
         echo "🔍 Linting chart with ct..."
         ct lint \
           --config .github/ct.yaml \
           --charts chart/
-        
+
         # Extract image tag from IMAGE_NAME variable
         IMAGE_TAG="${IMAGE_NAME##*:}"
-        
+
         # Run chart-testing install
         echo "📦 Installing and testing chart with ct..."
         ct install \
           --config .github/ct.yaml \
           --charts chart/ \
           --helm-extra-set-args "--set=image.tag=${IMAGE_TAG} --set=resources.requests.memory=256Mi --set=resources.limits.memory=512Mi"
-        
+
         # Additional verification
         echo "✅ Verifying deployment..."
         kubectl get all -A
         kubectl get pvc -A
-        
+
         echo "✅ Helm E2E tests completed successfully!"
         echo "💡 Cluster kept running for inspection. To delete: task test:helm:e2e:clean"
 
@@ -295,11 +295,11 @@ tasks:
     cmds:
       - |
         echo "⚡ Running quick Helm E2E test..."
-        
+
         CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
         KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
         IMAGE_NAME="{{.POSTGRES_IMAGE}}"
-        
+
         # Check if cluster exists, create if not
         if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
           echo "♻️  Reusing existing kind cluster: $CLUSTER_NAME"
@@ -308,32 +308,32 @@ tasks:
           echo "🔧 Creating kind cluster..."
           kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG_PATH" --wait 60s
         fi
-        
+
         export KUBECONFIG="$KUBECONFIG_PATH"
-        
+
         # Load image if exists
         if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
           echo "📦 Loading image: $IMAGE_NAME"
           kind load docker-image "$IMAGE_NAME" --name "$CLUSTER_NAME"
         fi
-        
+
         # Extract image tag
         IMAGE_TAG="${IMAGE_NAME##*:}"
-        
+
         # Cleanup previous test installation
         helm uninstall postgres-test 2>/dev/null || true
         kubectl delete pvc --all 2>/dev/null || true
-        
+
         echo "📦 Installing chart..."
         helm install postgres-test ./chart \
           --set image.tag="${IMAGE_TAG}" \
           --set resources.requests.memory=256Mi \
           --set resources.limits.memory=512Mi \
           --wait --timeout=5m
-        
+
         echo "🧪 Running helm tests..."
         helm test postgres-test --timeout=5m
-        
+
         echo "✅ Quick E2E test completed!"
         echo "💡 Cluster kept running. To clean: task test:helm:e2e:clean"
 
@@ -343,7 +343,7 @@ tasks:
       - |
         CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
         KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
-        
+
         echo "🧹 Cleaning up kind cluster: $CLUSTER_NAME..."
         kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || echo "Cluster already deleted"
         rm -f "$KUBECONFIG_PATH" 2>/dev/null || true
@@ -357,10 +357,10 @@ tasks:
         echo "🔄 Creating fresh kind cluster..."
         CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
         KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
-        
+
         kind create cluster \
           --name "$CLUSTER_NAME" \
           --kubeconfig "$KUBECONFIG_PATH" \
           --wait 60s
-        
+
         echo "✅ Fresh cluster ready: $CLUSTER_NAME"

@@ -102,7 +102,7 @@ helm install my-postgres flanksource/postgres-upgrade \
 The chart automatically calculates optimal PostgreSQL settings based on your Kubernetes resource limits:
 
 - **shared_buffers**: 25% of memory limit
-- **effective_cache_size**: 75% of memory limit  
+- **effective_cache_size**: 75% of memory limit
 - **work_mem**: 0.5% of memory limit
 - **maintenance_work_mem**: 6.25% of memory limit
 - **wal_buffers**: 0.78% of memory limit
@@ -226,8 +226,8 @@ kubectl exec -it postgres-upgrade-0 -- cat /var/lib/postgresql/data/pgdata/PG_VE
 
 ## Contributing
 
-Please read our [contributing guidelines](https://github.com/flanksource/docker-postgres-upgrade/blob/main/CONTRIBUTING.md) before submitting pull requests.
+Please read our [contributing guidelines](https://github.com/flanksource/postgres/blob/main/CONTRIBUTING.md) before submitting pull requests.
 
 ## License
 
-This chart is licensed under the Apache License 2.0. See [LICENSE](https://github.com/flanksource/docker-postgres-upgrade/blob/main/LICENSE) for details.
+This chart is licensed under the Apache License 2.0. See [LICENSE](https://github.com/flanksource/postgres/blob/main/LICENSE) for details.

@@ -2,21 +2,21 @@ name: Go Lint and Quality Checks
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
-      - '**.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.golangci.yml'
-      - '.github/workflows/go-lint.yml'
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".golangci.yml"
+      - ".github/workflows/go-lint.yml"
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
-      - '**.go'
-      - 'go.mod'
-      - 'go.sum'
-      - '.golangci.yml'
-      - '.github/workflows/go-lint.yml'
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".golangci.yml"
+      - ".github/workflows/go-lint.yml"
 
 jobs:
   lint:
@@ -28,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.25"
           cache: true
 
       - name: Run golangci-lint
@@ -49,7 +49,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.25"
           cache: true
 
       - name: Check Go formatting
@@ -78,7 +78,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.25"
           cache: true
 
       - name: Run go vet
@@ -93,10 +93,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.25"
           cache: true
 
       - name: Run gosec Security Scanner
         uses: securego/gosec@master
         with:
-          args: '-exclude=G307,G204,G304 ./...'
+          args: "-exclude=G307,G204,G304 ./..."

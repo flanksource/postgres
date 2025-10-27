@@ -34,11 +34,11 @@ const (
 type DBType string
 
 const (
-	DBTypeWeb     DBType = "web"
-	DBTypeOLTP    DBType = "oltp"
-	DBTypeDW      DBType = "dw"
-	DBTypeDesktop DBType = "desktop"
-	DBTypeMixed   DBType = "mixed"
+	DBTypeWeb     string = "web"
+	DBTypeOLTP    string = "oltp"
+	DBTypeDW      string = "dw"
+	DBTypeDesktop string = "desktop"
+	DBTypeMixed   string = "mixed"
 )
 
 // SystemInfo contains detected system information
