@@ -95,12 +95,16 @@ ENV PGDATA=/var/lib/postgresql/data
 # PostgreSQL default configuration
 ENV POSTGRES_DB=postgres
 ENV POSTGRES_USER=postgres
-ENV POSTGRES_PASSWORD=
+
 
 # pgconfig configuration
 ENV PGCONFIG_CONFIG_DIR=/var/lib/postgresql/config
 ENV PGCONFIG_AUTO_UPGRADE=true
 ENV PGCONFIG_AUTO_TUNE=true
+
+
+# Make volumes for data and init scripts
+VOLUME /var/lib/postgresql/data
 
 # Create postgres user and directories
 RUN set -eux; \
@@ -111,8 +115,6 @@ RUN set -eux; \
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Make volumes for data and init scripts
-VOLUME /var/lib/postgresql/data
 
 # Expose PostgreSQL port
 EXPOSE 5432
