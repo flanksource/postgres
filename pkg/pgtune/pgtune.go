@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/flanksource/clicky"
+	"github.com/flanksource/clicky/api"
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/sysinfo"
 	"github.com/flanksource/postgres/pkg/types"
@@ -19,7 +21,7 @@ type TuningConfig struct {
 	MaxConnections int
 
 	// DBType is the database workload type
-	DBType sysinfo.DBType
+	DBType string
 
 	// DiskType overrides detected disk type if specified
 	DiskType *sysinfo.DiskType
@@ -28,15 +30,15 @@ type TuningConfig struct {
 // TunedParameters contains the calculated PostgreSQL parameters
 type TunedParameters struct {
 	// Memory parameters (in KB unless noted)
-	SharedBuffers      uint64 // shared_buffers
-	EffectiveCacheSize uint64 // effective_cache_size
-	MaintenanceWorkMem uint64 // maintenance_work_mem
-	WorkMem            uint64 // work_mem
+	SharedBuffers      uint64 `pretty:"format=bytes"` // shared_buffers
+	EffectiveCacheSize uint64 `pretty:"format=bytes"` // effective_cache_size
+	MaintenanceWorkMem uint64 `pretty:"format=bytes"` // maintenance_work_mem
+	WorkMem            uint64 `pretty:"format=bytes"` // work_mem
 
 	// WAL parameters (in KB unless noted)
-	WalBuffers                 uint64  // wal_buffers
-	MinWalSize                 uint64  // min_wal_size
-	MaxWalSize                 uint64  // max_wal_size
+	WalBuffers                 uint64  `pretty:"format=bytes"` // wal_buffers
+	MinWalSize                 uint64  `pretty:"format=bytes"` // min_wal_size
+	MaxWalSize                 uint64  `pretty:"format=bytes"` // max_wal_size
 	CheckpointCompletionTarget float64 // checkpoint_completion_target
 
 	// Performance parameters
@@ -64,6 +66,12 @@ type TunedParameters struct {
 	Warnings []string
 }
 
+func (tp TunedParameters) Pretty() api.Text {
+	result := clicky.Text("Tuned PostgreSQL Parameters:", "bold").NewLine()
+	result = result.Append(clicky.MustFormat(tp, clicky.FormatOptions{Format: "pretty"}))
+	return result
+}
+
 // Constants for size calculations (in bytes)
 const (
 	KB = 1024
@@ -84,6 +92,10 @@ func CalculateOptimalConfig(config *TuningConfig) (*TunedParameters, error) {
 
 	sysInfo := config.SystemInfo
 	totalMemoryKB := sysInfo.TotalMemoryKB()
+
+	if config.SystemInfo.ContainerMemory > 0 {
+		totalMemoryKB = config.SystemInfo.ContainerMemory / KB
+	}
 
 	// Use override disk type if provided
 	diskType := sysInfo.DiskType
@@ -197,12 +209,12 @@ func init() {
 }
 
 // calculateSharedBuffers calculates optimal shared_buffers value
-func calculateSharedBuffers(totalMemoryKB uint64, dbType sysinfo.DBType, osType sysinfo.OSType, pgVersion float64) uint64 {
+func calculateSharedBuffers(totalMemoryKB uint64, dbType string, osType sysinfo.OSType, pgVersion float64) uint64 {
 	return totalMemoryKB / 4
 }
 
 // calculateEffectiveCacheSize calculates optimal effective_cache_size
-func calculateEffectiveCacheSize(totalMemoryKB uint64, dbType sysinfo.DBType) uint64 {
+func calculateEffectiveCacheSize(totalMemoryKB uint64, dbType string) uint64 {
 	switch dbType {
 	case sysinfo.DBTypeDesktop:
 		return totalMemoryKB / 4 // 1/4 for desktop
@@ -212,7 +224,7 @@ func calculateEffectiveCacheSize(totalMemoryKB uint64, dbType sysinfo.DBType) ui
 }
 
 // calculateMaintenanceWorkMem calculates optimal maintenance_work_mem
-func calculateMaintenanceWorkMem(totalMemoryKB uint64, dbType sysinfo.DBType, osType sysinfo.OSType) uint64 {
+func calculateMaintenanceWorkMem(totalMemoryKB uint64, dbType string, osType sysinfo.OSType) uint64 {
 	var maintenanceMem uint64
 
 	switch dbType {
@@ -237,7 +249,7 @@ func calculateMaintenanceWorkMem(totalMemoryKB uint64, dbType sysinfo.DBType, os
 }
 
 // calculateWorkMem calculates optimal work_mem
-func calculateWorkMem(totalMemoryKB, sharedBuffers uint64, maxConnections, maxWorkerProcesses int, dbType sysinfo.DBType) uint64 {
+func calculateWorkMem(totalMemoryKB, sharedBuffers uint64, maxConnections, maxWorkerProcesses int, dbType string) uint64 {
 	// Formula: (total_memory - shared_buffers) / ((max_connections + max_worker_processes) * 3)
 	availableMemory := totalMemoryKB - sharedBuffers
 	totalProcesses := uint64(maxConnections + maxWorkerProcesses)
@@ -289,7 +301,7 @@ func calculateWalBuffers(sharedBuffers uint64) uint64 {
 }
 
 // calculateWalSizes calculates min_wal_size and max_wal_size
-func calculateWalSizes(dbType sysinfo.DBType) (uint64, uint64) {
+func calculateWalSizes(dbType string) (uint64, uint64) {
 	var minWal, maxWal uint64
 
 	switch dbType {
@@ -348,7 +360,7 @@ func calculateEffectiveIoConcurrency(osType sysinfo.OSType, diskType sysinfo.Dis
 }
 
 // calculateDefaultStatisticsTarget calculates default_statistics_target
-func calculateDefaultStatisticsTarget(dbType sysinfo.DBType) int {
+func calculateDefaultStatisticsTarget(dbType string) int {
 	switch dbType {
 	case sysinfo.DBTypeDW:
 		return 500
@@ -358,7 +370,7 @@ func calculateDefaultStatisticsTarget(dbType sysinfo.DBType) int {
 }
 
 // calculateParallelSettings calculates parallel processing parameters
-func calculateParallelSettings(cpuCount int, dbType sysinfo.DBType, pgVersion float64) (int, int, int, *int) {
+func calculateParallelSettings(cpuCount int, dbType string, pgVersion float64) (int, int, int, *int) {
 	if cpuCount < 4 {
 		// Default values for systems with < 4 CPUs
 		return 8, 2, 8, nil
@@ -395,7 +407,7 @@ func calculateParallelSettings(cpuCount int, dbType sysinfo.DBType, pgVersion fl
 }
 
 // calculateWalLevel calculates WAL level settings
-func calculateWalLevel(dbType sysinfo.DBType) (string, *int) {
+func calculateWalLevel(dbType string) (string, *int) {
 	if dbType == sysinfo.DBTypeDesktop {
 		// Desktop workload uses minimal WAL
 		maxWalSenders := 0
@@ -440,7 +452,7 @@ func (tp *TunedParameters) FormatAsKB(valueKB uint64) string {
 }
 
 // GetRecommendedMaxConnections returns recommended max_connections based on DB type
-func GetRecommendedMaxConnections(dbType sysinfo.DBType) int {
+func GetRecommendedMaxConnections(dbType string) int {
 	switch dbType {
 	case sysinfo.DBTypeWeb:
 		return 200

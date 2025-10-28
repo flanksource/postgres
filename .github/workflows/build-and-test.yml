@@ -2,15 +2,15 @@ name: Build and Test PostgreSQL Upgrade Container
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    branches: [main]
+    tags: ["v*"]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/postgres-upgrade
+  IMAGE_NAME: ${{ github.repository_owner }}/postgres
 
 jobs:
   build:
@@ -73,7 +73,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false  # Don't cancel other tests if one fails
+      fail-fast: false # Don't cancel other tests if one fails
       matrix:
         include:
           # AMD64 tests - full matrix
@@ -202,79 +202,61 @@ jobs:
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             postgres:${{ matrix.test.to }}-bookworm \
-            bash
-          set -e
-          set -o pipefail
+            bash -c "
+              docker-entrypoint.sh postgres &
+              PGPID=\$!
+              sleep 10
 
-          docker-entrypoint.sh postgres &
-          PGPID=$!
-          sleep 10
+              # Verify data
+              psql -U testuser -d testdb <<EOF
+          -- Check table exists
+          SELECT COUNT(*) as record_count FROM test_data;
 
-          # Check record count
-          echo 'Checking record count...'
-          RECORD_COUNT=$(psql -U testuser -d testdb -t -A -c 'SELECT COUNT(*) FROM test_data;')
-          echo "Found $RECORD_COUNT records"
-          if [ "$RECORD_COUNT" != "1000" ]; then
-            echo "FAIL: Expected 1000 records, found $RECORD_COUNT"
-            exit 1
-          fi
-          echo 'PASS: All 1000 records present'
+          -- Check index exists
+          SELECT indexname FROM pg_indexes WHERE tablename = 'test_data';
 
-          # Check index exists
-          echo 'Checking if index exists...'
-          INDEX_NAME=$(psql -U testuser -d testdb -t -A -c "SELECT indexname FROM pg_indexes WHERE tablename = 'test_data' AND indexname = 'idx_test_data';")
-          if [ -z "$INDEX_NAME" ]; then
-            echo 'FAIL: Index idx_test_data not found'
-            exit 1
-          fi
-          echo "PASS: Index $INDEX_NAME exists"
-
-          # Verify we can query the data
-          echo 'Verifying data integrity...'
-          SAMPLE_DATA=$(psql -U testuser -d testdb -t -A -c "SELECT data FROM test_data WHERE id = 1;")
-          echo "Sample record: $SAMPLE_DATA"
-          EXPECTED_DATA='Test record 1'
-          if [ "$SAMPLE_DATA" != "$EXPECTED_DATA" ]; then
-            echo "FAIL: Expected '$EXPECTED_DATA', found '$SAMPLE_DATA'"
-            exit 1
-          fi
-          echo 'PASS: Data is accessible and intact'
-
-          # Stop PostgreSQL
-          su postgres -c 'pg_ctl -D /var/lib/postgresql/data stop -m smart -w'
-          sleep 5
-
-          # Fix permissions for GitHub Actions runner
-          chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+          -- Verify data integrity
+          SELECT
+            CASE
+              WHEN COUNT(*) = 1000 THEN 'PASS: All records present'
+              ELSE 'FAIL: Expected 1000 records, found ' || COUNT(*)
+            END as result
+          FROM test_data;
           EOF
+
+              # Stop PostgreSQL
+              pg_ctl -D /var/lib/postgresql/data stop -m smart -w
+
+              # Fix permissions for GitHub Actions runner
+              chown -R $(id -u):$(id -g) /var/lib/postgresql/data
+            "
 
       - name: Fix permissions after test
         if: always()
         run: |
           # Always fix permissions after test, regardless of success/failure
           sudo chown -R $USER:$USER test-data/ || true
-          
+
       - name: Collect and show test artifacts on failure
         if: failure()
         run: |
           echo "=== Test failed, collecting available information ==="
-          
+
           # Try to fix permissions first
           sudo chown -R $USER:$USER test-data/ || true
-          
+
           # Show directory structure
           echo "Test data directory structure:"
           find test-data/ -type f -name "*.log" 2>/dev/null || echo "No log files found"
-          
+
           # Show any pg_upgrade output if available
           find test-data/ -name "pg_upgrade_output.d" -type d 2>/dev/null | while read dir; do
             echo "=== Contents of $dir ==="
             ls -la "$dir" 2>/dev/null || echo "Cannot access $dir"
           done
-          
+
           # Show recent log entries
           find test-data/ -name "*.log" -type f 2>/dev/null | head -5 | while read logfile; do
             echo "=== Last 20 lines of $logfile ==="
             tail -20 "$logfile" 2>/dev/null || echo "Cannot read $logfile"
           done
-

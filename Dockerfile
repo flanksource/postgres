@@ -95,24 +95,24 @@ ENV PGDATA=/var/lib/postgresql/data
 # PostgreSQL default configuration
 ENV POSTGRES_DB=postgres
 ENV POSTGRES_USER=postgres
-ENV POSTGRES_PASSWORD=
 
-# pgconfig configuration
-ENV PGCONFIG_CONFIG_DIR=/var/lib/postgresql/config
+
 ENV PGCONFIG_AUTO_UPGRADE=true
 ENV PGCONFIG_AUTO_TUNE=true
+ENV PG_TUNE=true
+
+# Make volumes for data and init scripts
+VOLUME /var/lib/postgresql/data
 
 # Create postgres user and directories
 RUN set -eux; \
     # useradd -r -g postgres --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash postgres; \
-    mkdir -p /var/lib/postgresql ${PGDATA} ${PGCONFIG_CONFIG_DIR} /docker-entrypoint-initdb.d /var/run/postgresql; \
+    mkdir -p /var/lib/postgresql ${PGDATA}  /docker-entrypoint-initdb.d /var/run/postgresql; \
     chown -R postgres:postgres /var/lib/postgresql /var/run/postgresql
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Make volumes for data and init scripts
-VOLUME /var/lib/postgresql/data
 
 # Expose PostgreSQL port
 EXPOSE 5432
@@ -124,7 +124,7 @@ STOPSIGNAL SIGINT
 WORKDIR /var/lib/postgresql
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
     CMD pg_isready -U postgres || exit 1
 
 # Run as postgres user for security (can override with --user root if needed for permission fixes)

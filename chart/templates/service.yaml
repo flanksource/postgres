@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "postgres-upgrade.fullname" . }}
+  name: {{ include "postgres.fullname" . }}
   labels:
-    {{- include "postgres-upgrade.labels" . | nindent 4 }}
+    {{- include "postgres.labels" . | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -12,20 +12,8 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
+      targetPort: postgresql
       protocol: TCP
       name: postgresql
-    {{- if .Values.pgbouncer.enabled }}
-    - port: {{ .Values.pgbouncer.port }}
-      targetPort: {{ .Values.pgbouncer.port }}
-      protocol: TCP
-      name: pgbouncer
-    {{- end }}
-    {{- if .Values.postgrest.enabled }}
-    - port: {{ .Values.postgrest.port }}
-      targetPort: {{ .Values.postgrest.port }}
-      protocol: TCP
-      name: postgrest
-    {{- end }}
   selector:
-    {{- include "postgres-upgrade.selectorLabels" . | nindent 4 }}
+    {{- include "postgres.selectorLabels" . | nindent 4 }}

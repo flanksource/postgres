@@ -89,6 +89,28 @@ func ParseAutoConf(path string) (*AutoConfFile, error) {
 	return autoConf, nil
 }
 
+func GetDefaults() map[string]string {
+	return map[string]string{
+		"archive_mode":                "off",
+		"archive_timeout":             "0",
+		"lc_messages":                 "C",
+		"listen_addresses":            "*",
+		"log_autovacuum_min_duration": "10s",
+		"log_checkpoints":             "true",
+		"log_connections":             "false",
+		"log_destination":             "stderr",
+		"log_disconnections":          "false",
+		"log_line_prefix":             "%m [%p] %q[user=%u,db=%d,app=%a]",
+		"log_lock_waits":              "true",
+		"log_min_duration_statement":  "10s",
+		"log_timezone":                "UTC",
+		"timezone":                    "UTC",
+		"logging_collector":           "true",
+		"password_encryption":         "scram-sha-256",
+		"ssl":                         "false",
+	}
+}
+
 // GetPgTuneManagedParams returns the list of parameters managed by pg_tune
 func GetPgTuneManagedParams() []string {
 	return []string{

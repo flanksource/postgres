@@ -9,6 +9,9 @@ output:
 vars:
   TEST_DIR: ./test
   GO_TEST_FLAGS: -v -timeout 30m
+  POSTGRES_IMAGE: flanksource/postgres:test
+  KIND_CLUSTER_NAME: postgres-ct-test
+  KIND_KUBECONFIG: /tmp/postgres-ct-kubeconfig
 
 tasks:
   # Docker image testing tasks
@@ -146,47 +149,6 @@ tasks:
         echo "📊 Checking Docker resources status..."
         go test {{.GO_TEST_FLAGS}} -run TestShowUpgradeStatus
 
-  # Test coverage and reporting
-  test-coverage:
-    desc: Run tests with coverage report
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    cmds:
-      - |
-        echo "📊 Running tests with coverage..."
-        go test -coverprofile=coverage.out {{.GO_TEST_FLAGS}} ./...
-        go tool cover -html=coverage.out -o coverage.html
-        echo "✅ Coverage report generated: test/coverage.html"
-
-  test-report:
-    desc: Generate test report
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    cmds:
-      - |
-        echo "📊 Generating test report..."
-        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-report.json
-        echo "✅ Test report generated: test/test-report.json"
-
-  # CI/CD specific tasks
-  ci-test:
-    desc: Run tests in CI environment
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    env:
-      CI: "true"
-    cmds:
-      - |
-        echo "🤖 Running tests in CI mode..."
-        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-results.json
-        # Generate JUnit XML for CI systems
-        go install github.com/jstemmer/go-junit-report/v2@latest
-        cat test-results.json | go-junit-report -out junit.xml
-        echo "✅ Test results saved to test/junit.xml"
-
-  # Clean task
-  # Utility and maintenance tasks
-
   clean:
     desc: Clean up test resources and Docker volumes
     cmds:
@@ -198,17 +160,22 @@ tasks:
         docker system prune -f || true
         echo "✅ Cleanup completed"
 
-  # Help task
-  help:
-    desc: Show available tasks and usage examples
+  # Helm E2E testing tasks
+  helm:e2e:
+    desc: Run end-to-end Helm chart tests with kind cluster
+    deps: [build]
+    dir: test
     cmds:
-      - task --list
+      - go test -v ./helm
+
+  helm:e2e:clean:
+    desc: Delete the kind cluster used for helm e2e tests
+    cmds:
       - |
-        echo ""
-        echo "📚 Usage Examples:"
-        echo "  task test:all                    # Run all tests (upgrades + features)"
-        echo "  task test:test-image             # Build and test Docker image"
-        echo "  task test:test-integration       # Run integration tests"
-        echo "  task test:test-extensions        # Test PostgreSQL extensions"
-        echo "  task test:test-services          # Test integrated services"
-        echo "  task test:clean                  # Clean up test resources"
+        CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
+        KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
+
+        echo "🧹 Cleaning up kind cluster: $CLUSTER_NAME..."
+        kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || echo "Cluster already deleted"
+        rm -f "$KUBECONFIG_PATH" 2>/dev/null || true
+        echo "✅ Cleanup complete"

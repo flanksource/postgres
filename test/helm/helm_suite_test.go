@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	commonsLogger "github.com/flanksource/commons/logger"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -22,7 +24,28 @@ var (
 	pollInterval = 5 * time.Second
 )
 
+var logger commonsLogger.Logger
+
+func findParentDir(dir string) string {
+	currentDir, _ := os.Getwd()
+
+	for {
+
+		if _, ok := os.Stat(filepath.Join(currentDir, dir)); ok == nil {
+			return filepath.Join(currentDir, dir)
+		}
+		if _, ok := os.Stat(filepath.Join(currentDir, ".git")); ok == nil {
+			// Reached the git root, stop searching
+			return currentDir
+		}
+		currentDir = filepath.Dir(currentDir)
+	}
+	return ""
+
+}
+
 func TestHelm(t *testing.T) {
+	logger = commonsLogger.NewWithWriter(GinkgoWriter)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "PostgreSQL Upgrade Helm Chart Suite")
 }
@@ -57,12 +80,18 @@ var _ = BeforeSuite(func() {
 		namespace = fmt.Sprintf("postgres-test-%d", time.Now().Unix())
 	}
 
-	chartPath = os.Getenv("CHART_PATH")
-	if chartPath == "" {
-		chartPath = "../chart"
-	}
+	chartPath = findParentDir("chart")
 
 	releaseName = "postgres-test"
+
+	logger.Infof("KUBECONFIG=%s ns=%s, chart=%s", kubeconfig, namespace, chartPath)
+
+	if stat, err := os.Stat(kubeconfig); err != nil || stat.IsDir() {
+		path, _ := filepath.Abs(kubeconfig)
+		Skip(fmt.Sprintf("KUBECONFIG %s is not valid, skipping helm tests", path))
+	}
+
+	By("Creating test namespace")
 
 	// Create namespace
 	err := createNamespace(namespace)

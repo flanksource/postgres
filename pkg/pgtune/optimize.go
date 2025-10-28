@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	. "github.com/flanksource/commons/text"
 	"github.com/flanksource/postgres/pkg/sysinfo"
 	"github.com/flanksource/postgres/pkg/types"
 	"github.com/flanksource/postgres/pkg/utils"
@@ -13,9 +14,12 @@ import (
 
 // OptimizeOptions contains options for optimizing PostgreSQL configuration
 type OptimizeOptions struct {
+	Enabled        bool
 	DataDir        string
-	DBType         sysinfo.DBType
+	DBType         string
 	MaxConnections int
+	MemoryMB       int
+	Cores          int
 	SystemInfo     *sysinfo.SystemInfo
 }
 
@@ -33,8 +37,27 @@ func OptimizeAndSave(opts OptimizeOptions) error {
 
 	// Calculate max connections if not specified
 	maxConnections := opts.MaxConnections
-	if maxConnections == 0 {
+	if opts.MaxConnections > 0 {
+		fmt.Printf("Using provided max connections: %d\n", maxConnections)
+	} else {
 		maxConnections = GetRecommendedMaxConnections(opts.DBType)
+		fmt.Printf("Calculated max connections for DB type %s: %d\n", opts.DBType, maxConnections)
+	}
+
+	if opts.MemoryMB > 0 {
+		fmt.Printf("Overriding memory from %s to %s\n", HumanizeBytes(sysInfo.ContainerMemory), HumanizeBytes(opts.MemoryMB*utils.MB))
+		sysInfo.ContainerMemory = uint64(opts.MemoryMB) * utils.MB
+	} else if sysInfo.ContainerMemory > 0 {
+		fmt.Printf("Detected container memory: %s\n", HumanizeBytes(sysInfo.ContainerMemory))
+	} else {
+		fmt.Printf("Detected total system memory: %s\n", HumanizeBytes(sysInfo.TotalMemoryBytes))
+	}
+
+	if opts.Cores > 0 {
+		fmt.Printf("Overriding CPU cores from %d to %d\n", sysInfo.CPUCount, opts.Cores)
+		sysInfo.CPUCount = opts.Cores
+	} else {
+		fmt.Printf("Detected CPU cores: %d\n", sysInfo.CPUCount)
 	}
 
 	// Create tuning config

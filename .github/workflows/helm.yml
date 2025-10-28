@@ -1,4 +1,4 @@
-name: Helm Chart CI/CD
+name: Helm
 
 on:
   push:
@@ -6,15 +6,15 @@ on:
       - main
       - master
     paths:
-      - 'chart/**'
-      - '.github/workflows/helm.yml'
+      - "chart/**"
+      - ".github/workflows/helm.yml"
   pull_request:
     branches:
       - main
       - master
     paths:
-      - 'chart/**'
-      - '.github/workflows/helm.yml'
+      - "chart/**"
+      - ".github/workflows/helm.yml"
   workflow_dispatch:
 
 env:
@@ -30,62 +30,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Task
+        run: |
+          sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
       - name: Set up Helm
         uses: azure/setup-helm@v4
-        with:
-          version: '3.14.0'
 
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.1
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add bitnami https://charts.bitnami.com/bitnami
-          helm repo update
-
-      - name: Lint Helm chart
-        run: |
-          helm lint chart/
-          ct lint --config .github/ct.yaml --charts chart/
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.8.0
         with:
           cluster_name: postgres-upgrade-test
 
-      - name: Load Docker images
-        run: |
-          # Pull the latest PostgreSQL upgrade images for testing
-          docker pull ghcr.io/flanksource/postgres-upgrade:to-17-latest || echo "Image not found, will use fallback"
-
-      - name: Install and test Helm chart
-        run: |
-          # Install chart with test values
-          helm install postgres-upgrade-test chart/ \
-            --set postgresql.password=testpassword123 \
-            --set image.tag=to-17-latest \
-            --set resources.requests.memory=512Mi \
-            --set resources.limits.memory=1Gi \
-            --wait --timeout=5m
-          
-          # Wait for PostgreSQL to be ready
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgres-upgrade --timeout=300s
-          
-          # Run Helm tests
-          helm test postgres-upgrade-test --timeout=10m
-          
-          # Check if StatefulSet is ready
-          kubectl get statefulset
-          kubectl describe statefulset postgres-upgrade-test
-          
-          # Check PostgreSQL logs
-          kubectl logs -l app.kubernetes.io/name=postgres-upgrade --tail=50
-
-      - name: Cleanup
-        if: always()
-        run: |
-          helm uninstall postgres-upgrade-test || true
-          kubectl delete pvc --all || true
+      - name: Test Helm chart
+        run: task test:helm:e2e
 
   package-and-publish:
     needs: lint-and-test
@@ -103,7 +64,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
-          version: '3.14.0'
+          version: "3.14.0"
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -116,16 +77,16 @@ jobs:
         run: |
           # Package the chart
           helm package chart/ --destination .helm-packages/
-          
+
           # Get the chart version
           CHART_VERSION=$(helm show chart chart/ | grep '^version:' | cut -d' ' -f2)
           CHART_NAME=$(helm show chart chart/ | grep '^name:' | cut -d' ' -f2)
-          
+
           echo "Packaging $CHART_NAME version $CHART_VERSION"
-          
+
           # Push to OCI registry
           helm push .helm-packages/${CHART_NAME}-${CHART_VERSION}.tgz ${{ env.HELM_REGISTRY }}
-          
+
           echo "Successfully pushed $CHART_NAME:$CHART_VERSION to ${{ env.HELM_REGISTRY }}"
 
   security-scan:

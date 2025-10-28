@@ -41,3 +41,4 @@ bin/
 # Development/hack directories (if containing temp files)
 hack/temp/
 hack/output/
+kubeconfig
