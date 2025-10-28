@@ -4,7 +4,8 @@ go 1.25.1
 
 require (
 	github.com/flanksource/commons v1.42.3
-	github.com/flanksource/commons-test v0.0.0-20250919070758-f92d957bf71e
+	github.com/flanksource/commons-db v0.1.0
+	github.com/flanksource/commons-test v0.1.0
 	github.com/lib/pq v1.10.9
 	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
@@ -33,7 +34,6 @@ require (
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods/v2 v2.0.0-alpha // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/flanksource/commons-db v0.0.0-00010101000000-000000000000 // indirect
 	github.com/flanksource/gomplate/v3 v3.24.60 // indirect
 	github.com/flanksource/is-healthy v1.0.79 // indirect
 	github.com/flanksource/kubectl-neat v1.0.4 // indirect
@@ -189,6 +189,6 @@ require (
 
 replace github.com/flanksource/postgres => ../
 
-replace github.com/flanksource/commons-test => ../../commons-test
+// replace github.com/flanksource/commons-test => ../../commons-test
 
-replace github.com/flanksource/commons-db => ../../commons-db
+// replace github.com/flanksource/commons-db => ../../commons-db
