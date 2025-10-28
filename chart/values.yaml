@@ -20,20 +20,11 @@ database:
 passwordRef:
   secretName: postgres-password
   key: "password"
-  create: true # false = use existing secret
+  create: true
 
 # PostgreSQL configuration settings
 # Individual settings - auto-tuned based on resources if empty
-conf:
-  max_connections: "100"
-  shared_buffers: "" # Auto-calculated from resources.limits.memory
-  effective_cache_size: "" # Auto-calculated from resources.limits.memory
-  work_mem: "" # Auto-calculated from resources.limits.memory
-  maintenance_work_mem: "" # Auto-calculated from resources.limits.memory
-  wal_buffers: "" # Auto-calculated from resources.limits.memory
-  checkpoint_completion_target: "0.9"
-  random_page_cost: "1.1"
-  effective_io_concurrency: "200"
+conf: {}
 
 # Custom postgresql.conf override (takes precedence over conf)
 custom_conf: ""
@@ -126,7 +117,7 @@ livenessProbe:
   failureThreshold: 3
   successThreshold: 1
 
-## Change ownership and permissions of mounted volumes on startup to postgres:postgres
+## Change ownership and permissions of mounted volumes on startup
 resetVolumePermissions: true
 
 # Additional environment variables

@@ -149,47 +149,6 @@ tasks:
         echo "📊 Checking Docker resources status..."
         go test {{.GO_TEST_FLAGS}} -run TestShowUpgradeStatus
 
-  # Test coverage and reporting
-  test-coverage:
-    desc: Run tests with coverage report
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    cmds:
-      - |
-        echo "📊 Running tests with coverage..."
-        go test -coverprofile=coverage.out {{.GO_TEST_FLAGS}} ./...
-        go tool cover -html=coverage.out -o coverage.html
-        echo "✅ Coverage report generated: test/coverage.html"
-
-  test-report:
-    desc: Generate test report
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    cmds:
-      - |
-        echo "📊 Generating test report..."
-        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-report.json
-        echo "✅ Test report generated: test/test-report.json"
-
-  # CI/CD specific tasks
-  ci-test:
-    desc: Run tests in CI environment
-    dir: "{{.TEST_DIR}}"
-    deps: [build]
-    env:
-      CI: "true"
-    cmds:
-      - |
-        echo "🤖 Running tests in CI mode..."
-        go test {{.GO_TEST_FLAGS}} -json ./... | tee test-results.json
-        # Generate JUnit XML for CI systems
-        go install github.com/jstemmer/go-junit-report/v2@latest
-        cat test-results.json | go-junit-report -out junit.xml
-        echo "✅ Test results saved to test/junit.xml"
-
-  # Clean task
-  # Utility and maintenance tasks
-
   clean:
     desc: Clean up test resources and Docker volumes
     cmds:
@@ -201,141 +160,13 @@ tasks:
         docker system prune -f || true
         echo "✅ Cleanup completed"
 
-  # Help task
-  help:
-    desc: Show available tasks and usage examples
-    cmds:
-      - task --list
-      - |
-        echo ""
-        echo "📚 Usage Examples:"
-        echo "  task test:all                    # Run all tests (upgrades + features)"
-        echo "  task test:test-image             # Build and test Docker image"
-        echo "  task test:test-integration       # Run integration tests"
-        echo "  task test:test-extensions        # Test PostgreSQL extensions"
-        echo "  task test:test-services          # Test integrated services"
-        echo "  task test:clean                  # Clean up test resources"
-
   # Helm E2E testing tasks
   helm:e2e:
-    desc: Run end-to-end Helm chart tests with kind cluster and chart-testing (ct)
+    desc: Run end-to-end Helm chart tests with kind cluster
     deps: [build]
+    dir: test
     cmds:
-      - |
-        echo "🚀 Starting Helm E2E tests with chart-testing (ct) and kind..."
-
-        # Check prerequisites
-        echo "📋 Checking prerequisites..."
-        command -v ct >/dev/null 2>&1 || { echo "❌ ct (chart-testing) not installed"; exit 1; }
-        command -v kind >/dev/null 2>&1 || { echo "❌ kind not installed"; exit 1; }
-        command -v helm >/dev/null 2>&1 || { echo "❌ helm not installed"; exit 1; }
-        command -v kubectl >/dev/null 2>&1 || { echo "❌ kubectl not installed"; exit 1; }
-
-        # Variables
-        CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
-        KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
-        IMAGE_NAME="{{.POSTGRES_IMAGE}}"
-
-        # Check if cluster already exists
-        if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
-          echo "♻️  Reusing existing kind cluster: $CLUSTER_NAME"
-          kind export kubeconfig --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG_PATH"
-        else
-          echo "🔧 Creating new kind cluster: $CLUSTER_NAME..."
-          kind create cluster \
-            --name "$CLUSTER_NAME" \
-            --kubeconfig "$KUBECONFIG_PATH" \
-            --wait 60s
-        fi
-
-        # Export kubeconfig
-        export KUBECONFIG="$KUBECONFIG_PATH"
-
-        # Wait for cluster to be ready
-        echo "⏳ Waiting for cluster to be ready..."
-        kubectl wait --for=condition=ready node --all --timeout=60s
-
-        # Load local docker image into kind (if it exists)
-        echo "📦 Loading local postgres image into kind cluster..."
-        if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-          kind load docker-image "$IMAGE_NAME" --name "$CLUSTER_NAME"
-          echo "✅ Loaded image: $IMAGE_NAME"
-        else
-          echo "⚠️  Image not found: $IMAGE_NAME"
-          echo "    Chart will use registry image or you can specify with: IMAGE=myimage:tag task test:helm:e2e"
-        fi
-
-        # Run chart-testing lint
-        echo "🔍 Linting chart with ct..."
-        ct lint \
-          --config .github/ct.yaml \
-          --charts chart/
-
-        # Extract image tag from IMAGE_NAME variable
-        IMAGE_TAG="${IMAGE_NAME##*:}"
-
-        # Run chart-testing install
-        echo "📦 Installing and testing chart with ct..."
-        ct install \
-          --config .github/ct.yaml \
-          --charts chart/ \
-          --helm-extra-set-args "--set=image.tag=${IMAGE_TAG} --set=resources.requests.memory=256Mi --set=resources.limits.memory=512Mi"
-
-        # Additional verification
-        echo "✅ Verifying deployment..."
-        kubectl get all -A
-        kubectl get pvc -A
-
-        echo "✅ Helm E2E tests completed successfully!"
-        echo "💡 Cluster kept running for inspection. To delete: task test:helm:e2e:clean"
-
-  helm:e2e:quick:
-    desc: Quick Helm E2E test (skip linting, reuse cluster)
-    deps: [build]
-    cmds:
-      - |
-        echo "⚡ Running quick Helm E2E test..."
-
-        CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
-        KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
-        IMAGE_NAME="{{.POSTGRES_IMAGE}}"
-
-        # Check if cluster exists, create if not
-        if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
-          echo "♻️  Reusing existing kind cluster: $CLUSTER_NAME"
-          kind export kubeconfig --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG_PATH"
-        else
-          echo "🔧 Creating kind cluster..."
-          kind create cluster --name "$CLUSTER_NAME" --kubeconfig "$KUBECONFIG_PATH" --wait 60s
-        fi
-
-        export KUBECONFIG="$KUBECONFIG_PATH"
-
-        # Load image if exists
-        if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-          echo "📦 Loading image: $IMAGE_NAME"
-          kind load docker-image "$IMAGE_NAME" --name "$CLUSTER_NAME"
-        fi
-
-        # Extract image tag
-        IMAGE_TAG="${IMAGE_NAME##*:}"
-
-        # Cleanup previous test installation
-        helm uninstall postgres-test 2>/dev/null || true
-        kubectl delete pvc --all 2>/dev/null || true
-
-        echo "📦 Installing chart..."
-        helm install postgres-test ./chart \
-          --set image.tag="${IMAGE_TAG}" \
-          --set resources.requests.memory=256Mi \
-          --set resources.limits.memory=512Mi \
-          --wait --timeout=5m
-
-        echo "🧪 Running helm tests..."
-        helm test postgres-test --timeout=5m
-
-        echo "✅ Quick E2E test completed!"
-        echo "💡 Cluster kept running. To clean: task test:helm:e2e:clean"
+      - go test -v ./helm
 
   helm:e2e:clean:
     desc: Delete the kind cluster used for helm e2e tests
@@ -348,19 +179,3 @@ tasks:
         kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || echo "Cluster already deleted"
         rm -f "$KUBECONFIG_PATH" 2>/dev/null || true
         echo "✅ Cleanup complete"
-
-  helm:e2e:reset:
-    desc: Reset helm e2e test environment (delete and recreate cluster)
-    cmds:
-      - task: helm:e2e:clean
-      - |
-        echo "🔄 Creating fresh kind cluster..."
-        CLUSTER_NAME="{{.KIND_CLUSTER_NAME}}"
-        KUBECONFIG_PATH="{{.KIND_KUBECONFIG}}"
-
-        kind create cluster \
-          --name "$CLUSTER_NAME" \
-          --kubeconfig "$KUBECONFIG_PATH" \
-          --wait 60s
-
-        echo "✅ Fresh cluster ready: $CLUSTER_NAME"

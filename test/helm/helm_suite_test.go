@@ -26,6 +26,24 @@ var (
 
 var logger commonsLogger.Logger
 
+func findParentDir(dir string) string {
+	currentDir, _ := os.Getwd()
+
+	for {
+
+		if _, ok := os.Stat(filepath.Join(currentDir, dir)); ok == nil {
+			return filepath.Join(currentDir, dir)
+		}
+		if _, ok := os.Stat(filepath.Join(currentDir, ".git")); ok == nil {
+			// Reached the git root, stop searching
+			return currentDir
+		}
+		currentDir = filepath.Dir(currentDir)
+	}
+	return ""
+
+}
+
 func TestHelm(t *testing.T) {
 	logger = commonsLogger.NewWithWriter(GinkgoWriter)
 	RegisterFailHandler(Fail)
@@ -62,10 +80,7 @@ var _ = BeforeSuite(func() {
 		namespace = fmt.Sprintf("postgres-test-%d", time.Now().Unix())
 	}
 
-	chartPath = os.Getenv("CHART_PATH")
-	if chartPath == "" {
-		chartPath = "../chart"
-	}
+	chartPath = findParentDir("chart")
 
 	releaseName = "postgres-test"
 
