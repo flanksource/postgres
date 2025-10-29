@@ -44,25 +44,25 @@ const (
 // SystemInfo contains detected system information
 type SystemInfo struct {
 	// TotalMemoryBytes is the total system memory in bytes
-	TotalMemoryBytes uint64
+	TotalMemoryBytes uint64 `json:"total_memory_bytes,omitempty" pretty:"format=bytes"`
 
 	// CPUCount is the number of logical CPUs
-	CPUCount int
+	CPUCount int `json:"cpu_count,omitempty"`
 
 	// OSType is the operating system type
-	OSType OSType
+	OSType OSType `json:"os_type,omitempty"`
 
 	// PostgreSQLVersion is the PostgreSQL major version
-	PostgreSQLVersion float64
+	PostgreSQLVersion float64 `json:"postgres_version,omitempty"`
 
 	// DiskType is the detected or assumed disk type
-	DiskType DiskType
+	DiskType DiskType `json:"disk_type,omitempty"`
 
 	// IsContainer indicates if running inside a container
-	IsContainer bool
+	IsContainer bool `json:"is_container,omitempty"`
 
 	// ContainerMemory is the container memory limit in bytes (0 if not limited)
-	ContainerMemory uint64
+	ContainerMemory uint64 `json:"container_memory,omitempty" pretty:"format=bytes"`
 }
 
 // DetectSystemInfo automatically detects system information

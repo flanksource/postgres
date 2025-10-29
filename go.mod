@@ -13,6 +13,7 @@ require (
 	github.com/knadh/koanf/providers/rawbytes v1.0.0
 	github.com/knadh/koanf/v2 v2.2.2
 	github.com/lib/pq v1.10.9
+	github.com/samber/lo v1.52.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.10.1
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -57,6 +58,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
+	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
@@ -64,6 +66,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/cel-go v0.22.1 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/pprof v0.0.0-20250403155104-27863c87afa6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosimple/slug v1.13.1 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
@@ -100,6 +103,7 @@ require (
 	github.com/ohler55/ojg v1.25.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/ginkgo/v2 v2.25.3 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pdfcpu/pdfcpu v0.11.0 // indirect
@@ -116,7 +120,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robertkrimen/otto v0.2.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/samber/lo v1.52.0 // indirect
 	github.com/samber/oops v1.19.3 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -145,6 +148,7 @@ require (
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
@@ -155,6 +159,7 @@ require (
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
@@ -174,8 +179,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-// replace (
-// replace github.com/flanksource/commons => /Users/moshe/go/src/github.com/flanksource/commons/
-// 	github.com/flanksource/clicky => /Users/moshe/go/src/github.com/flanksource/clicky
+replace (
+	// replace github.com/flanksource/commons => /Users/moshe/go/src/github.com/flanksource/commons/
+	github.com/flanksource/clicky => ../clicky
 // 	github.com/flanksource/deps => /Users/moshe/go/src/github.com/flanksource/deps
-// )
+)

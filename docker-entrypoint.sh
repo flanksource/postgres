@@ -31,16 +31,32 @@ fi
 
 export PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
 
-# Run postgres-cli auto-start (includes permission checks)
-postgres-cli auto-start --pg-tune --auto-upgrade --upgrade-to=$PG_VERSION --auto-init --data-dir "$PGDATA" -vvvv
 
-if [ "$AUTO_UPGRADE" = "true" ] && [ "$UPGRADE_ONLY" = "true" ]; then
+if [ ! -f $PGDATA/PG_VERSION ]; then
+    echo "Initializing database cluster at $PGDATA ..."
+    # starting and stopping the DB to initialize the directory for tuning
+    $PGBIN/initdb -D $PGDATA
+    $PGBIN/pg_ctl start -D $PGDATA --wait
+    $PGBIN/pg_ctl stop -D $PGDATA --wait
+else
+    echo "Database cluster already initialized at $PGDATA with version $(cat $PGDATA/PG_VERSION)"
+
+fi
+
+postgres-cli server status
+
+# Run postgres-cli auto-start (includes permission checks)
+postgres-cli auto-start --pg-tune --auto-upgrade --upgrade-to=$PG_VERSION --auto-init --data-dir "$PGDATA" --auto-reset-password
+
+cat $PGDATA/pg_hba.conf
+
+
+if [ "$UPGRADE_ONLY" = "true" ]; then
     echo "UPGRADE_ONLY is set. Exiting after upgrade."
     exit 0
 fi
 
-
-cat $PGDATA/postgresql.auto.conf
+echo "Starting PostgreSQL server with command: $PGBIN/postgres $@"
 
 # Start PostgreSQL server
 exec "$PGBIN/postgres" "$@"

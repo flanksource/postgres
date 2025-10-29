@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/flanksource/clicky"
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/server"
@@ -32,9 +31,63 @@ func createServerCommands() *cobra.Command {
 		createBackupCommand(),
 		createSQLCommand(),
 		createStatusCommand(),
+		createStartCommand(),
+		createStopCommand(),
+		createRestartCommand(),
 	)
 
 	return serverCmd
+}
+
+func createStopCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "stop",
+		Short: "Stop PostgreSQL server",
+		Long:  "Stop the PostgreSQL server gracefully",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			postgres := getPostgresInstance()
+			if err := postgres.Stop(); err != nil {
+				return fmt.Errorf("failed to stop PostgreSQL: %w", err)
+			}
+			fmt.Println("PostgreSQL server stopped successfully")
+			return nil
+		},
+	}
+}
+
+func createStartCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "start",
+		Short: "Start PostgreSQL server",
+		Long:  "Start the PostgreSQL server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			postgres := getPostgresInstance()
+			if err := postgres.Start(); err != nil {
+				return fmt.Errorf("failed to start PostgreSQL: %w", err)
+			}
+			fmt.Println("PostgreSQL server started successfully")
+			return nil
+		},
+	}
+}
+
+func createRestartCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "restart",
+		Short: "Restart PostgreSQL server",
+		Long:  "Restart the PostgreSQL server gracefully",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			postgres := getPostgresInstance()
+			if err := postgres.Stop(); err != nil {
+				fmt.Println("Failed to stop postgres " + err.Error())
+			}
+			if err := postgres.Start(); err != nil {
+				return fmt.Errorf("failed to restart PostgreSQL: %w", err)
+			}
+			fmt.Println("PostgreSQL server restarted successfully")
+			return nil
+		},
+	}
 }
 
 // createInfoCommands creates the info subcommand group
@@ -57,8 +110,8 @@ func createInfoCommands() *cobra.Command {
 				return fmt.Errorf("failed to describe config: %w", err)
 			}
 
-			output, _ := cmd.Flags().GetString("output")
-			return outputResult(params, output)
+			fmt.Println(clicky.MustFormat(params))
+			return nil
 		},
 	}
 	describeConfigCmd.Flags().StringP("output", "o", "table", "Output format (table, json, yaml)")
@@ -264,13 +317,13 @@ func createSQLCommand() *cobra.Command {
 				return fmt.Errorf("failed to execute SQL: %w", err)
 			}
 
-			output, _ := cmd.Flags().GetString("output")
-			return outputResult(results, output)
+			fmt.Println(clicky.MustFormat(results))
+
+			return nil
 		},
 	}
 	sqlCmd.Flags().StringP("query", "q", "", "SQL query to execute")
-	sqlCmd.Flags().StringP("file", "f", "", "File containing SQL query")
-	sqlCmd.Flags().StringP("output", "o", "table", "Output format (table, json, yaml)")
+
 	return sqlCmd
 }
 
@@ -282,40 +335,10 @@ func createStatusCommand() *cobra.Command {
 		Long:  "Show detailed status information about the PostgreSQL instance",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			postgres := getPostgresInstance()
-
-			fmt.Println("=== PostgreSQL Status ===")
-			fmt.Printf("Binary directory: %s\n", getBinDir())
-			fmt.Printf("Data directory: %s\n", getDataDir())
-
-			// Check existence
-			exists := postgres.Exists()
-			fmt.Printf("Data directory exists: %t\n", exists)
-
-			if exists {
-				// Detect version
-				if version, err := postgres.DetectVersion(); err == nil {
-					fmt.Printf("Detected version: %d\n", version)
-				}
-
-				// Check if running
-				running := postgres.IsRunning()
-				fmt.Printf("Is running: %t\n", running)
-
-				if running {
-					// Get binary version
-					if binVersion := postgres.GetVersion(); binVersion != "" {
-						fmt.Printf("Binary version: %s\n", binVersion)
-					}
-
-					// Health check
-					if err := postgres.Health(); err == nil {
-						fmt.Println("Health check: PASSED")
-					} else {
-						fmt.Printf("Health check: FAILED (%v)\n", err)
-					}
-				}
-			}
-
+			info, _ := postgres.Info()
+			fmt.Println("---")
+			clicky.MustPrint(*info)
+			fmt.Println("----")
 			return nil
 		},
 	}
@@ -348,79 +371,4 @@ func getPostgresInstance() *server.Postgres {
 	}
 
 	return postgres
-}
-
-// outputResult formats and outputs results based on the specified format
-func outputResult(data interface{}, format string) error {
-	switch strings.ToLower(format) {
-	case "json":
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(data)
-	case "yaml":
-		// For YAML output, we'll use a simple JSON-like format
-		// In a real implementation, you'd use gopkg.in/yaml.v3
-		fmt.Printf("# YAML output not fully implemented, showing JSON format:\n")
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(data)
-	case "table":
-		return outputTable(data)
-	default:
-		return fmt.Errorf("unsupported output format: %s", format)
-	}
-}
-
-// outputTable outputs data in a simple table format
-func outputTable(data interface{}) error {
-	switch v := data.(type) {
-	case []map[string]interface{}:
-		if len(v) == 0 {
-			fmt.Println("No results")
-			return nil
-		}
-
-		// Get column names from first row
-		var columns []string
-		for col := range v[0] {
-			columns = append(columns, col)
-		}
-
-		// Print header
-		for i, col := range columns {
-			if i > 0 {
-				fmt.Print("\t")
-			}
-			fmt.Print(col)
-		}
-		fmt.Println()
-
-		// Print separator
-		for i := range columns {
-			if i > 0 {
-				fmt.Print("\t")
-			}
-			fmt.Print("---")
-		}
-		fmt.Println()
-
-		// Print rows
-		for _, row := range v {
-			for i, col := range columns {
-				if i > 0 {
-					fmt.Print("\t")
-				}
-				fmt.Print(row[col])
-			}
-			fmt.Println()
-		}
-
-	default:
-		// For other types, just use JSON format
-		encoder := json.NewEncoder(os.Stdout)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(data)
-	}
-
-	return nil
 }
