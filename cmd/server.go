@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/clicky"
-	"github.com/flanksource/postgres/pkg"
-	"github.com/flanksource/postgres/pkg/config"
-	"github.com/flanksource/postgres/pkg/server"
 	"github.com/flanksource/postgres/pkg/utils"
 )
 
@@ -45,7 +42,7 @@ func createStopCommand() *cobra.Command {
 		Short: "Stop PostgreSQL server",
 		Long:  "Stop the PostgreSQL server gracefully",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.Stop(); err != nil {
 				return fmt.Errorf("failed to stop PostgreSQL: %w", err)
 			}
@@ -61,7 +58,7 @@ func createStartCommand() *cobra.Command {
 		Short: "Start PostgreSQL server",
 		Long:  "Start the PostgreSQL server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.Start(); err != nil {
 				return fmt.Errorf("failed to start PostgreSQL: %w", err)
 			}
@@ -77,7 +74,7 @@ func createRestartCommand() *cobra.Command {
 		Short: "Restart PostgreSQL server",
 		Long:  "Restart the PostgreSQL server gracefully",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.Stop(); err != nil {
 				fmt.Println("Failed to stop postgres " + err.Error())
 			}
@@ -104,7 +101,7 @@ func createInfoCommands() *cobra.Command {
 		Short: "Describe PostgreSQL configuration parameters",
 		Long:  "Execute 'postgres --describe-config' and return parsed parameters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			params, err := postgres.DescribeConfig()
 			if err != nil {
 				return fmt.Errorf("failed to describe config: %w", err)
@@ -122,7 +119,7 @@ func createInfoCommands() *cobra.Command {
 		Short: "Detect PostgreSQL version from data directory",
 		Long:  "Read the PostgreSQL version from the PG_VERSION file in the data directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			version, err := postgres.DetectVersion()
 			if err != nil {
 				return fmt.Errorf("failed to detect version: %w", err)
@@ -139,7 +136,7 @@ func createInfoCommands() *cobra.Command {
 		Short: "Get PostgreSQL version from binary",
 		Long:  "Execute 'postgres --version' to get version information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			version := postgres.GetVersion()
 			if version == "" {
 				return fmt.Errorf("failed to get version")
@@ -156,7 +153,7 @@ func createInfoCommands() *cobra.Command {
 		Short: "Check if PostgreSQL data directory exists and is valid",
 		Long:  "Check if the data directory contains valid PostgreSQL files",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			exists := postgres.Exists()
 			fmt.Printf("PostgreSQL data directory exists: %t\n", exists)
 			if !exists {
@@ -172,7 +169,7 @@ func createInfoCommands() *cobra.Command {
 		Short: "Check if PostgreSQL server is running",
 		Long:  "Check if PostgreSQL process is running by examining the PID file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			running := postgres.IsRunning()
 			fmt.Printf("PostgreSQL is running: %t\n", running)
 			if !running {
@@ -193,7 +190,7 @@ func createHealthCommand() *cobra.Command {
 		Short: "Perform comprehensive health check",
 		Long:  "Perform a comprehensive health check of the PostgreSQL service",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.Health(); err != nil {
 				return fmt.Errorf("health check failed: %w", err)
 			}
@@ -210,7 +207,7 @@ func createInitDBCommand() *cobra.Command {
 		Short: "Initialize PostgreSQL data directory",
 		Long:  "Initialize a new PostgreSQL data directory with initdb",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.InitDB(); err != nil {
 				return fmt.Errorf("failed to initialize database: %w", err)
 			}
@@ -232,7 +229,6 @@ func createResetPasswordCommand() *cobra.Command {
 				return fmt.Errorf("password is required")
 			}
 
-			postgres := getPostgresInstance()
 			sensitivePassword := utils.SensitiveString(password)
 			if err := postgres.ResetPassword(sensitivePassword); err != nil {
 				return fmt.Errorf("failed to reset password: %w", err)
@@ -258,7 +254,6 @@ func createUpgradeCommand() *cobra.Command {
 				return fmt.Errorf("target-version is required")
 			}
 
-			postgres := getPostgresInstance()
 			if err := postgres.Upgrade(targetVersion); err != nil {
 				return fmt.Errorf("failed to upgrade: %w", err)
 			}
@@ -278,7 +273,7 @@ func createBackupCommand() *cobra.Command {
 		Short: "Create PostgreSQL backup",
 		Long:  "Create a backup of the PostgreSQL instance using pg_dump",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
+
 			if err := postgres.Backup(); err != nil {
 				return fmt.Errorf("backup failed: %w", err)
 			}
@@ -311,7 +306,6 @@ func createSQLCommand() *cobra.Command {
 				return fmt.Errorf("either --query or --file must be specified")
 			}
 
-			postgres := getPostgresInstance()
 			results, err := postgres.SQL(sqlQuery)
 			if err != nil {
 				return fmt.Errorf("failed to execute SQL: %w", err)
@@ -334,7 +328,6 @@ func createStatusCommand() *cobra.Command {
 		Short: "Show comprehensive PostgreSQL status",
 		Long:  "Show detailed status information about the PostgreSQL instance",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			postgres := getPostgresInstance()
 			info, _ := postgres.Info()
 			fmt.Println("---")
 			clicky.MustPrint(*info)
@@ -342,33 +335,4 @@ func createStatusCommand() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-// getPostgresInstance creates a PostgreSQL instance with auto-detected or configured directories
-func getPostgresInstance() *server.Postgres {
-	var pgConfig *pkg.PostgresConf
-
-	// Load configuration if specified
-	if configFile != "" {
-		var err error
-		pgConfig, err = config.LoadPostgresConf(configFile)
-		if err != nil && verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to load config: %v\n", err)
-		}
-	}
-
-	// Use default configuration if none provided
-	if pgConfig == nil {
-		pgConfig = config.DefaultPostgresConf()
-	}
-
-	// Initialize PostgreSQL instance with auto-detected data directory
-	postgres := server.NewPostgres(pgConfig, getDataDir())
-
-	// Set binary directory if detected or specified
-	if binDir := getBinDir(); binDir != "" {
-		postgres.BinDir = binDir
-	}
-
-	return postgres
 }
