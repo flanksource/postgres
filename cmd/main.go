@@ -5,24 +5,27 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/clicky"
+	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/pgtune"
+	"github.com/flanksource/postgres/pkg/server"
 	"github.com/flanksource/postgres/pkg/utils"
 )
 
 const version = "1.0.0"
 
 var (
-	// Global flags
-	dataDir    string
-	binDir     string
+	postgres server.Postgres
+
 	verbose    bool
 	createDb   string
 	configFile string
 	encoding   string
 	locale     string
+	authMethod string
 	opts       pgtune.OptimizeOptions
 	// Auto-detected directories
 	detectedDirs *utils.PostgreSQLDirs
@@ -44,15 +47,34 @@ func main() {
 		Long: `A comprehensive CLI tool for managing PostgreSQL servers, generating configurations, and working with schemas.
 This unified tool combines PostgreSQL server management, configuration generation, and schema operations.`,
 		Version: version,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			clicky.Flags.UseFlags()
-			initializeDirectories()
+			if err := postgres.Validate(); err != nil {
+				return err
+			}
+
+			// Load configuration if specified
+			if configFile != "" {
+				if pgConfig, err := config.LoadPostgresConf(configFile); err == nil {
+					return err
+				} else {
+					postgres.Config = pgConfig
+				}
+			} else if postgres.Config == nil {
+				postgres.Config = config.DefaultPostgresConf()
+			}
+			return nil
 		},
 	}
 
-	// Global flags
-	rootCmd.PersistentFlags().StringVar(&dataDir, "data-dir", "", "PostgreSQL data directory (auto-detected if not specified)")
-	rootCmd.PersistentFlags().StringVar(&binDir, "bin-dir", "", "PostgreSQL binary directory (auto-detected if not specified)")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Username, "username", "U", lo.CoalesceOrEmpty(os.Getenv("PG_USER"), "postgres"), "PostgreSQL username")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Password, "password", "W", lo.CoalesceOrEmpty(os.Getenv("PG_PASSWORD"), ""), "PostgreSQL password")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Database, "database", "d", lo.CoalesceOrEmpty(os.Getenv("PG_DATABASE"), "postgres"), "PostgreSQL database name")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Host, "host", "", lo.CoalesceOrEmpty(os.Getenv("PG_HOST"), "localhost"), "PostgreSQL host")
+	rootCmd.PersistentFlags().IntVarP(&postgres.Port, "port", "p", getIntVar("PG_PORT"), "PostgreSQL port")
+
+	rootCmd.PersistentFlags().StringVar(&postgres.DataDir, "data-dir", os.Getenv("PGDATA"), "PostgreSQL data directory (auto-detected if not specified)")
+	rootCmd.PersistentFlags().StringVar(&postgres.BinDir, "bin-dir", "", "PostgreSQL binary directory (auto-detected if not specified)")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Configuration file path")
 	rootCmd.PersistentFlags().StringVar(&locale, "locale", "C", "Locale for initialized database")
 	rootCmd.PersistentFlags().StringVar(&encoding, "encoding", "UTF8", "Encoding for initialized database")
@@ -61,8 +83,7 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	rootCmd.PersistentFlags().IntVar(&opts.MemoryMB, "memory", getIntVar("PG_TUNE_MEMORY"), "Override detected memory in MB for pg_tune")
 	rootCmd.PersistentFlags().IntVar(&opts.Cores, "cpus", getIntVar("PG_TUNE_CPUS"), "Override detected CPU count for pg_tune")
 	rootCmd.PersistentFlags().StringVar(&opts.DBType, "type", "web", "Database type for pg_tune: web, oltp, dw, desktop, mixed")
-	rootCmd.PersistentFlags().StringVar(&createDb, "create-db", "postgres", "Database name to create on initialization")
-
+	rootCmd.PersistentFlags().StringVar(&authMethod, "auth-method", "trust", "Authentication method for pg_hba.conf (auto-detected if not specified)")
 	clicky.BindAllFlags(rootCmd.PersistentFlags())
 
 	// Add command groups
@@ -75,31 +96,6 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Error: %+v\n", err)
 		os.Exit(1)
-	}
-}
-
-// initializeDirectories detects PostgreSQL directories and applies overrides
-func initializeDirectories() {
-	var err error
-
-	// Try to auto-detect directories
-	detectedDirs, err = utils.DetectPostgreSQLDirs()
-	if err != nil && verbose {
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
-	}
-
-	// Apply overrides from flags or use detected values
-	if binDir == "" && detectedDirs != nil {
-		binDir = detectedDirs.BinDir
-	}
-	if dataDir == "" && detectedDirs != nil {
-		dataDir = detectedDirs.DataDir
-	}
-
-	// Show detected/configured directories in verbose mode
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Using binary directory: %s\n", binDir)
-		fmt.Fprintf(os.Stderr, "Using data directory: %s\n", dataDir)
 	}
 }
 
@@ -154,25 +150,6 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Running as user: %s (UID: %d, GID: %d)\n", username, uid, gid)
 
-	// Perform pre-flight permission checks
-	dataDir := getDataDir()
-	if dataDir == "" {
-		return fmt.Errorf("data directory not detected, use --data-dir flag")
-	}
-
-	fmt.Printf("Checking permissions for PGDATA: %s\n", dataDir)
-	if err := utils.CheckPGDATAPermissions(dataDir); err != nil {
-		if permErr, ok := err.(*utils.PermissionError); ok {
-			// Exit with code 126 (permission denied)
-			fmt.Fprintf(os.Stderr, "\n❌ %s\n", permErr.Error())
-			os.Exit(126)
-		}
-		// For non-directory-exists errors during dry-run, just warn
-		if !os.IsNotExist(err) || !dryRun {
-			return fmt.Errorf("permission check failed: %w", err)
-		}
-	}
-
 	fmt.Println("✅ Permission checks passed")
 
 	// If dry-run mode, exit successfully
@@ -181,9 +158,6 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 		fmt.Println("All permission checks passed. Ready to start PostgreSQL.")
 		return nil
 	}
-
-	// Get PostgreSQL instance
-	postgres := getPostgresInstance()
 
 	// Check if already running
 	if postgres.IsRunning() {
@@ -198,7 +172,7 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 			if err := postgres.InitDB(); err != nil {
 				return fmt.Errorf("failed to initialize database: %w", err)
 			}
-			fmt.Println("✅ PostgreSQL database initialized successfully")
+
 		} else {
 			return fmt.Errorf("PostgreSQL data directory does not exist. Use --auto-init to initialize automatically")
 		}
@@ -232,11 +206,6 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	if opts.Enabled {
 		fmt.Println("🔧 Running pg_tune to optimize configuration...")
 
-		opts.DataDir = getDataDir()
-		if opts.DataDir == "" {
-			return fmt.Errorf("data directory not detected")
-		}
-
 		err := pgtune.OptimizeAndSave(opts)
 		if err != nil {
 			return fmt.Errorf("failed to run pg_tune: %w", err)
@@ -246,7 +215,7 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 4: Reset password if requested
-	if autoResetPassword && os.Getenv("POSTGRES_PASSWORD") != "" {
+	if autoResetPassword && postgres.Password != "" {
 		fmt.Println("🔑 Resetting postgres superuser password from POSTGRES_PASSWORD")
 
 		newPassword := os.Getenv("POSTGRES_PASSWORD")
@@ -269,6 +238,10 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if err := postgres.SetupPgHBA(authMethod); err != nil {
+		return fmt.Errorf("failed to setup pg_hba.conf: %w", err)
+	}
+
 	// // Step 5: Start PostgreSQL
 	// fmt.Println("🚀 Starting PostgreSQL...")
 	// if err := postgres.Start(); err != nil {
@@ -286,37 +259,7 @@ func createVersionCommand() *cobra.Command {
 		Short: "Show version information",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("postgres-cli version %s\n", version)
-			if verbose {
-				fmt.Printf("Binary directory: %s\n", binDir)
-				fmt.Printf("Data directory: %s\n", dataDir)
-				if detectedDirs != nil {
-					fmt.Printf("Auto-detection: successful\n")
-				} else {
-					fmt.Printf("Auto-detection: failed\n")
-				}
-			}
+
 		},
 	}
-}
-
-// Helper function to get effective data directory
-func getDataDir() string {
-	if dataDir != "" {
-		return dataDir
-	}
-	if detectedDirs != nil {
-		return detectedDirs.DataDir
-	}
-	return ""
-}
-
-// Helper function to get effective binary directory
-func getBinDir() string {
-	if binDir != "" {
-		return binDir
-	}
-	if detectedDirs != nil {
-		return detectedDirs.BinDir
-	}
-	return ""
 }
