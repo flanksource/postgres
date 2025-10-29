@@ -6,12 +6,13 @@
 FROM golang:1.25-bookworm AS pgconfig-builder
 
 # Copy source code
-WORKDIR /src
-COPY go.mod go.sum ./
+WORKDIR /src/postgres
+COPY postgres/go.mod postgres/go.sum ./
+COPY clicky/go.mod /src/clicky/go.mod
 RUN go mod download
 
-COPY . .
-
+COPY postgres/ /src/postgres
+COPY clicky /src/clicky
 # Build pgconfig binary with cache mounts
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -32,7 +33,7 @@ ENV PG_VERSION=${PG_VERSION}
 
 # Labels
 LABEL maintainer="flanksource"
-LABEL description="PostgreSQL with pgconfig for auto-upgrades and tuning"
+LABEL description="PostgreSQL with postgres-cli for auto-upgrades and tuning"
 LABEL architecture="multi-arch"
 
 # Add PostgreSQL repository and configure locales
@@ -42,11 +43,7 @@ RUN set -eux; \
         ca-certificates \
         wget \
         gnupg \
-        lsb-release \
-        locales && \
-    # Generate en_US.UTF-8 locale for database compatibility
-    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen en_US.UTF-8 && \
+        lsb-release && \
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
@@ -70,19 +67,25 @@ RUN apt-get update && \
         curl \
         procps \
         xz-utils \
-        zstd && \
+        zstd \
+        tzdata \
+        locales && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
-# Copy postgres-cli binary from builder stage
-COPY --from=pgconfig-builder /src/postgres-cli /usr/local/bin/postgres-cli
-RUN chmod +x /usr/local/bin/postgres-cli
+RUN ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+    dpkg-reconfigure --frontend noninteractive tzdata
 
-# Ensure postgres user has UID 999 and GID 999 for consistency
-RUN usermod -u 999 postgres && groupmod -g 999 postgres && \
-    find / -user 100 -exec chown -h postgres {} + 2>/dev/null || true && \
-    find / -group 102 -exec chgrp -h postgres {} + 2>/dev/null || true
+RUN ln -sf /usr/lib/postgresql/share/postgresql/timezonesets /usr/share/postgresql/timezonesets
+RUN localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8 \
+    && localedef -i C -c -f UTF-8 -A /usr/share/locale/locale.alias C.UTF-8
 
+RUN echo "C.UTF-8 UTF-8" > /etc/locale.gen && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+ENV LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 # Set environment variables for all PostgreSQL versions
 ENV PG14BIN=/usr/lib/postgresql/14/bin
 ENV PG15BIN=/usr/lib/postgresql/15/bin
@@ -101,8 +104,16 @@ ENV PGCONFIG_AUTO_UPGRADE=true
 ENV PGCONFIG_AUTO_TUNE=true
 ENV PG_TUNE=true
 
-# Make volumes for data and init scripts
-VOLUME /var/lib/postgresql/data
+
+# Copy postgres-cli binary from builder stage
+COPY --from=pgconfig-builder /src/postgres/postgres-cli /usr/local/bin/postgres-cli
+RUN chmod +x /usr/local/bin/postgres-cli
+
+# Ensure postgres user has UID 999 and GID 999 for consistency
+RUN usermod -u 999 postgres && groupmod -g 999 postgres && \
+    find / -user 100 -exec chown -h postgres {} + 2>/dev/null || true && \
+    find / -group 102 -exec chgrp -h postgres {} + 2>/dev/null || true
+
 
 # Create postgres user and directories
 RUN set -eux; \
@@ -110,7 +121,10 @@ RUN set -eux; \
     mkdir -p /var/lib/postgresql ${PGDATA}  /docker-entrypoint-initdb.d /var/run/postgresql; \
     chown -R postgres:postgres /var/lib/postgresql /var/run/postgresql
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# Make volumes for data and init scripts
+VOLUME /var/lib/postgresql/data
+
+COPY postgres/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 

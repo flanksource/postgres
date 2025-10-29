@@ -260,9 +260,13 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	if createDb != "" {
 		fmt.Printf("🛠️  Ensuring database '%s' exists...\n", createDb)
 		if err := postgres.CreateDatabase(createDb); err != nil {
-			return fmt.Errorf("failed to create database '%s': %w", createDb, err)
+			//FIXME
+			fmt.Printf("❌ Failed to create database '%s': %v\n", createDb, err)
+			// return fmt.Errorf("failed to create database '%s': %w", createDb, err)
+		} else {
+			fmt.Printf("✅ Database '%s' is ready\n", createDb)
+
 		}
-		fmt.Printf("✅ Database '%s' is ready\n", createDb)
 	}
 
 	// // Step 5: Start PostgreSQL

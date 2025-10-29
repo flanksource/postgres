@@ -88,3 +88,12 @@ Return the proper PostgreSQL image name
 {{- define "postgres.image" -}}
 {{- printf "%s/%s:%s" .Values.image.registry .Values.image.repository .Values.image.tag }}
 {{- end }}
+
+{{/*
+Validate persistence configuration
+*/}}
+{{- define "postgres.validatePersistence" -}}
+{{- if and .Values.persistence.existingClaim .Values.persistence.volumeName }}
+{{- fail "Cannot specify both persistence.existingClaim and persistence.volumeName. Use existingClaim to reference an existing PVC, or volumeName to bind a new PVC to an existing PV" }}
+{{- end }}
+{{- end }}

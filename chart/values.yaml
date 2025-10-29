@@ -7,6 +7,8 @@ image:
   tag: "17"
   pullPolicy: IfNotPresent
 
+# Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime
+version: "17"
 # Automatic upgrade configuration
 autoUpgrade:
   enabled: true
@@ -24,7 +26,28 @@ passwordRef:
 
 # PostgreSQL configuration settings
 # Individual settings - auto-tuned based on resources if empty
-conf: {}
+conf:
+  listen_addresses: "*"
+  log_autovacuum_min_duration: 10s # Set to 0 for pgbadger
+  log_connections: off # Set to on for pgbadger
+  log_disconnections: off # Set to on for pgbadger
+  log_destination: "stderr jsonlog"
+  log_directory: "/var/log/postgresql"
+  log_file_mode: 0644
+  log_filename: "postgresql-%d.log"
+  log_line_prefix: "%m [%p] %q[user=%u,db=%d,app=%a] "
+  log_lock_waits: on
+  log_min_duration_statement: "1s"
+  # log_rotation_age: "1d"
+  # log_rotation_size: "100MB"
+  # log_truncate_on_rotation: on
+  log_statement: "all"
+  log_temp_files: 100MB # Set to 0 for pgbadger
+  log_timezone: "UTC"
+  logging_collector: off
+  ssl: off
+  timezone: "UTC"
+  password_encryption: scram-sha-256
 
 # Custom postgresql.conf override (takes precedence over conf)
 custom_conf: ""
@@ -41,6 +64,10 @@ resources:
 # Persistence configuration
 persistence:
   enabled: true
+  # Name of existing PVC to use (mutually exclusive with volumeName)
+  existingClaim: ""
+  # Name of existing PV to bind to (creates new PVC, mutually exclusive with existingClaim)
+  volumeName: ""
   storageClass: ""
   accessMode: ReadWriteOnce
   size: 10Gi
@@ -93,7 +120,7 @@ podLabels: {}
 # Startup probe configuration
 startupProbe:
   enabled: true
-  initialDelaySeconds: 30
+  initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 30
@@ -111,7 +138,7 @@ readinessProbe:
 # Liveness probe configuration
 livenessProbe:
   enabled: true
-  initialDelaySeconds: 30
+  initialDelaySeconds: 10
   periodSeconds: 30
   timeoutSeconds: 5
   failureThreshold: 3
