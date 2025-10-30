@@ -3,6 +3,7 @@ package sysinfo
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -43,6 +44,8 @@ const (
 
 // SystemInfo contains detected system information
 type SystemInfo struct {
+	IPAddresses []string `json:"ip_addresses,omitempty"`
+
 	// TotalMemoryBytes is the total system memory in bytes
 	TotalMemoryBytes uint64 `json:"total_memory_bytes,omitempty" pretty:"format=bytes"`
 
@@ -83,6 +86,8 @@ func DetectSystemInfo() (*SystemInfo, error) {
 	// Detect OS type
 	info.OSType = detectOSType()
 
+	info.IPAddresses = detectIPAddresses()
+
 	// Detect PostgreSQL version from environment
 	pgVersion, err := detectPostgreSQLVersion()
 	if err != nil {
@@ -101,6 +106,45 @@ func DetectSystemInfo() (*SystemInfo, error) {
 	}
 
 	return info, nil
+}
+
+func detectIPAddresses() []string {
+	var addrs []string
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return addrs
+	}
+
+	for _, iface := range ifaces {
+		if (iface.Flags & net.FlagUp) == 0 {
+			continue // interface down
+		}
+		if (iface.Flags & net.FlagLoopback) != 0 {
+			continue // loopback interface
+		}
+		addrsList, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrsList {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			addrs = append(addrs, ip.String())
+		}
+	}
+	return addrs
 }
 
 // detectTotalMemory detects the total system memory in bytes

@@ -116,6 +116,16 @@ var StartupParams = []string{
 	"ssl",
 }
 
+// Locale-related parameters (applicable to initdb)
+var LocaleParams = []string{
+	"lc_collate",
+	"lc_ctype",
+	"lc_messages",
+	"lc_monetary",
+	"lc_numeric",
+	"lc_time",
+}
+
 func (c Conf) Core() Conf {
 	coreParams := Conf{}
 
@@ -135,17 +145,7 @@ func (c Conf) Core() Conf {
 func (c Conf) ForInitDB() Conf {
 	initdbParams := Conf{}
 
-	// Locale-related parameters (applicable to initdb)
-	localeParams := []string{
-		"lc_collate",
-		"lc_ctype",
-		"lc_messages",
-		"lc_monetary",
-		"lc_numeric",
-		"lc_time",
-	}
-
-	for _, param := range localeParams {
+	for _, param := range LocaleParams {
 		if val, ok := c[param]; ok && val != "" {
 			initdbParams[param] = val
 		}
@@ -157,6 +157,19 @@ func (c Conf) ForInitDB() Conf {
 	}
 
 	return initdbParams
+}
+
+func (c Conf) ForTempServer() Conf {
+	tempServerParams := Conf{}
+
+	for k, v := range c {
+		if lo.Contains(StartupParams, k) {
+			tempServerParams[k] = v
+		}
+	}
+	tempServerParams["listen_addresses"] = ""
+
+	return tempServerParams
 }
 
 // AsInitDBArgs converts initdb-applicable parameters to command-line arguments
