@@ -367,6 +367,7 @@ func (p *Postgres) InitDB() error {
 		"--locale=C",
 		"--encoding=UTF8",
 		"-U", "postgres", // Always use postgres superuser
+		"--no-data-checksums", // if pg17 does not have this enabled, pg17->pg18 migration will fail
 	}
 
 	process := clicky.Exec(filepath.Join(p.BinDir, "initdb"), args...).Run()
