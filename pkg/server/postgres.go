@@ -477,8 +477,8 @@ func (p *Postgres) Upgrade(targetVersion int) error {
 		return nil
 	}
 
-	if currentVersion < 14 || targetVersion > 17 {
-		return fmt.Errorf("invalid version range. Current: %d, Target: %d. Supported versions: 14-17", currentVersion, targetVersion)
+	if currentVersion < 14 || targetVersion > 18 {
+		return fmt.Errorf("invalid version range. Current: %d, Target: %d. Supported versions: 14-18", currentVersion, targetVersion)
 	}
 
 	// Check if data exists
