@@ -9,18 +9,32 @@ output:
 vars:
   CLI_NAME: "postgres-cli"
   GOBIN: '{{.GOBIN | default "$(go env GOPATH)/bin"}}'
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  BUILD_DATE:
+    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
 
 tasks:
   build:
     desc: Build the postgres-cli and install to GOBIN
-
+    vars:
+      GOBIN_PATH:
+        sh: go env GOPATH
+      LDFLAGS: >-
+        -s -w
+        -X 'main.Version={{.VERSION}}'
+        -X 'main.GitCommit={{.GIT_COMMIT}}'
+        -X 'main.BuildDate={{.BUILD_DATE}}'
     cmds:
-      - echo "Building postgres-cli..."
-      - |
-        GOBIN_PATH="$(go env GOPATH)/bin"
-        echo "Installing to: $GOBIN_PATH/{{.CLI_NAME}}"
-        go build -ldflags "-s -w" -o "$GOBIN_PATH/{{.CLI_NAME}}" ./cmd
-      - echo "✅ Built and installed {{.CLI_NAME}} to $(go env GOPATH)/bin"
+      - echo "Building {{.CLI_NAME}} {{.VERSION}} ({{.GIT_COMMIT}})..."
+      - >-
+        go build
+        -ldflags "{{.LDFLAGS}}"
+        -o "{{.GOBIN_PATH}}/bin/{{.CLI_NAME}}"
+        ./cmd
+      - echo "✅ Built and installed {{.CLI_NAME}} to {{.GOBIN_PATH}}/bin"
     method: timestamp
 
   install:

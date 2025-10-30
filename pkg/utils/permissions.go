@@ -74,50 +74,22 @@ func CheckDirectoryPermissions(path string) (*PermissionCheckResult, error) {
 	// Check if directory is writable
 	result.Writable = info.Mode().Perm()&0200 != 0 || result.OwnerUID == currentUID
 
-	// Check for permission mismatches
-	if result.OwnerUID != 999 || result.OwnerGID != 999 {
-		result.ErrorMsg = fmt.Sprintf(
-			"directory is owned by UID %d:GID %d, expected postgres user (999:999)",
-			result.OwnerUID,
-			result.OwnerGID,
-		)
+	if !result.Readable || !result.Writable {
+		result.ErrorMsg = fmt.Sprintf("directory permissions are too restrictive: readable=%t, writable=%t",
+			result.Readable, result.Writable)
 
-		// Generate fix commands
+		// Suggest fix commands
 		if currentUID == 0 {
 			result.FixCommands = []string{
 				fmt.Sprintf("chown -R postgres:postgres %s", path),
-			}
-		} else if currentUID == result.OwnerUID {
-			// User owns the directory but needs to run as root to fix
-			result.FixCommands = []string{
-				fmt.Sprintf("# Directory is owned by current user (UID %d), not postgres (999)", currentUID),
-				fmt.Sprintf("# Option 1: Run container as root to fix permissions, then restart as postgres:"),
-				fmt.Sprintf("docker run --user root -v <volume>:/var/lib/postgresql/data <image>"),
-				fmt.Sprintf(""),
-				fmt.Sprintf("# Option 2: Fix permissions on host (if using bind mount):"),
-				fmt.Sprintf("sudo chown -R 999:999 %s", path),
-				fmt.Sprintf(""),
-				fmt.Sprintf("# Option 3: Use named volume (Docker handles permissions automatically):"),
-				fmt.Sprintf("docker run -v pgdata:/var/lib/postgresql/data <image>"),
+				fmt.Sprintf("chmod -R u+rw %s", path),
 			}
 		} else {
 			result.FixCommands = []string{
-				fmt.Sprintf("# Directory is owned by UID %d, not postgres (999) or current user (%d)", result.OwnerUID, currentUID),
-				fmt.Sprintf("# Option 1: Run container explicitly as root to fix permissions:"),
-				fmt.Sprintf("docker run --user root -v <volume>:/var/lib/postgresql/data <image>"),
-				fmt.Sprintf(""),
-				fmt.Sprintf("# Option 2: Fix permissions from host:"),
-				fmt.Sprintf("docker run --rm --user root -v <volume>:/data alpine chown -R 999:999 /data"),
+				fmt.Sprintf("# Run as root to fix permissions:"),
+				fmt.Sprintf("sudo chown -R 999:999 %s", path),
+				fmt.Sprintf("sudo chmod -R u+rw %s", path),
 			}
-		}
-	} else if currentUID != 999 {
-		result.ErrorMsg = fmt.Sprintf(
-			"running as UID %d, but directory is owned by postgres (999). Container should run as postgres user",
-			currentUID,
-		)
-		result.FixCommands = []string{
-			"# Container is running as wrong user",
-			"# Remove --user flag from docker run command to use default (postgres) user",
 		}
 	}
 

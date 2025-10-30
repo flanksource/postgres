@@ -59,6 +59,7 @@ func (s SensitiveString) Equals(other SensitiveString) bool {
 
 // NewSensitiveString creates a new SensitiveString from a regular string
 func NewSensitiveString(value string) SensitiveString {
+
 	return SensitiveString(value)
 }
 

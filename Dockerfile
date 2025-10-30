@@ -5,6 +5,11 @@
 # Build stage for pgconfig binary
 FROM golang:1.25-bookworm AS pgconfig-builder
 
+# Build arguments for version information
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
 # Copy source code
 WORKDIR /src/postgres
 COPY postgres/go.mod postgres/go.sum ./
@@ -13,10 +18,15 @@ RUN go mod download
 
 COPY postgres/ /src/postgres
 COPY clicky /src/clicky
-# Build pgconfig binary with cache mounts
+# Build pgconfig binary with cache mounts and version info
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=linux go build -o postgres-cli ./cmd
+    CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-s -w \
+      -X 'main.Version=${VERSION}' \
+      -X 'main.GitCommit=${GIT_COMMIT}' \
+      -X 'main.BuildDate=$(date)'" \
+    -o postgres-cli ./cmd
 
 # Main stage
 FROM debian:bookworm-slim

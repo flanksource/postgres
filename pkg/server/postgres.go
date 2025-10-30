@@ -67,6 +67,9 @@ func NewPostgres(config *pkg.PostgresConf, dataDir string) *Postgres {
 }
 
 func (p *Postgres) Validate() error {
+	if !p.Password.IsEmpty() {
+		clicky.RedactSecretValues(p.Password.Value())
+	}
 
 	// Try to auto-detect directories
 	detectedDirs, err := utils.DetectPostgreSQLDirs()
@@ -89,18 +92,7 @@ func (p *Postgres) Validate() error {
 		return fmt.Errorf("postgres binary directory not set")
 	}
 
-	if err := utils.CheckPGDATAPermissions(p.DataDir); err != nil {
-		if permErr, ok := err.(*utils.PermissionError); ok {
-			// Exit with code 126 (permission denied)
-			fmt.Fprintf(os.Stderr, "\n❌ %s\n", permErr.Error())
-			os.Exit(126)
-		}
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("permission check failed: %w", err)
-		}
-	}
-
-	return nil
+	return utils.CheckPGDATAPermissions(p.DataDir)
 }
 
 // Note: For embedded postgres functionality, use pkg/embedded.NewEmbeddedPostgres() instead
@@ -459,7 +451,7 @@ func (p *Postgres) bin(name string, args ...string) *exec.Process {
 	}
 	cmd.Timeout = 10 * time.Second
 
-	return cmd.Debug()
+	return cmd
 }
 
 func WrappedError(err error) exec.WrapperFunc {

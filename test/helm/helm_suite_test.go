@@ -15,13 +15,11 @@ import (
 )
 
 var (
-	kubeconfig   string
-	namespace    string
-	chartPath    string
-	releaseName  string
-	ctx          context.Context
-	testTimeout  = 10 * time.Minute
-	pollInterval = 5 * time.Second
+	kubeconfig  string
+	namespace   string
+	chartPath   string
+	releaseName string
+	ctx         context.Context
 )
 
 var logger commonsLogger.Logger
