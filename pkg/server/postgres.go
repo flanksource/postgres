@@ -706,6 +706,7 @@ func (p *Postgres) initNewCluster(binDir, dataDir string) error {
 		"-D", dataDir,
 		"--encoding=UTF8",
 		"--locale=en_US.UTF-8",
+		"--no-data-checksums", // if pg17 does not have this enabled, pg17->pg18 migration will fail
 	).Run()
 	p.lastStdout = process.Stdout.String()
 	p.lastStderr = process.Stderr.String()
