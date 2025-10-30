@@ -24,7 +24,7 @@ on:
 env:
   GO_VERSION: '1.21'
   IMAGE_NAME: 'postgres-enhanced-test'
-  POSTGRES_VERSION: '17'
+  POSTGRES_VERSION: '18'
 
 jobs:
   build-test-image:
@@ -339,6 +339,10 @@ jobs:
           - { from: "14", to: "17", extensions: "pgvector,pgaudit,pg_cron" }
           - { from: "15", to: "17", extensions: "pgvector,pgsodium,pgjwt" }
           - { from: "16", to: "17", extensions: "pgvector,pg_stat_monitor,pg_net" }
+          - { from: "14", to: "18", extensions: "pgvector,pgaudit,pg_cron" }
+          - { from: "15", to: "18", extensions: "pgvector,pgsodium,pgjwt" }
+          - { from: "16", to: "18", extensions: "pgvector,pg_stat_monitor,pg_net" }
+          - { from: "17", to: "18", extensions: "pgvector,pgaudit,pg_cron" }
     name: Upgrade Tests - PostgreSQL ${{ matrix.upgrade-path.from }} to ${{ matrix.upgrade-path.to }} with extensions
     
     steps:

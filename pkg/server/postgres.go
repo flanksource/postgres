@@ -369,6 +369,11 @@ func (p *Postgres) InitDB() error {
 		"-U", "postgres", // Always use postgres superuser
 	}
 
+	if p.GetVersion() == "18" && false {
+		args = append(args, "--no-data-checksums")
+		// if pg17 does not have this enabled, pg17->pg18 migration will fail
+	}
+
 	process := clicky.Exec(filepath.Join(p.BinDir, "initdb"), args...).Run()
 
 	// Generally no password needed for initdb with trust auth
@@ -477,8 +482,8 @@ func (p *Postgres) Upgrade(targetVersion int) error {
 		return nil
 	}
 
-	if currentVersion < 14 || targetVersion > 17 {
-		return fmt.Errorf("invalid version range. Current: %d, Target: %d. Supported versions: 14-17", currentVersion, targetVersion)
+	if currentVersion < 14 || targetVersion > 18 {
+		return fmt.Errorf("invalid version range. Current: %d, Target: %d. Supported versions: 14-18", currentVersion, targetVersion)
 	}
 
 	// Check if data exists
@@ -589,7 +594,8 @@ func (p *Postgres) upgradeSingle(fromVersion, toVersion int) error {
 
 	// Run pg_upgrade
 	fmt.Printf("⚡ Performing pg_upgrade from PostgreSQL %d to %d...\n", fromVersion, toVersion)
-	if err := p.runPgUpgrade(oldBinDir, newBinDir, p.DataDir, newDataDir); err != nil {
+	link := (fromVersion == 17 && toVersion == 18)
+	if err := p.runPgUpgrade(oldBinDir, newBinDir, p.DataDir, newDataDir, link); err != nil {
 		return fmt.Errorf("pg_upgrade failed: %w", err)
 	}
 
@@ -700,11 +706,17 @@ func (p *Postgres) initNewCluster(binDir, dataDir string) error {
 
 	// Initialize with UTF8 encoding and en_US.UTF-8 locale for compatibility
 	// This matches most common PostgreSQL deployments and allows for upgrade compatibility
-	process := clicky.Exec(
-		filepath.Join(binDir, "initdb"),
+	args := []string{
 		"-D", dataDir,
 		"--encoding=UTF8",
 		"--locale=en_US.UTF-8",
+	}
+	if p.GetVersion() == "18" {
+		args = append(args, "--no-data-checksums") // if pg17 does not have this enabled, pg17->pg18 migration will fail
+	}
+	process := clicky.Exec(
+		filepath.Join(binDir, "initdb"),
+		args...,
 	).Run()
 	p.lastStdout = process.Stdout.String()
 	p.lastStderr = process.Stderr.String()
@@ -717,7 +729,7 @@ func (p *Postgres) initNewCluster(binDir, dataDir string) error {
 }
 
 // runPgUpgrade executes the pg_upgrade command
-func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir string) error {
+func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir string, link bool) error {
 	// Create socket directory
 	socketDir := "/var/run/postgresql"
 	if err := os.MkdirAll(socketDir, 0755); err != nil {
@@ -775,6 +787,10 @@ func (p *Postgres) runPgUpgrade(oldBinDir, newBinDir, oldDataDir, newDataDir str
 		"--socketdir=" + socketDir,
 		"--old-options=" + localeOpts,
 		"--new-options=" + localeOpts,
+	}
+
+	if link {
+		upgradeArgs = append(upgradeArgs, "--link")
 	}
 
 	fmt.Println("Performing upgrade...")

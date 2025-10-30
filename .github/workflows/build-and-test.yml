@@ -89,9 +89,19 @@ jobs:
             test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
           - platform: linux/amd64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
-          # ARM64 test - just one to verify it works
+          - platform: linux/amd64
+            test: { from: 17, to: 18, name: "17 to 18" }
+          - platform: linux/amd64
+            test: { from: 16, to: 18, name: "16 to 18 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 15, to: 18, name: "15 to 18 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 14, to: 18, name: "14 to 18 (full upgrade)" }
+          # ARM64 tests - verify latest versions work
           - platform: linux/arm64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          - platform: linux/arm64
+            test: { from: 14, to: 18, name: "14 to 18 (full upgrade)" }
     name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
     steps:
       - name: Checkout repository
@@ -191,10 +201,28 @@ jobs:
           # Stop streaming logs
           kill $LOGS_PID 2>/dev/null || true
 
-          # Stop and remove container
-          docker stop -t 10 $CONTAINER_ID 2>/dev/null || true
-          docker rm $CONTAINER_ID 2>/dev/null || true
-          exit 0
+          # Check if container exited during the sleep period
+          CONTAINER_STATE=$(docker inspect $CONTAINER_ID --format='{{.State.Status}}')
+          if [ "$CONTAINER_STATE" = "exited" ]; then
+            # Container has exited, check exit code
+            ACTUAL_EXIT_CODE=$(docker inspect $CONTAINER_ID --format='{{.State.ExitCode}}')
+
+            # Clean up container
+            docker rm $CONTAINER_ID 2>/dev/null || true
+
+            # Fail if container exited with non-zero code
+            if [ "$ACTUAL_EXIT_CODE" -ne 0 ]; then
+              echo "Container exited with code $ACTUAL_EXIT_CODE"
+              exit $ACTUAL_EXIT_CODE
+            fi
+
+            echo "Container completed successfully"
+          else
+            # Container is still running, stop and remove it
+            echo "Container still running, stopping gracefully"
+            docker stop -t 10 $CONTAINER_ID 2>/dev/null || true
+            docker rm $CONTAINER_ID 2>/dev/null || true
+          fi
 
       - name: Verify upgraded data
         run: |

@@ -57,12 +57,20 @@ jobs:
             exit 0
           fi
 
-          # Otherwise, determine next patch version using svu
+          # Otherwise, determine next patch version using svu (only for branch pushes)
           CURRENT_VERSION=$(svu current || echo "v0.0.0")
           NEXT_VERSION=$(svu patch)
 
           echo "Current version: $CURRENT_VERSION"
           echo "Next version: $NEXT_VERSION"
+
+          # Validate version is proper semver
+          if [[ ! "$NEXT_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Warning: Generated version '$NEXT_VERSION' is not valid semver, stopping workflow"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "is_new_version=true" >> $GITHUB_OUTPUT
@@ -81,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pg_version: [16, 17]
+        pg_version: [16, 17, 18]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -119,6 +127,7 @@ jobs:
     outputs:
       pg16_version: ${{ steps.versions.outputs.pg16_version }}
       pg17_version: ${{ steps.versions.outputs.pg17_version }}
+      pg18_version: ${{ steps.versions.outputs.pg18_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -133,10 +142,16 @@ jobs:
         with:
           name: postgres-17
 
+      - name: Download PostgreSQL 18 image
+        uses: actions/download-artifact@v4
+        with:
+          name: postgres-18
+
       - name: Load Docker images
         run: |
           docker load < postgres-16.tar
           docker load < postgres-17.tar
+          docker load < postgres-18.tar
 
       - name: Get PostgreSQL versions from built images
         id: versions
@@ -207,6 +222,15 @@ jobs:
             arch: arm64
             platform: linux/arm64
             pg_version: 17
+          # PostgreSQL 18 builds
+          - runner: ubuntu-latest
+            arch: amd64
+            platform: linux/amd64
+            pg_version: 18
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux/arm64
+            pg_version: 18
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -226,8 +250,10 @@ jobs:
         run: |
           if [ "${{ matrix.pg_version }}" = "16" ]; then
             echo "minor_version=${{ needs.get-postgres-versions.outputs.pg16_version }}" >> $GITHUB_OUTPUT
-          else
+          elif [ "${{ matrix.pg_version }}" = "17" ]; then
             echo "minor_version=${{ needs.get-postgres-versions.outputs.pg17_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "minor_version=${{ needs.get-postgres-versions.outputs.pg18_version }}" >> $GITHUB_OUTPUT
           fi
 
           # Extract git tag (remove 'v' prefix if present)
@@ -263,7 +289,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        pg_version: [16, 17]
+        pg_version: [16, 17, 18]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -283,8 +309,10 @@ jobs:
         run: |
           if [ "${{ matrix.pg_version }}" = "16" ]; then
             echo "minor_version=${{ needs.get-postgres-versions.outputs.pg16_version }}" >> $GITHUB_OUTPUT
-          else
+          elif [ "${{ matrix.pg_version }}" = "17" ]; then
             echo "minor_version=${{ needs.get-postgres-versions.outputs.pg17_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "minor_version=${{ needs.get-postgres-versions.outputs.pg18_version }}" >> $GITHUB_OUTPUT
           fi
 
           # Extract git tag (remove 'v' prefix if present)
@@ -317,13 +345,13 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-amd64 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-arm64
 
-      - name: Create and push latest tag for PostgreSQL 17
-        if: matrix.pg_version == '17'
+      - name: Create and push latest tag for PostgreSQL 18
+        if: matrix.pg_version == '18'
         run: |
           docker buildx imagetools create -t \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17-amd64 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17-arm64
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:18-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:18-arm64
 
   create-release:
     needs: [determine-version, build-postgres-cli, merge-manifests, get-postgres-versions]
@@ -345,6 +373,18 @@ jobs:
         run: |
           # Use version from determine-version job
           VERSION="${{ needs.determine-version.outputs.version }}"
+
+          # Validate version is not empty and is proper semver
+          if [[ -z "$VERSION" ]]; then
+            echo "Error: VERSION is empty, skipping release creation"
+            exit 1
+          fi
+
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: VERSION '$VERSION' is not valid semver"
+            exit 1
+          fi
+
           # Remove 'v' prefix if present
           TAG="${VERSION#v}"
           echo "release_tag=$TAG" >> $GITHUB_OUTPUT
@@ -370,7 +410,12 @@ jobs:
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17\` - Latest PostgreSQL 17 major version
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}\` - Specific minor version
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}-${{ steps.versions.outputs.sha_short }}\` - Version with commit SHA
-          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` - Points to PostgreSQL 17
+
+          ### PostgreSQL 18 (Current: ${{ needs.get-postgres-versions.outputs.pg18_version }})
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:18\` - Latest PostgreSQL 18 major version
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg18_version }}\` - Specific minor version
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg18_version }}-${{ steps.versions.outputs.sha_short }}\` - Version with commit SHA
+          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` - Points to PostgreSQL 18
 
           ## Usage
 
@@ -378,7 +423,7 @@ jobs:
           \`\`\`bash
           docker run --rm \\
             -v /path/to/pgdata:/var/lib/postgresql/data \\
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:18
           \`\`\`
 
           ### Upgrade and Start PostgreSQL
@@ -387,20 +432,21 @@ jobs:
             -v /path/to/pgdata:/var/lib/postgresql/data \\
             -e START_POSTGRES=true \\
             -p 5432:5432 \\
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:18
           \`\`\`
 
           ## Supported Upgrade Paths
 
-          - PostgreSQL 14 → 15, 16, 17
-          - PostgreSQL 15 → 16, 17
-          - PostgreSQL 16 → 17
+          - PostgreSQL 14 → 15, 16, 17, 18
+          - PostgreSQL 15 → 16, 17, 18
+          - PostgreSQL 16 → 17, 18
+          - PostgreSQL 17 → 18
 
-          Sequential upgrades are performed automatically (e.g., 14→15→16→17).
+          Sequential upgrades are performed automatically (e.g., 14→15→16→17→18).
 
           ## Environment Variables
 
-          - \`PG_VERSION\`: Target PostgreSQL version (16 or 17)
+          - \`PG_VERSION\`: Target PostgreSQL version (16, 17, or 18)
           - \`START_POSTGRES\`: Start PostgreSQL after upgrade (default: false)
           - \`AUTO_UPGRADE\`: Enable auto-upgrade (default: true)
           - \`RESET_PASSWORD\`: Reset password on startup (default: false)
@@ -470,8 +516,13 @@ jobs:
           PG17_TAG="pg17-${{ needs.get-postgres-versions.outputs.pg17_version }}-${SHA_SHORT}"
           git tag -a "$PG17_TAG" -m "PostgreSQL 17.${{ needs.get-postgres-versions.outputs.pg17_version }} release"
 
+          # PostgreSQL 18 tags
+          PG18_TAG="pg18-${{ needs.get-postgres-versions.outputs.pg18_version }}-${SHA_SHORT}"
+          git tag -a "$PG18_TAG" -m "PostgreSQL 18.${{ needs.get-postgres-versions.outputs.pg18_version }} release"
+
           # Push tags
           git push origin "$PG16_TAG"
           git push origin "$PG17_TAG"
+          git push origin "$PG18_TAG"
 
-          echo "Created tags: $PG16_TAG, $PG17_TAG"
+          echo "Created tags: $PG16_TAG, $PG17_TAG, $PG18_TAG"

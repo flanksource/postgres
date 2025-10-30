@@ -4,14 +4,12 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
       - 'chart/**'
       - '.github/workflows/helm.yml'
   pull_request:
     branches:
       - main
-      - master
     paths:
       - 'chart/**'
       - '.github/workflows/helm.yml'

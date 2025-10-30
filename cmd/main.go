@@ -421,8 +421,8 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 
 		targetVersion := upgradeTo
 		if targetVersion == 0 {
-			// Auto-detect latest available version (default to 17)
-			targetVersion = 17
+			// Auto-detect latest available version (default to 18)
+			targetVersion = 18
 		}
 
 		if currentVersion < targetVersion {
