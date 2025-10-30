@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target_version: ['15', '16', '17']
+        target_version: ['15', '16', '17', '18']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,6 +50,13 @@ jobs:
             17)
               # Test all paths to 17
               make test
+              ;;
+            18)
+              # Test all paths to 18
+              make test-14-to-18
+              make test-15-to-18
+              make test-16-to-18
+              make test-17-to-18
               ;;
           esac
 

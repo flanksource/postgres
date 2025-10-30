@@ -26,8 +26,8 @@ ARG TARGETOS
 ENV TARGETARCH=${TARGETARCH}
 ENV TARGETOS=${TARGETOS}
 
-# Default PostgreSQL version (can be 14, 15, 16, or 17)
-ARG PG_VERSION=17
+# Default PostgreSQL version (can be 14, 15, 16, 17 or 18)
+ARG PG_VERSION=18
 ENV PG_VERSION=${PG_VERSION}
 
 # Labels
@@ -50,21 +50,24 @@ RUN set -eux; \
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
-# Install PostgreSQL versions 14-17 and essential tools
+# Install PostgreSQL versions 14-18 and essential tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         postgresql-14 \
         postgresql-15 \
         postgresql-16 \
         postgresql-17 \
+        postgresql-18 \
         postgresql-client-14 \
         postgresql-client-15 \
         postgresql-client-16 \
         postgresql-client-17 \
+        postgresql-client-18 \
         postgresql-contrib-14 \
         postgresql-contrib-15 \
         postgresql-contrib-16 \
         postgresql-contrib-17 \
+        postgresql-contrib-18 \
         gosu \
         jq \
         curl \
@@ -88,6 +91,7 @@ ENV PG14BIN=/usr/lib/postgresql/14/bin
 ENV PG15BIN=/usr/lib/postgresql/15/bin
 ENV PG16BIN=/usr/lib/postgresql/16/bin
 ENV PG17BIN=/usr/lib/postgresql/17/bin
+ENV PG18BIN=/usr/lib/postgresql/18/bin
 
 # Data directory
 ENV PGDATA=/var/lib/postgresql/data

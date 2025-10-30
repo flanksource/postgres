@@ -79,7 +79,7 @@ task dev-setup
 The upgrade process:
 
 1. **Detection**: Identifies current PostgreSQL version from data directory
-2. **Planning**: Determines upgrade path (e.g., 14→15→16→17)
+2. **Planning**: Determines upgrade path (e.g., 14→15→16→17→18)
 3. **Execution**: Runs pg_upgrade with hard links for efficiency
 4. **Verification**: Validates upgraded database
 5. **Cleanup**: Preserves old data with `.old` suffix
@@ -102,6 +102,7 @@ Extensions are managed through:
 task build-all
 
 # Build specific version
+task build:build-18    # PostgreSQL 18
 task build:build-17    # PostgreSQL 17
 task build:build-16    # PostgreSQL 16
 task build:build-15    # PostgreSQL 15
@@ -160,6 +161,7 @@ task build-all          # Build all version images
 task build:build-15     # PostgreSQL 15 image
 task build:build-16     # PostgreSQL 16 image
 task build:build-17     # PostgreSQL 17 image
+task build:build-18     # PostgreSQL 18 image
 
 # Push to registry
 task build:push-all     # Push all images
@@ -175,9 +177,10 @@ task test-image         # Test Docker image
 task test:all           # Comprehensive test suite
 
 # Specific test paths
-task test:upgrade-14-to-17
-task test:upgrade-15-to-17
-task test:upgrade-16-to-17
+task test:upgrade-14-to-18
+task test:upgrade-15-to-18
+task test:upgrade-16-to-18
+task test:upgrade-17-to-18
 
 # Test management
 task test:seed-all      # Seed test data
@@ -226,6 +229,7 @@ make build              # Build default image
 make build-15           # Build PostgreSQL 15
 make build-16           # Build PostgreSQL 16
 make build-17           # Build PostgreSQL 17
+make build-18           # Build PostgreSQL 18
 make build-all          # Build all versions
 
 # Custom registry
@@ -238,6 +242,7 @@ REGISTRY=myregistry.io IMAGE_TAG=v1.0.0 make build-all
 make push-15            # Push PostgreSQL 15
 make push-16            # Push PostgreSQL 16
 make push-17            # Push PostgreSQL 17
+make push-18            # Push PostgreSQL 18
 make push-all           # Push all images
 
 # Custom registry
@@ -256,9 +261,13 @@ make test-all           # Comprehensive suite
 make test-14-to-15
 make test-14-to-16
 make test-14-to-17
+make test-14-to-18
 make test-15-to-16
 make test-15-to-17
+make test-15-to-18
 make test-16-to-17
+make test-16-to-18
+make test-17-to-18
 ```
 
 ### CLI Commands
@@ -382,8 +391,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        from: [14, 15, 16]
-        to: [15, 16, 17]
+        from: [14, 15, 16, 17]
+        to: [15, 16, 17, 18]
     steps:
       - uses: actions/checkout@v3
       - run: task test:upgrade-${{ matrix.from }}-to-${{ matrix.to }}
@@ -660,7 +669,7 @@ Update documentation for:
 
 1. Add extension to Dockerfile:
 ```dockerfile
-RUN apt-get install -y postgresql-17-newext
+RUN apt-get install -y postgresql-18-newext
 ```
 
 2. Update extension list:

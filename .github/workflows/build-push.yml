@@ -63,8 +63,10 @@ jobs:
             docker tag ${REGISTRY}/${IMAGE_BASE}:to-15-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-15-latest
             docker tag ${REGISTRY}/${IMAGE_BASE}:to-16-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-16-latest
             docker tag ${REGISTRY}/${IMAGE_BASE}:to-17-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-17-latest
-            
+            docker tag ${REGISTRY}/${IMAGE_BASE}:to-18-${IMAGE_TAG} ${REGISTRY}/${IMAGE_BASE}:to-18-latest
+
             docker push ${REGISTRY}/${IMAGE_BASE}:to-15-latest
             docker push ${REGISTRY}/${IMAGE_BASE}:to-16-latest
             docker push ${REGISTRY}/${IMAGE_BASE}:to-17-latest
+            docker push ${REGISTRY}/${IMAGE_BASE}:to-18-latest
           fi

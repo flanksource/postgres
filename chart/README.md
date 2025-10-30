@@ -120,9 +120,10 @@ When `postgresql.autoUpgrade` is enabled (default), the container will:
 
 ### Supported Upgrade Paths
 
-- PostgreSQL 14 → 15, 16, 17
-- PostgreSQL 15 → 16, 17
-- PostgreSQL 16 → 17
+- PostgreSQL 14 → 15, 16, 17, 18
+- PostgreSQL 15 → 16, 17, 18
+- PostgreSQL 16 → 17, 18
+- PostgreSQL 17 → 18
 
 ## Testing
 

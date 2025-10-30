@@ -4,7 +4,7 @@ PostgreSQL distribution with automatic version upgrades, password recovery, perf
 
 ## Key Features
 
-- **Automatic PostgreSQL upgrades** - Handles upgrade paths from 14→15→16→17 using pg_upgrade with hard links
+- **Automatic PostgreSQL upgrades** - Handles upgrade paths from 14→15→16→17→18 using pg_upgrade with hard links
 - **Password recovery** - Reset passwords without data loss using single-user mode in init containers
 - **PgTune auto-configuration** - Calculates optimal settings based on container memory/CPU limits
 - **16 pre-compiled extensions** - pgvector, pgsodium, pgjwt, pgaudit, pg_cron, and more included
@@ -144,13 +144,13 @@ The postgres-cli tool provides intelligent PostgreSQL version upgrades with zero
 ### Upgrade Detection and Planning
 
 1. **Version Detection**: Reads `/var/lib/postgresql/data/PG_VERSION` to identify current version
-2. **Upgrade Path Planning**: Determines sequential upgrade steps (e.g., 14→15→16→17)
+2. **Upgrade Path Planning**: Determines sequential upgrade steps (e.g., 14→15→16→17→18)
 3. **Validation**: Ensures data directory exists and PostgreSQL is stopped
 
 ### Multi-Phase Upgrade Process
 
 ```
-Current Data (v14) → Backup → Sequential Upgrades → Final Version (v17)
+Current Data (v14) → Backup → Sequential Upgrades → Final Version (v18)
                         ↓
                   /backups/data-14 (preserved)
 ```
@@ -163,7 +163,7 @@ The `Postgres.Upgrade()` method in `pkg/server/postgres.go` orchestrates:
    - Excludes recursive backup/upgrade directories
 
 2. **Sequential Version Upgrades** (`upgradeSingle`):
-   - For each version hop (14→15, 15→16, 16→17):
+   - For each version hop (14→15, 15→16, 16→17, 17→18):
      - Validates current cluster with `pg_controldata`
      - Initializes new cluster in `/var/lib/postgresql/data/upgrades/{version}`
      - Runs `pg_upgrade --check` for compatibility verification
@@ -220,8 +220,10 @@ The Docker container orchestrates upgrades through a layered approach:
 
 | Image | Description |
 |-------|-------------|
+| `ghcr.io/flanksource/postgres:18-latest` | PostgreSQL 18 with all extensions |
 | `ghcr.io/flanksource/postgres:17-latest` | PostgreSQL 17 with all extensions |
 | `ghcr.io/flanksource/postgres:16-latest` | PostgreSQL 16 with all extensions |
+| `ghcr.io/flanksource/postgres-upgrade:to-18` | Upgrade-only image to PostgreSQL 18 |
 | `ghcr.io/flanksource/postgres-upgrade:to-17` | Upgrade-only image to PostgreSQL 17 |
 
 ## Automatic Performance Tuning
@@ -297,7 +299,7 @@ docker run --rm \
 
 ```yaml
 database:
-  version: "17"
+  version: "18"
   password: "change-me"
   autoUpgrade: true
   resetPassword: false
@@ -343,7 +345,7 @@ helm install my-postgres flanksource/postgres-upgrade -f values.yaml
 
 ```bash
 helm upgrade my-postgres flanksource/postgres-upgrade \
-  --set database.version=17 \
+  --set database.version=18 \
   --reuse-values
 
 kubectl rollout restart statefulset/my-postgres
@@ -442,9 +444,10 @@ The postgres-cli orchestrates safe, sequential PostgreSQL upgrades with full dat
 
 | From | To | Process | Backup Location |
 |------|-----|---------|-----------------|
-| PostgreSQL 14 | PostgreSQL 17 | Sequential: 14→15→16→17 | `/data/backups/data-14` |
-| PostgreSQL 15 | PostgreSQL 17 | Sequential: 15→16→17 | `/data/backups/data-15` |
-| PostgreSQL 16 | PostgreSQL 17 | Direct: 16→17 | `/data/backups/data-16` |
+| PostgreSQL 14 | PostgreSQL 18 | Sequential: 14→15→16→17→18 | `/data/backups/data-14` |
+| PostgreSQL 15 | PostgreSQL 18 | Sequential: 15→16→17→18 | `/data/backups/data-15` |
+| PostgreSQL 16 | PostgreSQL 18 | Sequential: 16→17→18 | `/data/backups/data-16` |
+| PostgreSQL 17 | PostgreSQL 18 | Direct: 17→18 | `/data/backups/data-17` |
 
 ### Technical Implementation
 
@@ -526,7 +529,7 @@ If an upgrade fails:
 | `POSTGRES_USER` | Database user | `postgres` |
 | `POSTGRES_DB` | Default database | `postgres` |
 | `POSTGRES_EXTENSIONS` | Comma-separated extensions | None |
-| `PG_VERSION` | Target PostgreSQL version | `17` |
+| `PG_VERSION` | Target PostgreSQL version | `18` |
 | `AUTO_UPGRADE` | Enable automatic upgrades | `true` |
 | `RESET_PASSWORD` | Reset password on startup | `false` |
 | `PGBOUNCER_ENABLED` | Enable PgBouncer | `false` |

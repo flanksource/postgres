@@ -89,9 +89,19 @@ jobs:
             test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
           - platform: linux/amd64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
-          # ARM64 test - just one to verify it works
+          - platform: linux/amd64
+            test: { from: 17, to: 18, name: "17 to 18" }
+          - platform: linux/amd64
+            test: { from: 16, to: 18, name: "16 to 18 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 15, to: 18, name: "15 to 18 (multi-step)" }
+          - platform: linux/amd64
+            test: { from: 14, to: 18, name: "14 to 18 (full upgrade)" }
+          # ARM64 tests - verify latest versions work
           - platform: linux/arm64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          - platform: linux/arm64
+            test: { from: 14, to: 18, name: "14 to 18 (full upgrade)" }
     name: Test ${{ matrix.platform }} - ${{ matrix.test.name }}
     steps:
       - name: Checkout repository

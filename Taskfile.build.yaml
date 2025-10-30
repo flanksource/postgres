@@ -11,7 +11,7 @@ vars:
   REGISTRY: '{{.REGISTRY | default "ghcr.io"}}'
   IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres"}}'
   IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
-  TARGET_VERSIONS: [15, 16, 17]
+  TARGET_VERSIONS: [15, 16, 17, 18]
 
 tasks:
   build:
@@ -35,7 +35,7 @@ tasks:
     cmds:
       - for:
           matrix:
-            VERSION: [15, 16, 17]
+            VERSION: [15, 16, 17, 18]
         task: build-version
         vars:
           VERSION: "{{.ITEM.VERSION}}"
@@ -71,6 +71,12 @@ tasks:
     cmds:
       - task: build-version
         vars: { VERSION: "17" }
+
+  build-18:
+    desc: Build image that upgrades to PostgreSQL 18
+    cmds:
+      - task: build-version
+        vars: { VERSION: "18" }
 
   build-all:
     desc: Build all target version images
@@ -109,6 +115,12 @@ tasks:
     cmds:
       - task: push-version
         vars: { VERSION: "17" }
+
+  push-18:
+    desc: Push PostgreSQL 18 upgrade image
+    cmds:
+      - task: push-version
+        vars: { VERSION: "18" }
 
   push-all:
     desc: Push all target version images
