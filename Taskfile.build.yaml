@@ -12,12 +12,24 @@ vars:
   IMAGE_BASE: '{{.IMAGE_BASE | default "flanksource/postgres"}}'
   IMAGE_TAG: '{{.IMAGE_TAG | default "latest"}}'
   TARGET_VERSIONS: [15, 16, 17]
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  BUILD_DATE:
+    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
 
 tasks:
   build:
     desc: Build the flanksource/postgres Docker image
     cmds:
-      - docker build -t {{.IMAGE_NAME}} .
+      - >-
+        docker build
+        --build-arg VERSION={{.VERSION}}
+        --build-arg GIT_COMMIT={{.GIT_COMMIT}}
+        --build-arg BUILD_DATE={{.BUILD_DATE}}
+        -t {{.IMAGE_NAME}}
+        .
     sources:
       - Dockerfile
       - docker-entrypoint.sh
@@ -46,7 +58,15 @@ tasks:
     vars:
       VERSION: "{{.VERSION}}"
     cmds:
-      - docker build --build-arg TARGET_VERSION={{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}} -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}-{{.IMAGE_TAG}} .
+      - >-
+        docker build
+        --build-arg TARGET_VERSION={{.VERSION}}
+        --build-arg VERSION={{.VERSION}}
+        --build-arg GIT_COMMIT={{.GIT_COMMIT}}
+        --build-arg BUILD_DATE={{.BUILD_DATE}}
+        -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}
+        -t {{.REGISTRY}}/{{.IMAGE_BASE}}:to-{{.VERSION}}-{{.IMAGE_TAG}}
+        .
     sources:
       - Dockerfile
       - docker-entrypoint.sh

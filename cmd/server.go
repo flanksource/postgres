@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/clicky"
-	"github.com/flanksource/postgres/pkg/utils"
 )
 
 // createServerCommands creates the server command group
@@ -224,21 +223,20 @@ func createResetPasswordCommand() *cobra.Command {
 		Short: "Reset PostgreSQL password",
 		Long:  "Reset the PostgreSQL superuser password",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			password, _ := cmd.Flags().GetString("password")
-			if password == "" {
+			if postgres.Password.IsEmpty() {
 				return fmt.Errorf("password is required")
 			}
 
-			sensitivePassword := utils.SensitiveString(password)
-			if err := postgres.ResetPassword(sensitivePassword); err != nil {
+			clicky.Infof("Resetting password for user %s", postgres.Username)
+
+			if err := postgres.ResetPassword(postgres.Password); err != nil {
 				return fmt.Errorf("failed to reset password: %w", err)
 			}
 			fmt.Println("Password reset successfully")
 			return nil
 		},
 	}
-	resetPasswordCmd.Flags().StringP("password", "p", "", "New password (required)")
-	resetPasswordCmd.MarkFlagRequired("password")
+
 	return resetPasswordCmd
 }
 

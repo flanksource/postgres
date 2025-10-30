@@ -16,8 +16,6 @@ import (
 	"github.com/flanksource/postgres/pkg/utils"
 )
 
-const version = "1.0.0"
-
 var (
 	postgres server.Postgres
 
@@ -58,17 +56,16 @@ func getPostgresPassword() utils.SensitiveString {
 }
 
 func main() {
+	clicky.Infof(GetVersionInfo())
 	rootCmd := &cobra.Command{
 		Use:   "postgres-cli",
 		Short: "PostgreSQL Management CLI",
 		Long: `A comprehensive CLI tool for managing PostgreSQL servers, generating configurations, and working with schemas.
 This unified tool combines PostgreSQL server management, configuration generation, and schema operations.`,
-		Version: version,
+		Version: Version,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+
 			clicky.Flags.UseFlags()
-			if err := postgres.Validate(); err != nil {
-				return err
-			}
 
 			// Load configuration if specified
 			if configFile != "" {
@@ -88,6 +85,9 @@ This unified tool combines PostgreSQL server management, configuration generatio
 
 			if postgres.Password.IsEmpty() {
 				postgres.Password = getPostgresPassword()
+			}
+			if err := postgres.Validate(); err != nil {
+				return err
 			}
 
 			return nil
@@ -241,8 +241,6 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 
 	// Step 4: Reset password if requested
 	if autoResetPassword {
-		clicky.Infof("🔑 Resetting postgres superuser password from POSTGRES_PASSWORD")
-
 		newPassword := os.Getenv("POSTGRES_PASSWORD")
 		sensitivePassword := utils.NewSensitiveString(newPassword)
 		if err := postgres.ResetPassword(sensitivePassword); err != nil {
@@ -283,8 +281,7 @@ func createVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Show version information",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("postgres-cli version %s\n", version)
-
+			fmt.Println(GetVersionInfo())
 		},
 	}
 }
