@@ -110,7 +110,6 @@ func (s *HealthServer) Start() error {
 	mux.HandleFunc("/config/postgresql.conf", s.handlePostgreSQLConfig)
 	mux.HandleFunc("/config/pgbouncer.ini", s.handlePgBouncerConfig)
 	mux.HandleFunc("/config/postgrest.conf", s.handlePostgRESTConfig)
-	mux.HandleFunc("/config/pg_hba.conf", s.handlePgHBAConfig)
 	mux.HandleFunc("/", s.handleRoot)
 
 	s.server = &http.Server{
@@ -327,16 +326,6 @@ func (s *HealthServer) handlePostgRESTConfig(w http.ResponseWriter, r *http.Requ
 	w.Write([]byte(configContent))
 }
 
-// handlePgHBAConfig returns pg_hba.conf configuration
-func (s *HealthServer) handlePgHBAConfig(w http.ResponseWriter, r *http.Request) {
-	generator := generators.NewPgHBAConfigGenerator(s.SystemInfo)
-	configContent := generator.GenerateConfigFile()
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename=pg_hba.conf")
-	w.Write([]byte(configContent))
-}
-
 // handleRoot provides API documentation
 func (s *HealthServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
@@ -436,13 +425,6 @@ func (s *HealthServer) SaveConfigsToDir(dir string) error {
 	envConfig, _ := restGenerator.GenerateEnvFile()
 	if err := writeConfigFile(filepath.Join(dir, "postgrest.env"), envConfig); err != nil {
 		return fmt.Errorf("failed to write postgrest.env: %w", err)
-	}
-
-	// Generate pg_hba.conf
-	hbaGenerator := generators.NewPgHBAConfigGenerator(s.SystemInfo)
-	hbaConfig := hbaGenerator.GenerateConfigFile()
-	if err := writeConfigFile(filepath.Join(dir, "pg_hba.conf"), hbaConfig); err != nil {
-		return fmt.Errorf("failed to write pg_hba.conf: %w", err)
 	}
 
 	// Generate PostgREST user setup SQL

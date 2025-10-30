@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/flanksource/clicky"
+	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/pgtune"
 	"github.com/flanksource/postgres/pkg/server"
@@ -40,6 +41,22 @@ func getIntVar(name string) int {
 	return result
 }
 
+func getPostgresPassword() utils.SensitiveString {
+	password := os.Getenv("PGPASSWORD")
+	if password != "" {
+		return utils.NewSensitiveString(password)
+	}
+
+	if file := os.Getenv("PGPASSWORD_FILE"); file != "" {
+		content, err := os.ReadFile(file)
+		if err == nil {
+			return utils.NewSensitiveString(string(content))
+		}
+	}
+
+	return utils.NewSensitiveString("")
+}
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "postgres-cli",
@@ -63,16 +80,25 @@ This unified tool combines PostgreSQL server management, configuration generatio
 			} else if postgres.Config == nil {
 				postgres.Config = config.DefaultPostgresConf()
 			}
+
+			password, _ := cmd.Flags().GetString("password")
+			if password != "" {
+				postgres.Password = utils.NewSensitiveString(password)
+			}
+
+			if postgres.Password.IsEmpty() {
+				postgres.Password = getPostgresPassword()
+			}
+
 			return nil
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&postgres.Username, "username", "U", lo.CoalesceOrEmpty(os.Getenv("PG_USER"), "postgres"), "PostgreSQL username")
-	rootCmd.PersistentFlags().StringVarP(&postgres.Password, "password", "W", lo.CoalesceOrEmpty(os.Getenv("PG_PASSWORD"), ""), "PostgreSQL password")
+	rootCmd.PersistentFlags().StringP("password", "W", "", "PostgreSQL password if not specied  PGPASSWORD or PGPASSWORD_FILE env variable")
 	rootCmd.PersistentFlags().StringVarP(&postgres.Database, "database", "d", lo.CoalesceOrEmpty(os.Getenv("PG_DATABASE"), "postgres"), "PostgreSQL database name")
 	rootCmd.PersistentFlags().StringVarP(&postgres.Host, "host", "", lo.CoalesceOrEmpty(os.Getenv("PG_HOST"), "localhost"), "PostgreSQL host")
-	rootCmd.PersistentFlags().IntVarP(&postgres.Port, "port", "p", getIntVar("PG_PORT"), "PostgreSQL port")
-
+	rootCmd.PersistentFlags().IntVarP(&postgres.Port, "port", "p", lo.CoalesceOrEmpty(getIntVar("PG_PORT"), 5432), "PostgreSQL port")
 	rootCmd.PersistentFlags().StringVar(&postgres.DataDir, "data-dir", os.Getenv("PGDATA"), "PostgreSQL data directory (auto-detected if not specified)")
 	rootCmd.PersistentFlags().StringVar(&postgres.BinDir, "bin-dir", "", "PostgreSQL binary directory (auto-detected if not specified)")
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "Configuration file path")
@@ -83,7 +109,7 @@ This unified tool combines PostgreSQL server management, configuration generatio
 	rootCmd.PersistentFlags().IntVar(&opts.MemoryMB, "memory", getIntVar("PG_TUNE_MEMORY"), "Override detected memory in MB for pg_tune")
 	rootCmd.PersistentFlags().IntVar(&opts.Cores, "cpus", getIntVar("PG_TUNE_CPUS"), "Override detected CPU count for pg_tune")
 	rootCmd.PersistentFlags().StringVar(&opts.DBType, "type", "web", "Database type for pg_tune: web, oltp, dw, desktop, mixed")
-	rootCmd.PersistentFlags().StringVar(&authMethod, "auth-method", "trust", "Authentication method for pg_hba.conf (auto-detected if not specified)")
+	rootCmd.PersistentFlags().StringVar(&authMethod, "auth-method", lo.CoalesceOrEmpty(os.Getenv("PG_AUTH_METHOD"), string(pkg.AuthScramSHA)), "Authentication method for pg_hba.conf (auto-detected if not specified)")
 	clicky.BindAllFlags(rootCmd.PersistentFlags())
 
 	// Add command groups
@@ -124,12 +150,11 @@ Examples:
 		RunE: runAutoStart,
 	}
 
-	cmd.Flags().Bool("auto-init", false, "Automatically initialize database if data directory doesn't exist")
-	cmd.Flags().Bool("pg-tune", false, "Run pg_tune to optimize postgresql.conf before starting")
-	cmd.Flags().Bool("auto-upgrade", false, "Automatically upgrade PostgreSQL if version mismatch detected")
-	cmd.Flags().Bool("auto-reset-password", false, "Reset postgres superuser password on start")
+	cmd.Flags().Bool("auto-init", true, "Automatically initialize database if data directory doesn't exist")
+	cmd.Flags().Bool("pg-tune", true, "Run pg_tune to optimize postgresql.conf before starting")
+	cmd.Flags().Bool("auto-upgrade", true, "Automatically upgrade PostgreSQL if version mismatch detected")
+	cmd.Flags().Bool("auto-reset-password", true, "Reset postgres superuser password on start")
 	cmd.Flags().Int("upgrade-to", 0, "Target PostgreSQL version for upgrade (default: auto-detect latest)")
-	cmd.Flags().String("new-password", "", "New password for auto-reset (prompted if not provided)")
 	cmd.Flags().Bool("dry-run", false, "Validate permissions and configuration without making changes")
 
 	return cmd
@@ -150,25 +175,25 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Running as user: %s (UID: %d, GID: %d)\n", username, uid, gid)
 
-	fmt.Println("✅ Permission checks passed")
+	clicky.Infof("✅ Permission checks passed")
 
 	// If dry-run mode, exit successfully
 	if dryRun {
-		fmt.Println("\n✅ Dry-run validation completed successfully")
-		fmt.Println("All permission checks passed. Ready to start PostgreSQL.")
+		clicky.Infof("\n✅ Dry-run validation completed successfully")
+		clicky.Infof("All permission checks passed. Ready to start PostgreSQL.")
 		return nil
 	}
 
 	// Check if already running
 	if postgres.IsRunning() {
-		fmt.Println("PostgreSQL is already running")
+		clicky.Infof("PostgreSQL is already running")
 		return nil
 	}
 
 	// Step 1: Auto-init if data directory doesn't exist
 	if !postgres.Exists() {
 		if autoInit {
-			fmt.Println("🔧 Initializing PostgreSQL database...")
+			clicky.Infof("🔧 Initializing PostgreSQL database...")
 			if err := postgres.InitDB(); err != nil {
 				return fmt.Errorf("failed to initialize database: %w", err)
 			}
@@ -196,7 +221,7 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 			if err := postgres.Upgrade(targetVersion); err != nil {
 				return fmt.Errorf("failed to upgrade PostgreSQL: %w", err)
 			}
-			fmt.Println("✅ PostgreSQL upgrade completed successfully")
+			clicky.Infof("✅ PostgreSQL upgrade completed successfully")
 		} else {
 			fmt.Printf("✅ PostgreSQL is already at version %d (target: %d)\n", currentVersion, targetVersion)
 		}
@@ -204,26 +229,26 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Run pg_tune if requested
 	if opts.Enabled {
-		fmt.Println("🔧 Running pg_tune to optimize configuration...")
+		clicky.Infof("🔧 Running pg_tune to optimize configuration...")
 
 		err := pgtune.OptimizeAndSave(opts)
 		if err != nil {
 			return fmt.Errorf("failed to run pg_tune: %w", err)
 		}
 
-		fmt.Println("✅ Configuration optimized successfully")
+		clicky.Infof("✅ Configuration optimized successfully")
 	}
 
 	// Step 4: Reset password if requested
-	if autoResetPassword && postgres.Password != "" {
-		fmt.Println("🔑 Resetting postgres superuser password from POSTGRES_PASSWORD")
+	if autoResetPassword {
+		clicky.Infof("🔑 Resetting postgres superuser password from POSTGRES_PASSWORD")
 
 		newPassword := os.Getenv("POSTGRES_PASSWORD")
 		sensitivePassword := utils.NewSensitiveString(newPassword)
 		if err := postgres.ResetPassword(sensitivePassword); err != nil {
 			return fmt.Errorf("failed to reset password: %w", err)
 		}
-		fmt.Println("✅ Password reset completed successfully")
+		clicky.Infof("✅ Password reset completed successfully")
 	}
 
 	if createDb != "" {
@@ -243,12 +268,12 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// // Step 5: Start PostgreSQL
-	// fmt.Println("🚀 Starting PostgreSQL...")
+	// clicky.Infof("🚀 Starting PostgreSQL...")
 	// if err := postgres.Start(); err != nil {
 	// 	return fmt.Errorf("failed to start PostgreSQL: %w", err)
 	// }
 
-	fmt.Println("✅ Ready to start")
+	clicky.Infof("✅ Ready to start")
 	return nil
 }
 

@@ -85,38 +85,38 @@ type WalgConf struct {
 	StreamRestoreCommand *string `json:"stream_restore_command,omitempty" yaml:"stream_restore_command,omitempty" jsonschema:"description=Command to restore from streaming backup"`
 }
 
-// PgHBAConfRulesElem represents a pg_hba.conf rule element
-type PgHBAConfRulesElem struct {
-	Type     PgHBAConfRulesElemType   `json:"type,omitempty" yaml:"type,omitempty"`
-	Database string                   `json:"database,omitempty" yaml:"database,omitempty"`
-	User     string                   `json:"user,omitempty" yaml:"user,omitempty"`
-	Address  *string                  `json:"address,omitempty" yaml:"address,omitempty"`
-	Method   PgHBAConfRulesElemMethod `json:"method,omitempty" yaml:"method,omitempty"`
-	Options  map[string]string        `json:"options,omitempty" yaml:"options,omitempty"`
+// PgHBAEntry represents a pg_hba.conf rule element
+type PgHBAEntry struct {
+	Type     ConnectionType    `json:"type,omitempty" yaml:"type,omitempty"`
+	Database string            `json:"database,omitempty" yaml:"database,omitempty"`
+	User     string            `json:"user,omitempty" yaml:"user,omitempty"`
+	Address  string            `json:"address,omitempty" yaml:"address,omitempty"`
+	Method   PgAuthType        `json:"method,omitempty" yaml:"method,omitempty"`
+	Options  map[string]string `json:"options,omitempty" yaml:"options,omitempty"`
 }
 
-// PgHBAConfRulesElemType represents the connection type
-type PgHBAConfRulesElemType string
+// ConnectionType represents the connection type
+type ConnectionType string
 
 const (
-	PgHBAConfRulesElemTypeLocal     PgHBAConfRulesElemType = "local"
-	PgHBAConfRulesElemTypeHost      PgHBAConfRulesElemType = "host"
-	PgHBAConfRulesElemTypeHostSSL   PgHBAConfRulesElemType = "hostssl"
-	PgHBAConfRulesElemTypeHostNoSSL PgHBAConfRulesElemType = "hostnossl"
+	ConnectionTypeLocal ConnectionType = "local"
+	ConnectionTypeHost  ConnectionType = "host"
+	ConnectionTypeSSL   ConnectionType = "hostssl"
+	ConnectionTypeNoSSL ConnectionType = "hostnossl"
 )
 
-// PgHBAConfRulesElemMethod represents the authentication method
-type PgHBAConfRulesElemMethod string
+// PgAuthType represents the authentication method
+type PgAuthType string
 
 const (
-	PgHBAConfRulesElemMethodTrust       PgHBAConfRulesElemMethod = "trust"
-	PgHBAConfRulesElemMethodReject      PgHBAConfRulesElemMethod = "reject"
-	PgHBAConfRulesElemMethodMD5         PgHBAConfRulesElemMethod = "md5"
-	PgHBAConfRulesElemMethodPassword    PgHBAConfRulesElemMethod = "password"
-	PgHBAConfRulesElemMethodScramSHA256 PgHBAConfRulesElemMethod = "scram-sha-256"
-	PgHBAConfRulesElemMethodPeer        PgHBAConfRulesElemMethod = "peer"
-	PgHBAConfRulesElemMethodIdent       PgHBAConfRulesElemMethod = "ident"
-	PgHBAConfRulesElemMethodCert        PgHBAConfRulesElemMethod = "cert"
+	AuthTrust    PgAuthType = "trust"
+	AuthReject   PgAuthType = "reject"
+	AuthMD5      PgAuthType = "md5"
+	AuthPassword PgAuthType = "password"
+	AuthScramSHA PgAuthType = "scram-sha-256"
+	AuthPeer     PgAuthType = "peer"
+	AuthIdent    PgAuthType = "ident"
+	AuthCert     PgAuthType = "cert"
 )
 
 // PGAuditConf represents PGAudit extension configuration

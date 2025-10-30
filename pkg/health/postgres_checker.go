@@ -4,7 +4,7 @@ import "fmt"
 
 // Postgres interface defines the methods needed for PostgreSQL health checking
 type Postgres interface {
-	SQL(query string) ([]map[string]interface{}, error)
+	SQL(query string, args ...any) ([]map[string]interface{}, error)
 }
 
 // PostgreSQLChecker implements health check for PostgreSQL using the service's SQL method

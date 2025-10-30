@@ -36,7 +36,7 @@ type Postgres struct {
 	Host       string
 	Port       int
 	Username   string
-	Password   string
+	Password   utils.SensitiveString
 	Database   string
 }
 
@@ -183,12 +183,6 @@ func (p *Postgres) ensureBinDir() error {
 
 // Health performs a comprehensive health check of the PostgreSQL service
 func (p *Postgres) Health() error {
-	if p == nil {
-		return fmt.Errorf("PostgreSQL service is nil")
-	}
-	if err := p.ensureBinDir(); err != nil {
-		return fmt.Errorf("failed to resolve binary directory: %w", err)
-	}
 
 	// Check if PostgreSQL is running
 	if !p.IsRunning() {
@@ -222,6 +216,11 @@ func (p *Postgres) Health() error {
 	// - Check disk space
 
 	return nil
+}
+
+func (p *Postgres) Ping() error {
+	_, err := p.SQL("SELECT 1")
+	return err
 }
 
 func (p *Postgres) IsRunning() bool {
@@ -298,22 +297,7 @@ func (p *Postgres) Exists() bool {
 	return true
 }
 
-func (p *Postgres) SQL(sqlQuery string) ([]map[string]interface{}, error) {
-	if p == nil {
-		return nil, fmt.Errorf("PostgreSQL service is nil")
-	}
-
-	// Use config values if available
-	if p.Config != nil {
-		if p.Config.ListenAddresses != "" && p.Config.ListenAddresses != "*" {
-			p.Host = p.Config.ListenAddresses
-		}
-		if p.Config.Port != 0 {
-			p.Port = p.Config.Port
-		}
-		// No SuperuserPassword field available in PostgresConf
-	}
-
+func (p *Postgres) GetConnectionString() string {
 	connStr := "sslmode=disable"
 
 	if p.Database != "" {
@@ -333,56 +317,83 @@ func (p *Postgres) SQL(sqlQuery string) ([]map[string]interface{}, error) {
 	}
 
 	if p.Password != "" {
-		connStr += " password=" + p.Password
+		connStr += " password=" + p.Password.Value()
 	}
+	return connStr
+}
 
-	db, err := sql.Open("postgres", connStr)
+func (p *Postgres) GetConnection() (*sql.DB, error) {
+	db, err := sql.Open("postgres", p.GetConnectionString())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
-
 	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	rows, err := db.Query(sqlQuery)
+	return db, nil
+}
+
+func (p *Postgres) WithConnection(fn func(db *sql.DB) error) error {
+	var tempDB *Postgres
+	if !p.IsRunning() {
+		tempDB = p.WithoutAuth()
+		tempDB.Start()
+		defer tempDB.Stop()
+	}
+	db, err := p.GetConnection()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query: %w", err)
+		return err
 	}
-	defer rows.Close()
+	defer db.Close()
 
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get columns: %w", err)
-	}
+	return fn(db)
+}
 
-	var results []map[string]interface{}
+func (p *Postgres) SQL(sqlQuery string, args ...any) ([]map[string]interface{}, error) {
+	results := []map[string]interface{}{}
 
-	for rows.Next() {
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+	if err := p.WithConnection(func(db *sql.DB) error {
 
-		for i := range values {
-			valuePtrs[i] = &values[i]
+		clicky.SQL(sqlQuery)
+		rows, err := db.Query(sqlQuery, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		columns, err := rows.Columns()
+		if err != nil {
+			return fmt.Errorf("failed to get columns: %w", err)
 		}
 
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+		for rows.Next() {
+			values := make([]interface{}, len(columns))
+			valuePtrs := make([]interface{}, len(columns))
+
+			for i := range values {
+				valuePtrs[i] = &values[i]
+			}
+
+			if err := rows.Scan(valuePtrs...); err != nil {
+				return fmt.Errorf("failed to scan row: %w", err)
+			}
+
+			row := make(map[string]interface{})
+			for i, column := range columns {
+				row[column] = values[i]
+			}
+
+			results = append(results, row)
 		}
 
-		row := make(map[string]interface{})
-		for i, column := range columns {
-			row[column] = values[i]
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("error iterating rows: %w", err)
 		}
-
-		results = append(results, row)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
 	return results, nil
 }
 
@@ -461,13 +472,8 @@ func (p *Postgres) CreateDatabase(name string) error {
 		return fmt.Errorf("database name not specified")
 	}
 
-	res := p.bin("createdb", name).Run().Result()
-	if res.Error != nil {
-		return fmt.Errorf("failed to create database '%s': %w", name, res.Error)
-	}
-	fmt.Println(res.Pretty().ANSI())
-
-	return nil
+	_, err := p.SQL("CREATE DATABASE ?", name)
+	return err
 }
 
 type InitDBOptions struct {
@@ -552,7 +558,7 @@ func (p *Postgres) InitDBWithOptions(opts InitDBOptions) error {
 		return fmt.Errorf("initdb failed: %w, output: %s", process.Err, process.Out())
 	}
 
-	fmt.Println("✅ PostgreSQL database initialized successfully")
+	clicky.Infof("✅ PostgreSQL database initialized successfully")
 
 	return nil
 }
@@ -567,21 +573,13 @@ func (p *Postgres) ResetPassword(newPassword utils.SensitiveString) error {
 		return fmt.Errorf("PGUSER not specified")
 	}
 
-	if !p.IsRunning() {
-		p.Start()
-		defer p.Stop()
-	}
-	resetSQL := fmt.Sprintf("ALTER USER %s PASSWORD '%s';", p.Username, newPassword.Value())
-
-	fmt.Printf("🔑 Resetting password for user %s...\n", p.Username)
-
-	psqlProcess, err := p.SQL(resetSQL)
+	psqlProcess, err := p.SQL(fmt.Sprintf("ALTER USER %s PASSWORD '%s'", p.Username, newPassword.Value()))
 	if err != nil {
 		return err
 	}
 	clicky.MustPrint(psqlProcess)
 
-	fmt.Println("✅ Password reset process completed")
+	clicky.Infof("✅ Password reset process completed")
 	return nil
 }
 

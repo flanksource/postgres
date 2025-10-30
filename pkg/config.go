@@ -97,7 +97,6 @@ func LoadConfig(configFile string) (*PgconfigSchemaJson, error) {
 	return &conf, nil
 }
 
-
 // loadSchemaDefaults loads all schema-defined defaults into koanf
 func loadSchemaDefaults(k *koanf.Koanf) error {
 	defaults := utils.GetSchemaDefaults()
@@ -193,7 +192,6 @@ func validateConfiguration(conf *PgconfigSchemaJson) error {
 
 	return nil
 }
-
 
 // validateFileAgainstSchema validates a YAML file directly against the embedded schema
 func validateFileAgainstSchema(configFile string) error {
@@ -467,9 +465,9 @@ func makeDescription(fieldName, koanfPath string) string {
 type Conf = PgconfigSchemaJson
 type PostgreSQLConfiguration = PgconfigSchemaJson
 type PgBouncerIni = PgBouncerConf
-type PostgrestHBA = PgHBAConfRulesElem
-type PostgrestHBAType = PgHBAConfRulesElemType
-type PostgrestHBAMethod = PgHBAConfRulesElemMethod
+type PostgrestHBA = PgHBAEntry
+type PostgrestHBAType = ConnectionType
+type PostgrestHBAMethod = PgAuthType
 
 // Extension configuration
 type ExtensionConfig struct {
