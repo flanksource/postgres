@@ -10,7 +10,7 @@ type mockPostgres struct {
 	shouldFail bool
 }
 
-func (m *mockPostgres) SQL(query string) ([]map[string]interface{}, error) {
+func (m *mockPostgres) SQL(query string, args ...any) ([]map[string]interface{}, error) {
 	if m.shouldFail {
 		return nil, &mockError{"mock postgres error"}
 	}

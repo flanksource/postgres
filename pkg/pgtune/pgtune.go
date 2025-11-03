@@ -1,27 +1,32 @@
 package pgtune
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 
 	"github.com/flanksource/clicky"
 	"github.com/flanksource/clicky/api"
 	"github.com/flanksource/postgres/pkg"
+	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/sysinfo"
-	"github.com/flanksource/postgres/pkg/types"
-	"github.com/flanksource/postgres/pkg/utils"
+	. "github.com/flanksource/postgres/pkg/types"
+	"github.com/samber/lo"
 )
 
 // TuningConfig contains the input parameters for PostgreSQL tuning
 type TuningConfig struct {
-	// SystemInfo contains detected system information
-	SystemInfo *sysinfo.SystemInfo
+	sysinfo.Resources
+
+	PostgreSQLVersion float64
 
 	// MaxConnections is the maximum number of database connections
 	MaxConnections int
 
 	// DBType is the database workload type
 	DBType string
+
+	OSType sysinfo.OSType
 
 	// DiskType overrides detected disk type if specified
 	DiskType *sysinfo.DiskType
@@ -30,40 +35,67 @@ type TuningConfig struct {
 // TunedParameters contains the calculated PostgreSQL parameters
 type TunedParameters struct {
 	// Memory parameters (in KB unless noted)
-	SharedBuffers      uint64 `pretty:"format=bytes"` // shared_buffers
-	EffectiveCacheSize uint64 `pretty:"format=bytes"` // effective_cache_size
-	MaintenanceWorkMem uint64 `pretty:"format=bytes"` // maintenance_work_mem
-	WorkMem            uint64 `pretty:"format=bytes"` // work_mem
+	SharedBuffers      Size `pretty:"format=bytes" json:"shared_buffers,omitempty"`       // shared_buffers
+	EffectiveCacheSize Size `pretty:"format=bytes" json:"effective_cache_size,omitempty"` // effective_cache_size
+	MaintenanceWorkMem Size `pretty:"format=bytes" json:"maintenance_work_mem,omitempty"` // maintenance_work_mem
+	WorkMem            Size `pretty:"format=bytes" json:"work_mem,omitempty"`             // work_mem
 
 	// WAL parameters (in KB unless noted)
-	WalBuffers                 uint64  `pretty:"format=bytes"` // wal_buffers
-	MinWalSize                 uint64  `pretty:"format=bytes"` // min_wal_size
-	MaxWalSize                 uint64  `pretty:"format=bytes"` // max_wal_size
-	CheckpointCompletionTarget float64 // checkpoint_completion_target
+	WalBuffers                 Size    `pretty:"format=bytes" json:"wal_buffers,omitempty"`  // wal_buffers
+	MinWalSize                 Size    `pretty:"format=bytes" json:"min_wal_size,omitempty"` // min_wal_size
+	MaxWalSize                 Size    `pretty:"format=bytes" json:"max_wal_size,omitempty"` // max_wal_size
+	CheckpointCompletionTarget float64 `json:"checkpoint_completion_target,omitempty"`       // checkpoint_completion_target
 
 	// Performance parameters
-	RandomPageCost          float64 // random_page_cost
-	EffectiveIoConcurrency  *int    // effective_io_concurrency (nil if not applicable)
-	DefaultStatisticsTarget int     // default_statistics_target
+	RandomPageCost          float64 `json:"random_page_cost,omitempty"`          // random_page_cost
+	EffectiveIoConcurrency  *int    `json:"effective_io_concurrency,omitempty"`  // effective_io_concurrency (nil if not applicable)
+	DefaultStatisticsTarget int     `json:"default_statistics_target,omitempty"` // default_statistics_target
 
 	// Parallel processing parameters
-	MaxWorkerProcesses            int  // max_worker_processes
-	MaxParallelWorkers            int  // max_parallel_workers (PG 10+)
-	MaxParallelWorkersPerGather   int  // max_parallel_workers_per_gather
-	MaxParallelMaintenanceWorkers *int // max_parallel_maintenance_workers (PG 11+)
+	MaxWorkerProcesses            int  `json:"max_worker_processes,omitempty"`             // max_worker_processes
+	MaxParallelWorkers            int  `json:"max_parallel_workers,omitempty"`             // max_parallel_workers (PG 10+)
+	MaxParallelWorkersPerGather   int  `json:"max_parallel_workers_per_gather,omitempty"`  // max_parallel_workers_per_gather
+	MaxParallelMaintenanceWorkers *int `json:"max_parallel_maintenance_workers,omitempty"` // max_parallel_maintenance_workers (PG 11+)
 
 	// WAL level settings
-	WalLevel      string // wal_level
-	MaxWalSenders *int   // max_wal_senders (set to 0 when wal_level=minimal)
+	WalLevel      string `json:"wal_level,omitempty"`       // wal_level
+	MaxWalSenders *int   `json:"max_wal_senders,omitempty"` // max_wal_senders (set to 0 when wal_level=minimal)
 
 	// Connection parameters
-	MaxConnections int // max_connections
+	MaxConnections int `json:"max_connections,omitempty"` // max_connections
 
 	// Huge pages setting
-	HugePages string // huge_pages
+	HugePages string `json:"huge_pages,omitempty"` // huge_pages
 
 	// Warning messages for memory constraints
-	Warnings []string
+	Warnings []string `json:"warnings,omitempty"`
+}
+
+func (tp TunedParameters) AsConf() (*config.Conf, error) {
+
+	data, err := json.Marshal(tp)
+	if err != nil {
+		return nil, err
+	}
+	m := map[string]any{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	conf := config.Conf{}
+	for k, v := range m {
+		switch val := v.(type) {
+		case float64:
+			if val == math.Trunc(val) {
+				conf[k] = fmt.Sprintf("%.0f", val)
+			} else {
+				conf[k] = fmt.Sprintf("%.2f", val)
+			}
+		default:
+			conf[k] = fmt.Sprintf("%v", val)
+		}
+	}
+
+	return &conf, nil
 }
 
 func (tp TunedParameters) Pretty() api.Text {
@@ -73,51 +105,24 @@ func (tp TunedParameters) Pretty() api.Text {
 }
 
 // Constants for size calculations (in bytes)
-const (
-	KB = 1024
-	MB = 1024 * KB
-	GB = 1024 * MB
-	TB = 1024 * GB
-)
 
 // CalculateOptimalConfig generates optimal PostgreSQL configuration based on system info
 func CalculateOptimalConfig(config *TuningConfig) (*TunedParameters, error) {
-	if config.SystemInfo == nil {
-		return nil, fmt.Errorf("system info is required")
-	}
-
-	if config.MaxConnections <= 0 {
-		return nil, fmt.Errorf("max_connections must be positive")
-	}
-
-	sysInfo := config.SystemInfo
-	totalMemoryKB := sysInfo.TotalMemoryKB()
-
-	if config.SystemInfo.ContainerMemory > 0 {
-		totalMemoryKB = config.SystemInfo.ContainerMemory / KB
-	}
-
-	// Use override disk type if provided
-	diskType := sysInfo.DiskType
-	if config.DiskType != nil {
-		diskType = *config.DiskType
-	}
 
 	params := &TunedParameters{
 		MaxConnections: config.MaxConnections,
 	}
 
 	// Add warnings for extreme memory situations
-	params.addMemoryWarnings(sysInfo.TotalMemoryBytes)
+	params.addMemoryWarnings(config.Mem())
 
 	// Calculate shared_buffers
-	params.SharedBuffers = calculateSharedBuffers(totalMemoryKB, config.DBType, sysInfo.OSType, sysInfo.PostgreSQLVersion)
-
+	params.SharedBuffers = config.Mem() / 4
 	// Calculate effective_cache_size
-	params.EffectiveCacheSize = calculateEffectiveCacheSize(totalMemoryKB, config.DBType)
+	params.EffectiveCacheSize = calculateEffectiveCacheSize(*config)
 
 	// Calculate maintenance_work_mem
-	params.MaintenanceWorkMem = calculateMaintenanceWorkMem(totalMemoryKB, config.DBType, sysInfo.OSType)
+	params.MaintenanceWorkMem = calculateMaintenanceWorkMem(*config)
 
 	// Calculate WAL buffers
 	params.WalBuffers = calculateWalBuffers(params.SharedBuffers)
@@ -129,26 +134,25 @@ func CalculateOptimalConfig(config *TuningConfig) (*TunedParameters, error) {
 	params.CheckpointCompletionTarget = 0.9
 
 	// Calculate disk-related parameters
-	params.RandomPageCost = calculateRandomPageCost(diskType)
-	params.EffectiveIoConcurrency = calculateEffectiveIoConcurrency(sysInfo.OSType, diskType)
+	params.RandomPageCost = 4.0
+	params.EffectiveIoConcurrency = lo.ToPtr(200)
 
 	// Calculate default statistics target
 	params.DefaultStatisticsTarget = calculateDefaultStatisticsTarget(config.DBType)
 
-	// Calculate parallel processing parameters
 	params.MaxWorkerProcesses, params.MaxParallelWorkersPerGather,
 		params.MaxParallelWorkers, params.MaxParallelMaintenanceWorkers =
-		calculateParallelSettings(sysInfo.CPUCount, config.DBType, sysInfo.PostgreSQLVersion)
+		calculateParallelSettings(config.CPUs, config.DBType, config.PostgreSQLVersion)
 
 	// Calculate work_mem (depends on parallel settings)
-	params.WorkMem = calculateWorkMem(totalMemoryKB, params.SharedBuffers, config.MaxConnections,
+	params.WorkMem = calculateWorkMem(config.Mem(), params.SharedBuffers, config.MaxConnections,
 		params.MaxWorkerProcesses, config.DBType)
 
 	// Set WAL level
 	params.WalLevel, params.MaxWalSenders = calculateWalLevel(config.DBType)
 
 	// Set huge pages
-	params.HugePages = calculateHugePages(totalMemoryKB)
+	params.HugePages = calculateHugePages(config.Mem())
 
 	return params, nil
 }
@@ -173,73 +177,33 @@ func ApplyPostProcessors(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) 
 	return nil
 }
 
-// tuningPostProcessor is the default tuning post-processor
-func tuningPostProcessor(pgConf *pkg.PostgresConf, sysInfo *sysinfo.SystemInfo) error {
-	// Create tuning config from the PostgresConf and system info
-	maxConn := 100 // default value
-	if pgConf.MaxConnections != 0 {
-		maxConn = pgConf.MaxConnections
-	}
-	config := &TuningConfig{
-		SystemInfo:     sysInfo,
-		MaxConnections: maxConn,
-		DBType:         sysinfo.DBTypeMixed, // Default to mixed workload
-		DiskType:       nil,                 // Use detected disk type
-	}
-
-	// Calculate optimal parameters
-	params, err := CalculateOptimalConfig(config)
-	if err != nil {
-		return fmt.Errorf("failed to calculate optimal config: %w", err)
-	}
-
-	// Update the PostgresConf model with the calculated values
-	pgConf.MaxConnections = params.MaxConnections
-	pgConf.SharedBuffers = types.Size(utils.KBToBytes(params.SharedBuffers))
-
-	// Only set fields that exist in the new PostgresConf struct
-	// The rest will be handled by the generators when creating config files
-
-	return nil
-}
-
-// init registers the default tuning post-processor
-func init() {
-	RegisterPostProcessor(tuningPostProcessor)
-}
-
-// calculateSharedBuffers calculates optimal shared_buffers value
-func calculateSharedBuffers(totalMemoryKB uint64, dbType string, osType sysinfo.OSType, pgVersion float64) uint64 {
-	return totalMemoryKB / 4
-}
-
 // calculateEffectiveCacheSize calculates optimal effective_cache_size
-func calculateEffectiveCacheSize(totalMemoryKB uint64, dbType string) uint64 {
-	switch dbType {
+func calculateEffectiveCacheSize(t TuningConfig) Size {
+	switch t.DBType {
 	case sysinfo.DBTypeDesktop:
-		return totalMemoryKB / 4 // 1/4 for desktop
+		return t.Resources.Mem() / 4 // 1/4 for desktop
 	default:
-		return (totalMemoryKB * 3) / 4 // 3/4 for web, oltp, dw, mixed
+		return (t.Resources.Mem() * 3) / 4 // 3/4 for web, oltp, dw, mixed
 	}
 }
 
 // calculateMaintenanceWorkMem calculates optimal maintenance_work_mem
-func calculateMaintenanceWorkMem(totalMemoryKB uint64, dbType string, osType sysinfo.OSType) uint64 {
-	var maintenanceMem uint64
+func calculateMaintenanceWorkMem(t TuningConfig) Size {
+	var maintenanceMem Size
 
-	switch dbType {
+	switch t.DBType {
 	case sysinfo.DBTypeDW:
-		maintenanceMem = totalMemoryKB / 8 // 1/8 for data warehouse
+		maintenanceMem = t.Resources.Mem() / 8 // 1/8 for data warehouse
 	default:
-		maintenanceMem = totalMemoryKB / 16 // 1/16 for others
+		maintenanceMem = t.Resources.Mem() / 16 // 1/16 for others
 	}
 
 	// Cap at 2GB
-	maxLimit := uint64(2 * GB / KB)
+	maxLimit := 2 * GB
 	if maintenanceMem >= maxLimit {
-		if osType == sysinfo.OSWindows {
+		if t.OSType == sysinfo.OSWindows {
 			// Windows: 2GB - 1MB to avoid errors
-			maintenanceMem = maxLimit - uint64(1*MB/KB)
+			maintenanceMem = maxLimit - MB
 		} else {
 			maintenanceMem = maxLimit
 		}
@@ -249,14 +213,14 @@ func calculateMaintenanceWorkMem(totalMemoryKB uint64, dbType string, osType sys
 }
 
 // calculateWorkMem calculates optimal work_mem
-func calculateWorkMem(totalMemoryKB, sharedBuffers uint64, maxConnections, maxWorkerProcesses int, dbType string) uint64 {
+func calculateWorkMem(totalMemoryKB, sharedBuffers Size, maxConnections, maxWorkerProcesses int, dbType string) Size {
 	// Formula: (total_memory - shared_buffers) / ((max_connections + max_worker_processes) * 3)
 	availableMemory := totalMemoryKB - sharedBuffers
-	totalProcesses := uint64(maxConnections + maxWorkerProcesses)
+	totalProcesses := maxConnections + maxWorkerProcesses
 
-	baseWorkMem := availableMemory / (totalProcesses * 3)
+	baseWorkMem := availableMemory / Size(totalProcesses*3)
 
-	var workMem uint64
+	var workMem Size
 	switch dbType {
 	case sysinfo.DBTypeDW:
 		workMem = baseWorkMem / 2
@@ -269,94 +233,60 @@ func calculateWorkMem(totalMemoryKB, sharedBuffers uint64, maxConnections, maxWo
 	}
 
 	// Minimum work_mem is 512KB
-	if workMem < 512 {
-		workMem = 512
+	if workMem < 512*KB {
+		workMem = 512 * KB
 	}
 
 	return workMem
 }
 
 // calculateWalBuffers calculates optimal wal_buffers
-func calculateWalBuffers(sharedBuffers uint64) uint64 {
+func calculateWalBuffers(sharedBuffers Size) Size {
 	// 3% of shared_buffers, max 16MB
 	walBuffers := (3 * sharedBuffers) / 100
-	maxWalBuffer := uint64(16 * MB / KB)
+	maxWalBuffer := 16 * MB
 
 	if walBuffers > maxWalBuffer {
 		walBuffers = maxWalBuffer
 	}
 
 	// Round up to 16MB if close (for Windows with 512MB shared_buffers)
-	nearValue := uint64(14 * MB / KB)
+	nearValue := 14 * MB
 	if walBuffers > nearValue && walBuffers < maxWalBuffer {
 		walBuffers = maxWalBuffer
 	}
 
 	// Minimum is 32KB
-	if walBuffers < 32 {
-		walBuffers = 32
+	if walBuffers < MB {
+		walBuffers = MB
 	}
 
 	return walBuffers
 }
 
 // calculateWalSizes calculates min_wal_size and max_wal_size
-func calculateWalSizes(dbType string) (uint64, uint64) {
-	var minWal, maxWal uint64
+func calculateWalSizes(dbType string) (Size, Size) {
+	var minWal, maxWal Size
 
 	switch dbType {
 	case sysinfo.DBTypeWeb:
-		minWal = uint64(1024 * MB / KB) // 1GB
-		maxWal = uint64(4096 * MB / KB) // 4GB
+		minWal = GB
+		maxWal = 4 * GB
 	case sysinfo.DBTypeOLTP:
-		minWal = uint64(2048 * MB / KB) // 2GB
-		maxWal = uint64(8192 * MB / KB) // 8GB
+		minWal = 2 * GB
+		maxWal = 8 * GB
 	case sysinfo.DBTypeDW:
-		minWal = uint64(4096 * MB / KB)  // 4GB
-		maxWal = uint64(16384 * MB / KB) // 16GB
+		minWal = 1 * GB
+		maxWal = 16 * GB
 	case sysinfo.DBTypeDesktop:
-		minWal = uint64(100 * MB / KB)  // 100MB
-		maxWal = uint64(2048 * MB / KB) // 2GB
+		minWal = 64 * MB
+		maxWal = 2 * GB
 	case sysinfo.DBTypeMixed:
-		minWal = uint64(1024 * MB / KB) // 1GB
-		maxWal = uint64(4096 * MB / KB) // 4GB
+		minWal = 1 * GB
+		maxWal = 4 * GB
 	}
 
 	return minWal, maxWal
-}
-
-// calculateRandomPageCost calculates random_page_cost based on disk type
-func calculateRandomPageCost(diskType sysinfo.DiskType) float64 {
-	switch diskType {
-	case sysinfo.DiskHDD:
-		return 4.0
-	case sysinfo.DiskSSD, sysinfo.DiskSAN:
-		return 1.1
-	default:
-		return 1.1 // Default to SSD
-	}
-}
-
-// calculateEffectiveIoConcurrency calculates effective_io_concurrency
-func calculateEffectiveIoConcurrency(osType sysinfo.OSType, diskType sysinfo.DiskType) *int {
-	// Only available on Linux
-	if osType != sysinfo.OSLinux {
-		return nil
-	}
-
-	var concurrency int
-	switch diskType {
-	case sysinfo.DiskHDD:
-		concurrency = 2
-	case sysinfo.DiskSSD:
-		concurrency = 200
-	case sysinfo.DiskSAN:
-		concurrency = 300
-	default:
-		concurrency = 200 // Default to SSD
-	}
-
-	return &concurrency
 }
 
 // calculateDefaultStatisticsTarget calculates default_statistics_target
@@ -388,20 +318,12 @@ func calculateParallelSettings(cpuCount int, dbType string, pgVersion float64) (
 	var maxParallelMaintenanceWorkers *int
 
 	// max_parallel_workers available in PG 10+
-	if pgVersion >= 10 {
-		maxParallelWorkers = cpuCount
-	} else {
-		maxParallelWorkers = 8 // Default for older versions
+	maxParallelWorkers = cpuCount
+	parallelMaintenance := int(math.Ceil(float64(cpuCount) / 2))
+	if parallelMaintenance > 4 {
+		parallelMaintenance = 4
 	}
-
-	// max_parallel_maintenance_workers available in PG 11+
-	if pgVersion >= 11 {
-		parallelMaintenance := int(math.Ceil(float64(cpuCount) / 2))
-		if parallelMaintenance > 4 {
-			parallelMaintenance = 4
-		}
-		maxParallelMaintenanceWorkers = &parallelMaintenance
-	}
+	maxParallelMaintenanceWorkers = &parallelMaintenance
 
 	return maxWorkerProcesses, workersPerGather, maxParallelWorkers, maxParallelMaintenanceWorkers
 }
@@ -419,16 +341,16 @@ func calculateWalLevel(dbType string) (string, *int) {
 }
 
 // calculateHugePages calculates huge_pages setting
-func calculateHugePages(totalMemoryKB uint64) string {
+func calculateHugePages(totalMemoryKB Size) string {
 	// Enable huge pages for systems with 32GB+ memory
-	if totalMemoryKB >= uint64(32*GB/KB) {
+	if totalMemoryKB > 32*GB {
 		return "try"
 	}
 	return "off"
 }
 
 // addMemoryWarnings adds warnings for extreme memory situations
-func (tp *TunedParameters) addMemoryWarnings(totalMemoryBytes uint64) {
+func (tp *TunedParameters) addMemoryWarnings(totalMemoryBytes Size) {
 	if totalMemoryBytes < 256*MB {
 		tp.Warnings = append(tp.Warnings,
 			"WARNING: This tool is not optimal for low memory systems (< 256MB)")
@@ -438,17 +360,6 @@ func (tp *TunedParameters) addMemoryWarnings(totalMemoryBytes uint64) {
 		tp.Warnings = append(tp.Warnings,
 			"WARNING: This tool is not optimal for very high memory systems (> 100GB)")
 	}
-}
-
-// FormatAsKB formats a value in KB as a PostgreSQL configuration value
-func (tp *TunedParameters) FormatAsKB(valueKB uint64) string {
-	if valueKB >= GB/KB {
-		return fmt.Sprintf("%dGB", valueKB/(GB/KB))
-	}
-	if valueKB >= MB/KB {
-		return fmt.Sprintf("%dMB", valueKB/(MB/KB))
-	}
-	return fmt.Sprintf("%dkB", valueKB)
 }
 
 // GetRecommendedMaxConnections returns recommended max_connections based on DB type
