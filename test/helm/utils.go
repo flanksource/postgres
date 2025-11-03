@@ -94,8 +94,15 @@ func waitForClusterReady() error {
 func loadDockerImages() error {
 	fmt.Printf("Loading Docker Images into Kind\n")
 
+	// Tag flanksource/postgres:latest with the ghcr.io registry prefix to match helm chart
+	fmt.Printf("Tagging flanksource/postgres:latest as ghcr.io/flanksource/postgres:17\n")
+	tagCmd := exec.Command("docker", "tag", "flanksource/postgres:latest", "ghcr.io/flanksource/postgres:17")
+	if err := tagCmd.Run(); err != nil {
+		fmt.Printf("Warning: Could not tag flanksource/postgres:latest\n")
+	}
+
 	images := []string{
-		"flanksource/postgres:latest",
+		"ghcr.io/flanksource/postgres:17",
 		"postgres:14-bookworm",
 		"postgres:15-bookworm",
 		"postgres:16-bookworm",
@@ -105,16 +112,18 @@ func loadDockerImages() error {
 	for i, image := range images {
 		fmt.Printf("[%d/%d] Processing image: %s\n", i+1, len(images), image)
 
-		// First try to pull the image
-		fmt.Printf("Attempting to pull image...\n")
-		cmd := exec.Command("docker", "pull", image)
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("Warning: Could not pull image %s (may use local)\n", image)
+		// First try to pull the image unless it's our local flanksource image
+		if !strings.Contains(image, "flanksource/postgres") {
+			fmt.Printf("Attempting to pull image...\n")
+			cmd := exec.Command("docker", "pull", image)
+			if err := cmd.Run(); err != nil {
+				fmt.Printf("Warning: Could not pull image %s (may use local)\n", image)
+			}
 		}
 
 		// Load into kind
 		fmt.Printf("Loading image into kind cluster...\n")
-		cmd = exec.Command("kind", "load", "docker-image", image, "--name", "postgres-test")
+		cmd := exec.Command("kind", "load", "docker-image", image, "--name", "postgres-test")
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("Warning: Could not load image %s into kind\n", image)
 		} else {
@@ -156,4 +165,76 @@ func helmDelete(releaseName, namespace string) error {
 		Delete()
 
 	return chart.Error()
+}
+
+// printPodLogs prints logs for all pods matching the label selector
+func printPodLogs(namespace, labelSelector string) {
+	// Get pod names
+	cmd := exec.Command("kubectl", "get", "pods", "-n", namespace, "-l", labelSelector, "-o", "name")
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("Failed to get pods: %v\n", err)
+		return
+	}
+
+	pods := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, pod := range pods {
+		if pod == "" {
+			continue
+		}
+		podName := strings.TrimPrefix(pod, "pod/")
+
+		fmt.Printf("\n========================================\n")
+		fmt.Printf("Pod: %s\n", podName)
+		fmt.Printf("========================================\n")
+
+		// Get pod description
+		fmt.Printf("\n--- Pod Description ---\n")
+		descCmd := exec.Command("kubectl", "describe", "pod", podName, "-n", namespace)
+		descOutput, _ := descCmd.CombinedOutput()
+		fmt.Printf("%s\n", descOutput)
+
+		// Get pod logs for all containers
+		containersCmd := exec.Command("kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.spec.containers[*].name}")
+		containersOutput, err := containersCmd.Output()
+		if err != nil {
+			fmt.Printf("Failed to get containers for pod %s: %v\n", podName, err)
+			continue
+		}
+
+		containers := strings.Split(strings.TrimSpace(string(containersOutput)), " ")
+		for _, container := range containers {
+			if container == "" {
+				continue
+			}
+			fmt.Printf("\n--- Container: %s (current) ---\n", container)
+			logsCmd := exec.Command("kubectl", "logs", podName, "-n", namespace, "-c", container, "--tail=100")
+			logsOutput, _ := logsCmd.CombinedOutput()
+			fmt.Printf("%s\n", logsOutput)
+		}
+
+		// Get init container logs
+		initContainersCmd := exec.Command("kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.spec.initContainers[*].name}")
+		initContainersOutput, err := initContainersCmd.Output()
+		if err == nil {
+			initContainers := strings.Split(strings.TrimSpace(string(initContainersOutput)), " ")
+			for _, container := range initContainers {
+				if container == "" {
+					continue
+				}
+				fmt.Printf("\n--- Init Container: %s ---\n", container)
+				logsCmd := exec.Command("kubectl", "logs", podName, "-n", namespace, "-c", container, "--tail=100")
+				logsOutput, _ := logsCmd.CombinedOutput()
+				fmt.Printf("%s\n", logsOutput)
+
+				// Also try to get previous logs if the container failed
+				fmt.Printf("\n--- Init Container: %s (previous) ---\n", container)
+				prevLogsCmd := exec.Command("kubectl", "logs", podName, "-n", namespace, "-c", container, "--previous", "--tail=100")
+				prevLogsOutput, _ := prevLogsCmd.CombinedOutput()
+				if len(prevLogsOutput) > 0 {
+					fmt.Printf("%s\n", prevLogsOutput)
+				}
+			}
+		}
+	}
 }

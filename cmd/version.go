@@ -16,9 +16,17 @@ var (
 
 // GetVersionInfo returns formatted version information
 func GetVersionInfo() string {
-	return fmt.Sprintf(`postgres-cli version: %s
-Git commit: %s
-Build date: %s
-Go version: %s
-OS/Arch: %s/%s`, Version, GitCommit, BuildDate, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	// Shorten git commit to first 7 chars
+	shortCommit := GitCommit
+	if len(shortCommit) > 7 {
+		shortCommit = shortCommit[:7]
+	}
+
+	return fmt.Sprintf("postgres-cli v%s (git:%s, built:%s, %s, %s/%s)",
+		Version,
+		shortCommit,
+		BuildDate,
+		runtime.Version(),
+		runtime.GOOS,
+		runtime.GOARCH)
 }
