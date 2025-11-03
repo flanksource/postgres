@@ -59,28 +59,38 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "postgres.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           command:
             - docker-entrypoint.sh
             {{- range $k, $v := .Values.conf }}
             - '--{{ $k }}={{ $v }}'
             {{- end }}
           env:
+            - name: UPGRADE_ONLY
+              value: "true"
+            - name: POSTGRES_CLI_ARGS
+              value: {{ .Values.postgresCliArgs | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data
             - name: PG_VERSION
               value: {{ .Values.version | quote }}
-            - name: UPGRADE_ONLY
-              value: "true"
             - name: POSTGRES_DB
               value: {{ .Values.database.name | quote }}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $secretName }}
-                  key: {{ .Values.passwordRef.key }}
+            - name: POSTGRES_USER
+              value: {{ .Values.database.username | quote }}
+            - name: POSTGRES_PASSWORD_FILE
+              value: /etc/postgresql/password/{{ .Values.passwordRef.key }}
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: password
+              mountPath: /etc/postgresql/password
+              readOnly: true
       {{- end }}
       containers:
         - name: postgresql
@@ -98,6 +108,8 @@ spec:
               containerPort: 5432
               protocol: TCP
           env:
+            - name: POSTGRES_CLI_ARGS
+              value: {{ .Values.postgresCliArgs | quote }}
             - name: PGDATA
               value: /var/lib/postgresql/data
             - name: PG_VERSION
@@ -106,11 +118,8 @@ spec:
               value: {{ .Values.database.name | quote }}
             - name: POSTGRES_USER
               value: {{ .Values.database.username | quote }}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $secretName }}
-                  key: {{ .Values.passwordRef.key }}
+            - name: POSTGRES_PASSWORD_FILE
+              value: /etc/postgresql/password/{{ .Values.passwordRef.key }}
             {{- range .Values.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
@@ -153,7 +162,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-
+            - name: password
+              mountPath: /etc/postgresql/password
+              readOnly: true
             - name: dshm
               mountPath: /dev/shm
             {{- if or .Values.conf .Values.custom_conf }}
@@ -165,10 +176,14 @@ spec:
             - {{- toYaml . | nindent 14 }}
             {{- end }}
       volumes:
+        - name: password
+          secret:
+            secretName: {{ $secretName }}
+            defaultMode: 0400
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 1Gi
+            sizeLimit: {{.Values.dshmSize | default "64Mi" }}
         {{- if or .Values.conf .Values.custom_conf }}
         - name: config
           configMap:
