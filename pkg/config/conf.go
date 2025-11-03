@@ -1,9 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/flanksource/clicky/api"
 	"github.com/samber/lo"
 )
 
@@ -31,32 +34,137 @@ type ConfigSetting struct {
 	PendingRestart bool     `json:"pending_restart,omitempty"`
 }
 
+func (cs ConfigSetting) GetInt() (int, error) {
+	unit := 1
+
+	if cs.Unit != nil {
+		switch *cs.Unit {
+		case "8kb":
+			unit = 8 * 1024
+		case "kB", "KB":
+			unit = KB
+		case "MB":
+			unit = MB
+		case "GB":
+			unit = GB
+		}
+	}
+
+	num, err := strconv.Atoi(cs.Setting)
+	if err != nil {
+		return 0, err
+	}
+	return num * unit, nil
+}
+
+var KB = 1024
+var MB = 1024 * KB
+var GB = 1024 * MB
+
+func (cs ConfigSetting) IsBytes() bool {
+	if cs.Unit == nil {
+		return false
+	}
+	switch *cs.Unit {
+	case "8kb", "kB", "MB", "GB", "KB":
+		return true
+	}
+	return false
+}
+
+func (cs ConfigSetting) String() string {
+	if cs.IsBytes() {
+		val, err := cs.GetInt()
+		if err != nil {
+			return cs.Setting
+		}
+
+		if val%GB == 0 && val >= GB {
+			return fmt.Sprintf("%dGB", val/GB)
+		} else if val >= MB && val%MB == 0 {
+			return fmt.Sprintf("%dMB", val/MB)
+		}
+		return fmt.Sprintf("%dkB", val/KB)
+	}
+
+	return cs.Setting
+}
+
+func (cs ConfigSetting) GetBool() (bool, error) {
+	if cs.Setting == "" {
+		return false, nil
+	}
+	switch strings.ToLower(cs.Setting) {
+	case "on", "true", "yes":
+		return true, nil
+	case "off", "false", "no":
+		return false, nil
+	}
+	return false, fmt.Errorf("Uknown bool type: %s", cs.Setting)
+}
+
 // ConfSettings is a map of configuration parameter names to their full settings
 type ConfSettings []ConfigSetting
 
-// ToMap converts ConfSettings to a simple map of name->setting values
-func (cs ConfSettings) ToMap() Conf {
+func (cs ConfSettings) AsMap() map[string]ConfigSetting {
+	result := map[string]ConfigSetting{}
+	for _, setting := range cs {
+		result[setting.Name] = setting
+	}
+	return result
+}
+
+func (cs ConfSettings) Pretty() api.Text {
+	t := api.Text{}
+	keys := lo.Keys(cs.AsMap())
+	sort.StringSlice(keys).Sort()
+	for _, name := range keys {
+		setting := cs.AsMap()[name]
+
+		t = t.Append(setting.Name).Append("=", "text-muted").Append(setting.String(), "bold").Append(" #", "text-muted")
+		if setting.Unit != nil {
+			t = t.Append(setting.Setting, "text-muted").Space().Append(*setting.Unit, "text-muted")
+		}
+		t = t.Append("@ source: "+setting.Source, "text-muted")
+
+		t = t.NewLine()
+	}
+	return t
+}
+
+// ToConf converts ConfSettings to a simple map of name->setting values
+func (cs ConfSettings) ToConf() Conf {
 	result := Conf{}
 	for _, setting := range cs {
-		result[setting.Name] = setting.Setting
+		if setting.Setting == "" {
+			continue
+		}
+		result[setting.Name] = setting.String()
 	}
+	return result
+}
+
+func (c Conf) Sorted() []struct{ Key, Value string } {
+	var result []struct{ Key, Value string }
+	for k, v := range c {
+		if v == "" {
+			continue
+		}
+		result = append(result, struct{ Key, Value string }{Key: k, Value: v})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Key < result[j].Key
+	})
 	return result
 }
 
 func (c Conf) AsArgs() []string {
 	args := []string{}
-	// sort keys for consistent output
-	keys := lo.Keys(c)
-	sort.StringSlice(keys).Sort()
-	for _, k := range keys {
-		v := c[k]
-		if v == "" {
-			continue
+	for _, e := range c.Sorted() {
+		if strings.ContainsAny(e.Value, " ") {
+			e.Value = "'" + e.Value + "'"
 		}
-		if strings.ContainsAny(v, " ") {
-			v = "'" + v + "'"
-		}
-		args = append(args, " --"+k+"="+v)
+		args = append(args, " --"+e.Key+"="+e.Value)
 	}
 	return args
 }
@@ -74,8 +182,9 @@ func (c Conf) MergeFrom(other Conf) Conf {
 
 func (c Conf) AsFile() string {
 	var sb strings.Builder
-	for k, v := range c {
-		sb.WriteString(k + " = " + v + "\n")
+
+	for _, e := range c.Sorted() {
+		sb.WriteString(e.Key + " = " + e.Value + "\n")
 	}
 
 	return sb.String()

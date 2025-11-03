@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flanksource/clicky"
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/extensions"
 	"github.com/flanksource/postgres/pkg/generators"
@@ -52,44 +53,6 @@ func NewHealthServer(port int, configDir string) *HealthServer {
 
 // Start starts the health check server
 func (s *HealthServer) Start() error {
-	// Detect system information
-	sysInfo, err := sysinfo.DetectSystemInfo()
-	if err != nil {
-		log.Printf("Warning: Could not detect system info: %v", err)
-		// Create minimal system info for server to work
-		sysInfo = &sysinfo.SystemInfo{
-			TotalMemoryBytes:  4 * 1024 * 1024 * 1024, // 4GB default
-			CPUCount:          4,
-			OSType:            sysinfo.OSLinux,
-			PostgreSQLVersion: 17.0,
-			DiskType:          sysinfo.DiskSSD,
-		}
-	}
-	s.SystemInfo = sysInfo
-
-	// Set up default configuration if not already set
-	if s.TunedParams == nil {
-		if s.MaxConn == 0 {
-			s.MaxConn = pgtune.GetRecommendedMaxConnections(sysinfo.DBTypeWeb)
-		}
-		if s.DBType == "" {
-			s.DBType = sysinfo.DBTypeWeb
-		}
-
-		// Generate tuned parameters
-		tuningConfig := &pgtune.TuningConfig{
-			SystemInfo:     sysInfo,
-			MaxConnections: s.MaxConn,
-			DBType:         s.DBType,
-		}
-
-		params, err := pgtune.CalculateOptimalConfig(tuningConfig)
-		if err != nil {
-			log.Printf("Warning: Could not calculate optimal config: %v", err)
-		} else {
-			s.TunedParams = params
-		}
-	}
 
 	// Initialize health checker if not already set
 	if s.healthChecker == nil {
@@ -121,7 +84,6 @@ func (s *HealthServer) Start() error {
 	}
 
 	log.Printf("Starting health check server on port %d", s.Port)
-	log.Printf("System: %s", s.SystemInfo.String())
 
 	// Start the health checker
 	if s.healthChecker != nil {
@@ -200,35 +162,9 @@ func (s *HealthServer) handleLive(w http.ResponseWriter, r *http.Request) {
 
 // handleInfo returns system and version information
 func (s *HealthServer) handleInfo(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"system": map[string]interface{}{
-			"os_type":            s.SystemInfo.OSType,
-			"total_memory_gb":    s.SystemInfo.TotalMemoryGB(),
-			"total_memory_bytes": s.SystemInfo.TotalMemoryBytes,
-			"cpu_count":          s.SystemInfo.CPUCount,
-			"disk_type":          s.SystemInfo.DiskType,
-		},
-		"postgresql": map[string]interface{}{
-			"version": s.SystemInfo.PostgreSQLVersion,
-		},
-		"configuration": map[string]interface{}{
-			"max_connections": s.MaxConn,
-			"db_type":         s.DBType,
-		},
-		"server": map[string]interface{}{
-			"start_time": s.startTime.Unix(),
-			"uptime":     time.Since(s.startTime).Seconds(),
-			"version":    "1.0.0", // TODO: Get from build info
-		},
-		"timestamp": time.Now().Unix(),
-	}
-
-	if s.TunedParams != nil && len(s.TunedParams.Warnings) > 0 {
-		response["warnings"] = s.TunedParams.Warnings
-	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	w.Write([]byte(clicky.MustFormat(s.SystemInfo, clicky.FormatOptions{JSON: true})))
 }
 
 // handleConfig returns current configuration summary
@@ -241,7 +177,7 @@ func (s *HealthServer) handleConfig(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"system": map[string]interface{}{
 			"total_memory_gb": s.SystemInfo.TotalMemoryGB(),
-			"cpu_count":       s.SystemInfo.CPUCount,
+			"cpu_count":       s.SystemInfo.EffectiveCPUCount(),
 			"os_type":         s.SystemInfo.OSType,
 			"disk_type":       s.SystemInfo.DiskType,
 		},
@@ -347,7 +283,7 @@ func (s *HealthServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 		},
 		"system": map[string]interface{}{
 			"detected_memory_gb": s.SystemInfo.TotalMemoryGB(),
-			"detected_cpus":      s.SystemInfo.CPUCount,
+			"detected_cpus":      s.SystemInfo.EffectiveCPUCount(),
 			"detected_os":        s.SystemInfo.OSType,
 			"detected_disk_type": s.SystemInfo.DiskType,
 			"postgresql_version": s.SystemInfo.PostgreSQLVersion,
@@ -361,37 +297,6 @@ func (s *HealthServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(response)
-}
-
-// ConfigFromFile loads configuration from files in the config directory
-func (s *HealthServer) ConfigFromFile(maxConn int, dbType string) error {
-	// This would load existing configuration files if they exist
-	// For now, we'll just set the parameters and generate new config
-	s.MaxConn = maxConn
-	s.DBType = dbType
-
-	if s.SystemInfo == nil {
-		sysInfo, err := sysinfo.DetectSystemInfo()
-		if err != nil {
-			return fmt.Errorf("failed to detect system info: %w", err)
-		}
-		s.SystemInfo = sysInfo
-	}
-
-	// Generate tuned parameters
-	tuningConfig := &pgtune.TuningConfig{
-		SystemInfo:     s.SystemInfo,
-		MaxConnections: maxConn,
-		DBType:         dbType,
-	}
-
-	params, err := pgtune.CalculateOptimalConfig(tuningConfig)
-	if err != nil {
-		return fmt.Errorf("failed to calculate optimal config: %w", err)
-	}
-
-	s.TunedParams = params
-	return nil
 }
 
 // SaveConfigsToDir saves all configuration files to the specified directory

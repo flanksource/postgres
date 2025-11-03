@@ -32,25 +32,6 @@ func DefaultPostgresConf() *pkg.PostgresConf {
 	}
 }
 
-func LoadFromCSV(records []map[string]any) (Conf, error) {
-
-	conf := Conf{}
-
-	for _, record := range records {
-		name := strings.TrimSpace(fmt.Sprintf("%v", record["name"]))
-		value := strings.TrimSpace(fmt.Sprintf("%v", record["setting"]))
-
-		// Skip empty values
-		if name == "" || value == "" {
-			continue
-		}
-
-		conf[name] = value
-	}
-
-	return conf, nil
-}
-
 // LoadSettingsFromQuery parses pg_settings query results into ConfSettings
 func LoadSettingsFromQuery(records []map[string]any) (ConfSettings, error) {
 	settings := ConfSettings{}

@@ -38,6 +38,7 @@ type Postgres struct {
 	Username   string
 	Password   utils.SensitiveString
 	Database   string
+	DryRun     bool
 }
 
 func (p *Postgres) WithoutAuth() *Postgres {
@@ -55,6 +56,16 @@ func (p *Postgres) WithoutAuth() *Postgres {
 type ExtensionInfo = pkg.ExtensionInfo
 type ValidationError = pkg.ValidationError
 
+func NewRemotePostgres(host string, port int, username, password, database string) *Postgres {
+	return &Postgres{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: utils.NewSensitiveString(password),
+		Database: database,
+	}
+}
+
 // NewPostgres creates a new PostgreSQL service instance
 func NewPostgres(config *pkg.PostgresConf, dataDir string) *Postgres {
 	return &Postgres{
@@ -64,6 +75,10 @@ func NewPostgres(config *pkg.PostgresConf, dataDir string) *Postgres {
 		Locale:   "C",
 		Encoding: "UTF8",
 	}
+}
+
+func (p *Postgres) IsRemote() bool {
+	return p.Host != "" && p.Port != 0 && p.DataDir == ""
 }
 
 func (p *Postgres) Validate() error {
@@ -271,6 +286,21 @@ func (p *Postgres) GetVersion() PGVersion {
 	return PGVersion(matches[1])
 }
 
+// GetFullVersion returns the full PostgreSQL version string
+// Example: "PostgreSQL 17.5 (Debian 17.5-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by..."
+func (p *Postgres) GetFullVersion() string {
+	if err := p.ensureBinDir(); err != nil {
+		return ""
+	}
+
+	process := clicky.Exec(filepath.Join(p.BinDir, "postgres"), "--version").Run()
+	if process.Err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(process.GetStdout())
+}
+
 func (p *Postgres) Exists() bool {
 	if p.DataDir == "" {
 		return false
@@ -328,7 +358,7 @@ func (p *Postgres) GetConnection() (*sql.DB, error) {
 
 func (p *Postgres) WithConnection(fn func(db *sql.DB) error) error {
 	var tempDB *Postgres
-	if !p.IsRunning() {
+	if !p.IsRemote() && !p.IsRunning() {
 		tempDB = p.WithoutAuth()
 		tempDB.Start()
 		defer tempDB.Stop()
@@ -421,6 +451,11 @@ func (p *Postgres) Backup() error {
 		"--no-password",
 	}
 
+	if p.DryRun {
+		clicky.Infof("Dry run enabled, skipping backup execution. Command: pg_dump %s", strings.Join(args, " "))
+		return nil
+	}
+
 	process := clicky.Exec(filepath.Join(p.BinDir, "pg_dump"), args...).Run()
 
 	// Only set password for non-localhost connections or if explicitly provided
@@ -464,6 +499,11 @@ func (p *Postgres) CreateDatabase(name string) error {
 		return fmt.Errorf("database name not specified")
 	}
 
+	fmt.Printf("🛠️  Ensuring database '%s' exists...\n", name)
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] skipping database creation for '%s'", name)
+		return nil
+	}
 	_, err := p.SQL("CREATE DATABASE ?", name)
 	return err
 }
@@ -541,6 +581,13 @@ func (p *Postgres) InitDBWithOptions(opts InitDBOptions) error {
 		args = append(args, additionalArgs...)
 	}
 
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] initdb %s", strings.Join(args, " "))
+		return nil
+	}
+
+	clicky.Infof("🔧 Initializing PostgreSQL database...")
+
 	process := clicky.Exec(filepath.Join(p.BinDir, "initdb"), args...).Run()
 
 	p.lastStdout = process.GetStdout()
@@ -564,6 +611,12 @@ func (p *Postgres) ResetPassword(newPassword utils.SensitiveString) error {
 	if p.Username == "" {
 		return fmt.Errorf("PGUSER not specified")
 	}
+
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] skipping password reset for user %s", p.Username)
+		return nil
+	}
+	clicky.Infof("Resetting password for user %s", p.Username)
 
 	psqlProcess, err := p.SQL(fmt.Sprintf("ALTER USER %s PASSWORD '%s'", p.Username, newPassword.Value()))
 	if err != nil {
@@ -635,6 +688,11 @@ func (p *Postgres) initNewClusterWithConf(binDir, dataDir string, conf config.Co
 	// Add initdb-specific arguments from configuration
 	args = append(args, conf.AsInitDBArgs()...)
 
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] initdb %s", strings.Join(args, " "))
+		return nil
+	}
+
 	process := clicky.Exec(filepath.Join(binDir, "initdb"), args...).Run()
 	p.lastStdout = process.GetStdout()
 	p.lastStderr = process.GetStderr()
@@ -656,24 +714,12 @@ func (p *Postgres) GetCurrentConf() (config.ConfSettings, error) {
 		return nil, fmt.Errorf("PostgreSQL is not running, cannot query current configuration")
 	}
 
-	results, err := p.SQL("SELECT * FROM pg_settings WHERE setting IS DISTINCT FROM boot_val")
+	results, err := p.SQL("SELECT * FROM pg_settings where source != 'default'")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute pg_settings query: %w", err)
 	}
 
 	return config.LoadSettingsFromQuery(results)
-}
-
-// copyFile copies a single file
-func (p *Postgres) copyFile(src, dst string) error {
-	process := clicky.Exec("cp", "-a", src, dst).Run()
-	return process.Err
-}
-
-// copyDir copies a directory recursively
-func (p *Postgres) copyDir(src, dst string) error {
-	process := clicky.Exec("cp", "-a", src, dst).Run()
-	return process.Err
 }
 
 func (p *Postgres) Pg_ctl(args ...string) *exec.Process {
@@ -695,15 +741,17 @@ func (p *Postgres) Stop() error {
 		logger.Warnf("Postgres is not running")
 		return nil
 	}
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] stopping Postgres %s", p.DataDir)
+		return nil
+	}
 
-	fmt.Println(clicky.Text("").Add(icons.Stop).Appendf("Stopping Postgres.. %s", p.DataDir).Styles("text-orange-500").ANSI())
+	clicky.Infof(clicky.Text("").Add(icons.Stop).Appendf("Stopping Postgres.. %s", p.DataDir).Styles("text-orange-500").ANSI())
 
 	res := p.Pg_ctl("stop", "-m", "smart").Run().Result()
 	if res.Error != nil {
-		return fmt.Errorf("failed to stop PostgreSQL: %w", res.Error)
+		return fmt.Errorf("failed to stop PostgreSQL: %s", res.Pretty().ANSI())
 	}
-
-	fmt.Println(res.Pretty().ANSI())
 
 	timeout := properties.Duration(30*time.Second, "stop.timeout")
 	startTime := time.Now()
@@ -727,6 +775,11 @@ func (p *Postgres) Stop() error {
 func (p *Postgres) Start() error {
 	if p.IsRunning() {
 		logger.Warnf("Postgres is already running")
+		return nil
+	}
+
+	if p.DryRun {
+		clicky.Infof("[DRYRUN] starting Postgres %s", p.DataDir)
 		return nil
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/flanksource/postgres/pkg/config"
@@ -75,6 +76,59 @@ func calculateDirectorySize(dirPath string) (int64, error) {
 	return totalSize, err
 }
 
+// calculateDBDirectorySize calculates database size from data directory
+// Excludes temporary files, WAL, backups, and other non-database directories
+func calculateDBDirectorySize(dataDir string) (int64, error) {
+	var totalSize int64
+
+	// Directories to exclude from DB size calculation
+	excludeDirs := map[string]bool{
+		"pg_wal":       true, // WAL files
+		"backups":      true, // Backup directories
+		"upgrades":     true, // Upgrade staging
+		"pg_replslot":  true, // Replication slots
+		"pg_stat_tmp":  true, // Temporary stats
+		"pg_subtrans":  true, // Subtransaction status (not DB data)
+		"pg_snapshots": true, // Transaction snapshots
+		"pg_dynshmem":  true, // Dynamic shared memory
+	}
+
+	err := filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+
+		// Check if this path is under an excluded directory
+		relPath, err := filepath.Rel(dataDir, path)
+		if err != nil {
+			return nil
+		}
+
+		// Get top-level directory
+		parts := strings.Split(relPath, string(filepath.Separator))
+		if len(parts) > 0 {
+			topDir := parts[0]
+			if excludeDirs[topDir] {
+				if info.IsDir() && path != dataDir {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+		}
+
+		if !info.IsDir() {
+			totalSize += info.Size()
+		}
+		return nil
+	})
+
+	if err != nil && os.IsNotExist(err) {
+		return 0, nil
+	}
+
+	return totalSize, err
+}
+
 func (p *Postgres) Info() (*PostgresInfo, error) {
 	if err := p.ensureBinDir(); err != nil {
 		return nil, fmt.Errorf("failed to resolve binary directory: %w", err)
@@ -90,6 +144,12 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 		info.VersionNumber = version
 		pgVersion := p.GetVersion()
 		info.VersionInfo = string(pgVersion)
+
+		// Get full version string from postgres --version
+		fullVersion := p.GetFullVersion()
+		if fullVersion != "" {
+			info.FullVersion = fullVersion
+		}
 	}
 
 	info.Running = p.IsRunning()
@@ -115,7 +175,7 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 
 	if info.Running {
 		if runtimeConf, err := p.GetCurrentConf(); err == nil {
-			info.RuntimeConf = runtimeConf.ToMap()
+			info.RuntimeConf = runtimeConf.ToConf()
 		}
 	}
 
@@ -127,6 +187,7 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 		info.DataSize = dataSize
 	}
 
+	// Try to get DB size from SQL query if running
 	if info.Running {
 		if results, err := p.SQL("SELECT SUM(pg_database_size(datname))::bigint FROM pg_database"); err == nil && len(results) > 0 {
 			if sumVal, ok := results[0]["sum"]; ok && sumVal != nil {
@@ -139,6 +200,13 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 					info.DBSize = int64(v)
 				}
 			}
+		}
+	}
+
+	// Fallback: calculate from data directory when not running or query failed
+	if info.DBSize == 0 {
+		if dbSize, err := calculateDBDirectorySize(p.DataDir); err == nil {
+			info.DBSize = dbSize
 		}
 	}
 

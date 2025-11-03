@@ -7,9 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/flanksource/postgres/pkg/types"
-	"github.com/flanksource/postgres/pkg/utils"
 )
 
 // AutoConfParameter represents a single parameter in postgres.auto.conf
@@ -146,26 +143,19 @@ func (ac *AutoConfFile) MergeWithTunedParams(params *TunedParameters) {
 	// Update or add pg_tune managed parameters
 	ac.updateParam("max_connections", fmt.Sprintf("%d", params.MaxConnections))
 
-	sharedBuffers := types.Size(utils.KBToBytes(params.SharedBuffers))
-	ac.updateParam("shared_buffers", sharedBuffers.PostgreSQLMB())
+	ac.updateParam("shared_buffers", params.SharedBuffers.String())
 
-	effectiveCacheSize := types.Size(utils.KBToBytes(params.EffectiveCacheSize))
-	ac.updateParam("effective_cache_size", effectiveCacheSize.PostgreSQLMB())
+	ac.updateParam("effective_cache_size", params.EffectiveCacheSize.String())
 
-	maintenanceWorkMem := types.Size(utils.KBToBytes(params.MaintenanceWorkMem))
-	ac.updateParam("maintenance_work_mem", maintenanceWorkMem.PostgreSQLMB())
+	ac.updateParam("maintenance_work_mem", params.MaintenanceWorkMem.String())
 
-	workMem := types.Size(utils.KBToBytes(params.WorkMem))
-	ac.updateParam("work_mem", workMem.PostgreSQLMB())
+	ac.updateParam("work_mem", params.WorkMem.String())
 
-	walBuffers := types.Size(utils.KBToBytes(params.WalBuffers))
-	ac.updateParam("wal_buffers", walBuffers.PostgreSQLMB())
+	ac.updateParam("wal_buffers", params.WalBuffers.String())
 
-	minWalSize := types.Size(utils.KBToBytes(params.MinWalSize))
-	ac.updateParam("min_wal_size", minWalSize.PostgreSQLMB())
+	ac.updateParam("min_wal_size", params.MinWalSize.String())
 
-	maxWalSize := types.Size(utils.KBToBytes(params.MaxWalSize))
-	ac.updateParam("max_wal_size", maxWalSize.PostgreSQLMB())
+	ac.updateParam("max_wal_size", params.MaxWalSize.String())
 
 	ac.updateParam("checkpoint_completion_target", fmt.Sprintf("%.2f", params.CheckpointCompletionTarget))
 	ac.updateParam("random_page_cost", fmt.Sprintf("%.1f", params.RandomPageCost))

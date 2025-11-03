@@ -224,6 +224,14 @@ func (p *Postgres) upgradeSingle(fromVersion, toVersion int) error {
 	upgradeDir := filepath.Join(p.DataDir, "upgrades")
 	newDataDir := filepath.Join(upgradeDir, strconv.Itoa(toVersion))
 
+	// Clean up any existing upgrade directory from previous failed attempts
+	if _, err := os.Stat(newDataDir); err == nil {
+		fmt.Printf("🧹 Cleaning up existing upgrade directory: %s\n", newDataDir)
+		if err := os.RemoveAll(newDataDir); err != nil {
+			return fmt.Errorf("failed to clean up existing upgrade directory: %w", err)
+		}
+	}
+
 	fmt.Printf("🔍 Running pre-upgrade checks for PostgreSQL %d...\n", fromVersion)
 
 	// Validate current cluster
@@ -260,7 +268,7 @@ func (p *Postgres) upgradeSingle(fromVersion, toVersion int) error {
 	}
 
 	// Extract initdb-applicable settings
-	initdbConf := oldConf.ToMap().ForInitDB()
+	initdbConf := oldConf.ToConf().ForInitDB()
 	fmt.Printf("✅ Detected initdb settings: %v\n", initdbConf)
 
 	fmt.Printf("✅ Pre-upgrade checks completed for PostgreSQL %d\n", fromVersion)

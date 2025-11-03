@@ -13,6 +13,21 @@ import (
 // and provides type-safe operations. It stores the size internally as bytes.
 type Size uint64
 
+const (
+	KB Size = 1024
+	MB Size = 1024 * KB
+	GB Size = 1024 * MB
+	TB Size = 1024 * GB
+)
+
+func (s Size) String() string {
+	return utils.FormatSizePostgreSQL(uint64(s))
+}
+
+func (s Size) Format(f fmt.State, verb rune) {
+	f.Write([]byte(utils.FormatSizePostgreSQL(uint64(s))))
+}
+
 // ParseSize creates a Size from a string representation (e.g., "128MB", "1GB", "512kB")
 func ParseSize(s string) (Size, error) {
 	if s == "" {
@@ -45,11 +60,6 @@ func (s Size) MB() uint64 {
 // GB returns the size in gigabytes
 func (s Size) GB() uint64 {
 	return uint64(s) / utils.GB
-}
-
-// String returns a human-readable string representation
-func (s Size) String() string {
-	return utils.FormatSize(uint64(s))
 }
 
 // PostgreSQLString returns a PostgreSQL-compatible string representation

@@ -236,7 +236,7 @@ func FormatDurationPostgreSQL(d time.Duration) string {
 		return fmt.Sprintf("%dh", int64(d/Hour))
 	}
 	if d >= Minute && d%Minute == 0 {
-		return fmt.Sprintf("%dmin", int64(d/Minute))
+		return fmt.Sprintf("%dm", int64(d/Minute))
 	}
 	if d >= Second && d%Second == 0 {
 		return fmt.Sprintf("%ds", int64(d/Second))
@@ -256,7 +256,7 @@ func FormatDurationPostgreSQL(d time.Duration) string {
 		return fmt.Sprintf("%.0fh", float64(d)/float64(Hour))
 	}
 	if d >= Minute {
-		return fmt.Sprintf("%.0fmin", float64(d)/float64(Minute))
+		return fmt.Sprintf("%.0fm", float64(d)/float64(Minute))
 	}
 	if d >= Second {
 		return fmt.Sprintf("%.0fs", float64(d)/float64(Second))

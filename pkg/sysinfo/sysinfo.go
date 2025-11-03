@@ -10,6 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/flanksource/clicky"
+	"github.com/flanksource/clicky/api"
+	"github.com/flanksource/commons/text"
+	"github.com/flanksource/postgres/pkg/types"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -42,30 +46,47 @@ const (
 	DBTypeMixed   string = "mixed"
 )
 
+// Resources represents physical system resources
+type Resources struct {
+	CPUs   int    `json:"cpus,omitempty"`
+	Memory uint64 `json:"memory,omitempty" pretty:"format=bytes"`
+	Millis int    `json:"millis,omitempty"` // CPU quota in millicores (e.g., 1500 = 1.5 CPUs)
+}
+
+func (r Resources) Mem() types.Size {
+	return types.Size(r.Memory)
+}
+
+func (r Resources) Pretty() api.Text {
+
+	t := clicky.Text("").Append("CPU: ", "text-muted").Append(r.CPUs)
+	if r.Millis > 0 {
+		t = t.Append(" Quota: ", "text-muted").Append(r.Millis).Append(" millis", "text-muted")
+	}
+	if r.Memory > 0 {
+		t = t.Append(" Memory: ", "text-muted").Append(text.HumanizeBytes(r.Memory))
+	}
+	return t
+}
+
+func (r Resources) String() string {
+	return r.Pretty().String()
+}
+
+// ContainerResources represents container resource limits
+
 // SystemInfo contains detected system information
 type SystemInfo struct {
-	IPAddresses []string `json:"ip_addresses,omitempty"`
+	// Nested resource information
+	System    Resources `json:"system,omitempty"`    // Physical system resources
+	Container Resources `json:"container,omitempty"` // nil if not in container
 
-	// TotalMemoryBytes is the total system memory in bytes
-	TotalMemoryBytes uint64 `json:"total_memory_bytes,omitempty" pretty:"format=bytes"`
-
-	// CPUCount is the number of logical CPUs
-	CPUCount int `json:"cpu_count,omitempty"`
-
-	// OSType is the operating system type
-	OSType OSType `json:"os_type,omitempty"`
-
-	// PostgreSQLVersion is the PostgreSQL major version
-	PostgreSQLVersion float64 `json:"postgres_version,omitempty"`
-
-	// DiskType is the detected or assumed disk type
-	DiskType DiskType `json:"disk_type,omitempty"`
-
-	// IsContainer indicates if running inside a container
-	IsContainer bool `json:"is_container,omitempty"`
-
-	// ContainerMemory is the container memory limit in bytes (0 if not limited)
-	ContainerMemory uint64 `json:"container_memory,omitempty" pretty:"format=bytes"`
+	// Other system information
+	IPAddresses       []string `json:"ip_addresses,omitempty"`
+	OSType            OSType   `json:"os_type,omitempty"`
+	PostgreSQLVersion float64  `json:"postgres_version,omitempty"`
+	DiskType          DiskType `json:"disk_type,omitempty"`
+	IsContainer       bool     `json:"is_container,omitempty"`
 }
 
 // DetectSystemInfo automatically detects system information
@@ -77,11 +98,26 @@ func DetectSystemInfo() (*SystemInfo, error) {
 
 	// Detect memory - use container limits if available (defaults to 1GB if not detected)
 	totalMem, containerMem, _ := detectMemoryWithContainer()
-	info.TotalMemoryBytes = totalMem
-	info.ContainerMemory = containerMem
+	info.System.Memory = totalMem
 
 	// Detect CPU count
-	info.CPUCount = runtime.NumCPU()
+	info.System.CPUs = runtime.NumCPU()
+
+	// Detect CPU quota from container limits
+	cpuQuota := detectContainerCPUQuota()
+
+	if containerMem > 0 {
+		info.Container.Memory = containerMem
+	}
+
+	if cpuQuota > 0 {
+		info.Container.Millis = int(cpuQuota * 1000.0)
+		// Round up fractional CPUs for effective count
+		info.Container.CPUs = int(cpuQuota + 0.5)
+		if info.Container.CPUs < 1 {
+			info.Container.CPUs = 1
+		}
+	}
 
 	// Detect OS type
 	info.OSType = detectOSType()
@@ -289,9 +325,32 @@ func detectLinuxDiskType() (DiskType, error) {
 	return DiskHDD, nil
 }
 
-// TotalMemoryGB returns total memory in GB
+// EffectiveCPUCount returns the effective CPU count for tuning
+// Uses container CPU limit if available, otherwise system CPUs
+func (si *SystemInfo) EffectiveCPUCount() int {
+	if si.Container.CPUs > 0 {
+		return si.Container.CPUs
+	}
+	return si.System.CPUs
+}
+
+// EffectiveMemory returns the effective memory for tuning
+// Uses container memory limit if available, otherwise system memory
+func (si *SystemInfo) EffectiveMemory() uint64 {
+	if si.Container.Memory > 0 {
+		return si.Container.Memory
+	}
+	return si.System.Memory
+}
+
+// TotalMemoryKB returns effective memory in KB
+func (si *SystemInfo) TotalMemoryKB() uint64 {
+	return si.EffectiveMemory() / 1024
+}
+
+// TotalMemoryGB returns effective memory in GB
 func (si *SystemInfo) TotalMemoryGB() float64 {
-	memGB := float64(si.TotalMemoryBytes) / (1024 * 1024 * 1024)
+	memGB := float64(si.EffectiveMemory()) / (1024 * 1024 * 1024)
 	// Ensure we never return 0, minimum 1GB for display purposes
 	if memGB < 1.0 {
 		return 1.0
@@ -299,29 +358,9 @@ func (si *SystemInfo) TotalMemoryGB() float64 {
 	return memGB
 }
 
-// TotalMemoryMB returns total memory in MB
+// TotalMemoryMB returns effective memory in MB
 func (si *SystemInfo) TotalMemoryMB() float64 {
-	return float64(si.TotalMemoryBytes) / (1024 * 1024)
-}
-
-// TotalMemoryKB returns total memory in KB
-func (si *SystemInfo) TotalMemoryKB() uint64 {
-	return si.TotalMemoryBytes / 1024
-}
-
-// String returns a human-readable representation of the system info
-func (si *SystemInfo) String() string {
-	containerInfo := ""
-	if si.IsContainer {
-		if si.ContainerMemory > 0 {
-			containerMemGB := float64(si.ContainerMemory) / (1024 * 1024 * 1024)
-			containerInfo = fmt.Sprintf(", Container: %.2f GB", containerMemGB)
-		} else {
-			containerInfo = ", Container: unlimited"
-		}
-	}
-	return fmt.Sprintf("SystemInfo{Memory: %.2f GB, CPUs: %d, OS: %s, PostgreSQL: %.1f, Disk: %s%s}",
-		si.TotalMemoryGB(), si.CPUCount, si.OSType, si.PostgreSQLVersion, si.DiskType, containerInfo)
+	return float64(si.EffectiveMemory()) / (1024 * 1024)
 }
 
 // detectContainer detects if running inside a container
@@ -419,17 +458,89 @@ func detectContainerMemoryLimit() uint64 {
 }
 
 // readCgroupV2MemoryLimit reads memory limit from cgroup v2
+// Prioritizes memory.high over memory.max for better Kubernetes integration
+// Traverses the cgroup hierarchy to find the most restrictive limit
 func readCgroupV2MemoryLimit() uint64 {
 	// Check if cgroup v2 is available
 	if _, err := os.Stat("/sys/fs/cgroup/cgroup.controllers"); err != nil {
 		return 0
 	}
 
-	// Try to read memory.max (cgroup v2)
-	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
+	// Find the current cgroup path
+	cgroupPath := findCgroupV2Path()
+	if cgroupPath == "" {
+		cgroupPath = "/"
+	}
+
+	// Traverse hierarchy from root to current cgroup
+	// Check both memory.high and memory.max at each level
+	minLimit := uint64(0)
+
+	// Build path components for traversal
+	pathParts := strings.Split(strings.Trim(cgroupPath, "/"), "/")
+	currentPath := "/sys/fs/cgroup"
+
+	// Check root first
+	if limit := readMemoryLimit(currentPath); limit > 0 {
+		minLimit = limit
+	}
+
+	// Traverse each level of the hierarchy
+	for _, part := range pathParts {
+		if part == "" {
+			continue
+		}
+		currentPath = filepath.Join(currentPath, part)
+		if limit := readMemoryLimit(currentPath); limit > 0 {
+			if minLimit == 0 || limit < minLimit {
+				minLimit = limit
+			}
+		}
+	}
+
+	return minLimit
+}
+
+// findCgroupV2Path finds the cgroup v2 path for the current process
+// In cgroup v2, the line format is "0::/path"
+func findCgroupV2Path() string {
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		// cgroup v2 unified hierarchy starts with "0::"
+		if strings.HasPrefix(line, "0::") {
+			return strings.TrimPrefix(line, "0::")
+		}
+	}
+
+	return ""
+}
+
+// readMemoryLimit reads memory limit from a specific cgroup path
+// Prioritizes memory.high (soft limit) over memory.max (hard limit)
+// This aligns with Kubernetes MemoryQoS feature
+func readMemoryLimit(cgroupPath string) uint64 {
+	// Try memory.high first (soft limit, better for K8s)
+	highFile := filepath.Join(cgroupPath, "memory.high")
+	if data, err := os.ReadFile(highFile); err == nil {
 		content := strings.TrimSpace(string(data))
 		if content != "max" {
-			if limit, err := strconv.ParseUint(content, 10, 64); err == nil {
+			if limit, err := strconv.ParseUint(content, 10, 64); err == nil && limit > 0 {
+				return limit
+			}
+		}
+	}
+
+	// Fallback to memory.max (hard limit)
+	maxFile := filepath.Join(cgroupPath, "memory.max")
+	if data, err := os.ReadFile(maxFile); err == nil {
+		content := strings.TrimSpace(string(data))
+		if content != "max" {
+			if limit, err := strconv.ParseUint(content, 10, 64); err == nil && limit > 0 {
 				return limit
 			}
 		}
@@ -472,6 +583,129 @@ func findMemoryCgroupPath() string {
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, ":memory:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 3 {
+				return strings.TrimPrefix(parts[2], "/")
+			}
+		}
+	}
+
+	return ""
+}
+
+// detectContainerCPUQuota detects container CPU quota from cgroups
+// Returns the CPU quota as a float (e.g., 0.5, 1.5, 2.0) or 0 if unlimited
+func detectContainerCPUQuota() float64 {
+	// Try cgroup v2 first (newer systems)
+	if quota := readCgroupV2CPUQuota(); quota > 0 {
+		return quota
+	}
+
+	// Fallback to cgroup v1
+	if quota := readCgroupV1CPUQuota(); quota > 0 {
+		return quota
+	}
+
+	return 0
+}
+
+// readCgroupV2CPUQuota reads CPU quota from cgroup v2
+// Reads /sys/fs/cgroup/cpu.max which contains "quota period" or "max period"
+func readCgroupV2CPUQuota() float64 {
+	// Check if cgroup v2 is available by looking for cgroup.controllers
+	if _, err := os.Stat("/sys/fs/cgroup/cgroup.controllers"); err != nil {
+		return 0
+	}
+
+	// Try to read cpu.max (cgroup v2)
+	data, err := os.ReadFile("/sys/fs/cgroup/cpu.max")
+	if err != nil {
+		return 0
+	}
+
+	content := strings.TrimSpace(string(data))
+	fields := strings.Fields(content)
+	if len(fields) < 2 {
+		return 0
+	}
+
+	// Format is "quota period" or "max period"
+	quotaStr := fields[0]
+	periodStr := fields[1]
+
+	// "max" means unlimited
+	if quotaStr == "max" {
+		return 0
+	}
+
+	quota, err := strconv.ParseInt(quotaStr, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	period, err := strconv.ParseInt(periodStr, 10, 64)
+	if err != nil || period == 0 {
+		return 0
+	}
+
+	// CPU quota = quota / period
+	// Returns fractional CPUs (e.g., 50000/100000 = 0.5)
+	return float64(quota) / float64(period)
+}
+
+// readCgroupV1CPUQuota reads CPU quota from cgroup v1
+// Reads cpu.cfs_quota_us and cpu.cfs_period_us
+func readCgroupV1CPUQuota() float64 {
+	// Find the CPU cgroup path
+	cgroupPath := findCPUCgroupPath()
+	if cgroupPath == "" {
+		return 0
+	}
+
+	// Read cpu.cfs_quota_us
+	quotaFile := filepath.Join("/sys/fs/cgroup/cpu", cgroupPath, "cpu.cfs_quota_us")
+	quotaData, err := os.ReadFile(quotaFile)
+	if err != nil {
+		return 0
+	}
+
+	quota, err := strconv.ParseInt(strings.TrimSpace(string(quotaData)), 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	// -1 means unlimited
+	if quota == -1 {
+		return 0
+	}
+
+	// Read cpu.cfs_period_us
+	periodFile := filepath.Join("/sys/fs/cgroup/cpu", cgroupPath, "cpu.cfs_period_us")
+	periodData, err := os.ReadFile(periodFile)
+	if err != nil {
+		return 0
+	}
+
+	period, err := strconv.ParseInt(strings.TrimSpace(string(periodData)), 10, 64)
+	if err != nil || period == 0 {
+		return 0
+	}
+
+	// CPU quota = quota / period
+	return float64(quota) / float64(period)
+}
+
+// findCPUCgroupPath finds the CPU cgroup path for the current process
+func findCPUCgroupPath() string {
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		// cgroup v1: look for ":cpu:" or ":cpu,cpuacct:"
+		if strings.Contains(line, ":cpu:") || strings.Contains(line, ":cpu,cpuacct:") {
 			parts := strings.Split(line, ":")
 			if len(parts) >= 3 {
 				return strings.TrimPrefix(parts[2], "/")
