@@ -12,12 +12,10 @@ ARG BUILD_DATE=unknown
 
 # Copy source code
 WORKDIR /src/postgres
-COPY postgres/go.mod postgres/go.sum ./
-COPY clicky/go.mod /src/clicky/go.mod
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY postgres/ /src/postgres
-COPY clicky /src/clicky
+COPY . .
 # Build pgconfig binary with cache mounts and version info
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
@@ -134,7 +132,7 @@ RUN set -eux; \
 # Make volumes for data and init scripts
 VOLUME /var/lib/postgresql/data
 
-COPY postgres/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 
@@ -156,6 +154,3 @@ USER postgres
 
 # Set entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
-
-# Default command - run PostgreSQL
-# CMD ["postgres"]

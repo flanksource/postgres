@@ -1,17 +1,25 @@
 # Default values for postgres chart
 
+# Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime
+version: "17"
+# Automatic upgrade configuration
+autoUpgrade:
+  enabled: true
+
+## Change ownership and permissions of mounted volumes on startup
+resetVolumePermissions: true
+
+dshmSize: 256Mi
+
+# custom arguments to pass to postgres-cli startup
+postgresCliArgs: "--pg-tune --auto-upgrade --auto-reset-password  --auto-init"
+
 # PostgreSQL container image
 image:
   registry: ghcr.io
   repository: flanksource/postgres
   tag: "17"
   pullPolicy: IfNotPresent
-
-# Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime
-version: "17"
-# Automatic upgrade configuration
-autoUpgrade:
-  enabled: true
 
 # Database configuration
 database:
@@ -35,7 +43,7 @@ conf:
   log_directory: "/var/log/postgresql"
   log_file_mode: 0644
   log_filename: "postgresql-%d.log"
-  log_line_prefix: "%m [%p] %q[user=%u,db=%d,app=%a] "
+  log_line_prefix: "%m [%p] %q[user=%u,db=%d,app=%a]"
   log_lock_waits: on
   log_min_duration_statement: "1s"
   # log_rotation_age: "1d"
@@ -49,24 +57,21 @@ conf:
   timezone: "UTC"
   password_encryption: scram-sha-256
 
-# Custom postgresql.conf override (takes precedence over conf)
-custom_conf: ""
-
 # Resource configuration
 resources:
   limits:
     cpu: 2000m
     memory: 4Gi
   requests:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 20m
+    memory: 128Mi
 
 # Persistence configuration
 persistence:
   enabled: true
   # Name of existing PVC to use (mutually exclusive with volumeName)
   existingClaim: ""
-  # Name of existing PV to bind to (creates new PVC, mutually exclusive with existingClaim)
+  # Name of existing PV to bind to (mutually exclusive with existingClaim)
   volumeName: ""
   storageClass: ""
   accessMode: ReadWriteOnce
@@ -143,9 +148,6 @@ livenessProbe:
   timeoutSeconds: 5
   failureThreshold: 3
   successThreshold: 1
-
-## Change ownership and permissions of mounted volumes on startup
-resetVolumePermissions: true
 
 # Additional environment variables
 env: []
