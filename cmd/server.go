@@ -19,7 +19,6 @@ func createServerCommands() *cobra.Command {
 
 	// Add all server commands
 	serverCmd.AddCommand(
-		createInfoCommands(),
 		createHealthCommand(),
 		createInitDBCommand(),
 		createResetPasswordCommand(),
@@ -86,102 +85,6 @@ func createRestartCommand() *cobra.Command {
 	}
 }
 
-// createInfoCommands creates the info subcommand group
-func createInfoCommands() *cobra.Command {
-	infoCmd := &cobra.Command{
-		Use:   "info",
-		Short: "Information and status commands",
-		Long:  "Commands for getting information about the PostgreSQL instance",
-	}
-
-	// describe-config command
-	describeConfigCmd := &cobra.Command{
-		Use:   "describe-config",
-		Short: "Describe PostgreSQL configuration parameters",
-		Long:  "Execute 'postgres --describe-config' and return parsed parameters",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			params, err := postgres.DescribeConfig()
-			if err != nil {
-				return fmt.Errorf("failed to describe config: %w", err)
-			}
-
-			fmt.Println(clicky.MustFormat(params))
-			return nil
-		},
-	}
-	describeConfigCmd.Flags().StringP("output", "o", "table", "Output format (table, json, yaml)")
-
-	// detect-version command
-	detectVersionCmd := &cobra.Command{
-		Use:   "detect-version",
-		Short: "Detect PostgreSQL version from data directory",
-		Long:  "Read the PostgreSQL version from the PG_VERSION file in the data directory",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			version, err := postgres.DetectVersion()
-			if err != nil {
-				return fmt.Errorf("failed to detect version: %w", err)
-			}
-
-			fmt.Printf("PostgreSQL version: %d\n", version)
-			return nil
-		},
-	}
-
-	// get-version command
-	getVersionCmd := &cobra.Command{
-		Use:   "get-version",
-		Short: "Get PostgreSQL version from binary",
-		Long:  "Execute 'postgres --version' to get version information",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			version := postgres.GetVersion()
-			if version == "" {
-				return fmt.Errorf("failed to get version")
-			}
-
-			fmt.Printf("PostgreSQL version: %s\n", version)
-			return nil
-		},
-	}
-
-	// exists command
-	existsCmd := &cobra.Command{
-		Use:   "exists",
-		Short: "Check if PostgreSQL data directory exists and is valid",
-		Long:  "Check if the data directory contains valid PostgreSQL files",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			exists := postgres.Exists()
-			fmt.Printf("PostgreSQL data directory exists: %t\n", exists)
-			if !exists {
-				return fmt.Errorf("PostgreSQL data directory does not exist or is invalid")
-			}
-			return nil
-		},
-	}
-
-	// is-running command
-	isRunningCmd := &cobra.Command{
-		Use:   "is-running",
-		Short: "Check if PostgreSQL server is running",
-		Long:  "Check if PostgreSQL process is running by examining the PID file",
-		RunE: func(cmd *cobra.Command, args []string) error {
-
-			running := postgres.IsRunning()
-			fmt.Printf("PostgreSQL is running: %t\n", running)
-			if !running {
-				return fmt.Errorf("PostgreSQL is not running")
-			}
-			return nil
-		},
-	}
-
-	infoCmd.AddCommand(describeConfigCmd, detectVersionCmd, getVersionCmd, existsCmd, isRunningCmd)
-	return infoCmd
-}
-
 // createHealthCommand creates the health command
 func createHealthCommand() *cobra.Command {
 	return &cobra.Command{
@@ -227,12 +130,9 @@ func createResetPasswordCommand() *cobra.Command {
 				return fmt.Errorf("password is required")
 			}
 
-			clicky.Infof("Resetting password for user %s", postgres.Username)
-
 			if err := postgres.ResetPassword(postgres.Password); err != nil {
 				return fmt.Errorf("failed to reset password: %w", err)
 			}
-			fmt.Println("Password reset successfully")
 			return nil
 		},
 	}

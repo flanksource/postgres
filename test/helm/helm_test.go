@@ -4,20 +4,48 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/flanksource/clicky"
 	flanksourceCtx "github.com/flanksource/commons-db/context"
 	"github.com/flanksource/commons-test/helm"
+	"github.com/flanksource/postgres/pkg/server"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 type postgresChart struct {
 	*helm.HelmChart
+	instance *server.Postgres
+	closer   func()
+}
+
+func (chart *postgresChart) GetPostgres() *server.Postgres {
+	if chart.instance != nil {
+		return chart.instance
+	}
+
+	pod := chart.GetPod()
+	port, closer := pod.ForwardPort(5432)
+
+	chart.instance = server.NewRemotePostgres(
+		"localhost", *port,
+		chart.GetValue("database", "username"),
+		chart.GetPassword(),
+		chart.GetValue("database", "name"),
+	)
+	chart.closer = closer
+	return chart.instance
+
+}
+
+func (p *postgresChart) GetPod() *helm.Pod {
+	return p.HelmChart.GetPod("app.kubernetes.io/name=postgres")
 }
 
 func (p *postgresChart) SQL(query string) string {
 	password := p.GetPassword()
-	pod := p.GetPod("app.kubernetes.io/name=postgres")
-	output := pod.
+
+	output := p.GetPod().
 		Container("postgresql").
 		Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c \"%s\"", password, query)).
 		Result()
@@ -56,6 +84,14 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 
 	})
 
+	AfterEach(func() {
+		if CurrentSpecReport().Failed() {
+			By("Test failed, printing pod logs for debugging")
+			printPodLogs(namespace, labelSelector)
+		}
+		chart.closer()
+	})
+
 	Context("Helm Chart Operations", func() {
 		It("should install with default values", func() {
 			By("Installing the Helm chart using fluent API")
@@ -71,7 +107,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			Expect(replicas).To(Equal(1))
 
 			By("Verifying pod is running")
-			pod := chart.GetPod(labelSelector)
+			pod := chart.GetPod()
 			pod.WaitReady().MustSucceed()
 
 			password := chart.GetPassword()
@@ -82,6 +118,13 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 				Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c 'SELECT version();'", password)).
 				Result()
 			Expect(output).To(ContainSubstring("PostgreSQL"))
+
+			server := chart.GetPostgres()
+			conf, err := server.GetCurrentConf()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(conf.ToConf()).To(HaveKeyWithValue("max_connections", "100"))
+			Expect(conf.ToConf()).To(HaveKeyWithValue("shared_buffers", "1GB"))
+
 		})
 
 		It("should upgrade with new configuration", func() {
@@ -117,7 +160,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			Expect(chart.Install().Error()).NotTo(HaveOccurred())
 
 			By("Waiting for pod")
-			pod := chart.GetPod(labelSelector)
+			pod := chart.GetPod()
 			pod.WaitReady().MustSucceed()
 
 			password := chart.GetPassword()
@@ -161,6 +204,39 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 				Exec(fmt.Sprintf("PGPASSWORD=%s psql -U postgres -d postgres -c 'SELECT version();'", password)).
 				Result()
 			GinkgoWriter.Printf("PostgreSQL version after upgrade: %s\n", output)
+		})
+
+		FIt("should auto-tune PostgreSQL settings based on resource limits", func() {
+			type resourceTest struct {
+				memory                     string
+				cpu                        string
+				expectedSharedBuffersMB    string
+				expectedMaxWorkerProcesses int
+				connections                int
+			}
+
+			tests := []resourceTest{
+				{memory: "1Gi", cpu: "500m", expectedSharedBuffersMB: "256MB", expectedMaxWorkerProcesses: 8, connections: 100},
+			}
+
+			for _, tc := range tests {
+				By(fmt.Sprintf("Testing with %s memory and %s CPU", tc.memory, tc.cpu))
+
+				By("Installing with specific resource limits")
+				Expect(chart.
+					SetValue("resources.limits.memory", tc.memory).
+					SetValue("resources.limits.cpu", tc.cpu).
+					Install().Error()).NotTo(HaveOccurred())
+
+				chart.GetPod().WaitReady().MustSucceed()
+
+				server := chart.GetPostgres()
+				conf, err := server.GetCurrentConf()
+				Expect(err).NotTo(HaveOccurred())
+				By(clicky.MustFormat((conf.AsMap()["shared_buffers"])))
+				Expect(conf.AsMap()["shared_buffers"].String()).To(Equal(tc.expectedSharedBuffersMB))
+
+			}
 		})
 
 	})

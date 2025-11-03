@@ -46,7 +46,7 @@ fi
 postgres-cli server status
 
 # Run postgres-cli auto-start (includes permission checks)
-postgres-cli auto-start --pg-tune --auto-upgrade --upgrade-to=$PG_VERSION --auto-init --data-dir "$PGDATA" --auto-reset-password
+postgres-cli auto-start  --upgrade-to=$PG_VERSION --data-dir "$PGDATA" $POSTGRES_CLI_ARGS
 
 cat $PGDATA/pg_hba.conf
 
