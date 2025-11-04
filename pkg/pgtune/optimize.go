@@ -21,7 +21,7 @@ type OptimizeOptions struct {
 	SystemInfo     *sysinfo.SystemInfo
 }
 
-// OptimizeAndSave calculates optimal PostgreSQL configuration and saves to postgresql.auto.conf
+// OptimizeAndSave calculates optimal PostgreSQL configuration and generates content for postgresql.tune.conf
 func OptimizeAndSave(opts OptimizeOptions) (string, error) {
 	// Use provided system info or detect
 	sysInfo := opts.SystemInfo
@@ -76,7 +76,7 @@ func OptimizeAndSave(opts OptimizeOptions) (string, error) {
 		params.MaxConnections = GetRecommendedMaxConnections(opts.DBType)
 	}
 
-	// Generate postgresql.auto.conf content
+	// Generate postgresql.tune.conf content
 	configContent := generateAutoConf(params, sysInfo)
 
 	clicky.Infof("Optimized with shared_buffers: %s, cpus: %d", params.SharedBuffers, r.CPUs)
@@ -84,7 +84,7 @@ func OptimizeAndSave(opts OptimizeOptions) (string, error) {
 	return configContent, nil
 }
 
-// generateAutoConf generates postgresql.auto.conf content from tuned parameters
+// generateAutoConf generates postgresql.tune.conf content from tuned parameters
 func generateAutoConf(params *TunedParameters, sysInfo *sysinfo.SystemInfo) string {
 	var content string
 
