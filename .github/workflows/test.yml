@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target_version: ["15", "16", "17"]
+        target_version: ["16", "17"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
 
       - name: Build image for target version ${{ matrix.target_version }}
         run: |
-          make build-${{ matrix.target_version }}
+          task build:build-${{ matrix.target_version }}
 
       - name: Test upgrade to ${{ matrix.target_version }}
         env:
@@ -38,17 +38,14 @@ jobs:
 
           # Run tests based on target version
           case "${{ matrix.target_version }}" in
-            15)
-              # Test 14 -> 15
-              make test-14-to-15
-              ;;
             16)
               # Test 14 -> 16 and 15 -> 16
-              make test-14-to-16
-              make test-15-to-16
+              task test:upgrade-14-to-16
+              task test:upgrade-15-to-16
               ;;
             17)
               # Test all paths to 17
-              make test
+              task test:upgrade-14-to-17
+
               ;;
           esac

@@ -115,6 +115,15 @@ tasks:
         echo "🧪 Testing upgrade from PostgreSQL 16 to 17..."
         go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_16_to_17"
 
+  upgrade-14-to-16:
+    desc: Test upgrade from PostgreSQL 14 to 16
+    dir: "{{.TEST_DIR}}"
+    deps: [build]
+    cmds:
+      - |
+        echo "🧪 Testing upgrade from PostgreSQL 14 to 16..."
+        go test {{.GO_TEST_FLAGS}} -run "TestPostgresUpgrade/Upgrade_14_to_16"
+
   upgrade-15-to-16:
     desc: Test upgrade from PostgreSQL 15 to 16
     dir: "{{.TEST_DIR}}"
