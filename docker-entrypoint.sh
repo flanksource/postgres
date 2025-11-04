@@ -3,6 +3,7 @@ set -e
 
 echo "PGDATA is set to: $PGDATA"
 
+
 # Detect current user
 CURRENT_USER=$(id -u)
 CURRENT_USER_NAME=$(id -un)
@@ -46,9 +47,7 @@ fi
 postgres-cli server status
 
 # Run postgres-cli auto-start (includes permission checks)
-postgres-cli auto-start  --upgrade-to=$PG_VERSION --data-dir "$PGDATA" $POSTGRES_CLI_ARGS
-
-cat $PGDATA/pg_hba.conf
+postgres-cli auto-start  --upgrade-to=$PG_VERSION --data-dir "$PGDATA" --report-caller $POSTGRES_CLI_ARGS
 
 
 if [ "$UPGRADE_ONLY" = "true" ]; then

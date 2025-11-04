@@ -38,14 +38,14 @@ func (cs ConfigSetting) GetInt() (int, error) {
 	unit := 1
 
 	if cs.Unit != nil {
-		switch *cs.Unit {
+		switch strings.ToLower(*cs.Unit) {
 		case "8kb":
 			unit = 8 * 1024
-		case "kB", "KB":
+		case "kb":
 			unit = KB
-		case "MB":
+		case "mb":
 			unit = MB
-		case "GB":
+		case "gb":
 			unit = GB
 		}
 	}
@@ -65,8 +65,8 @@ func (cs ConfigSetting) IsBytes() bool {
 	if cs.Unit == nil {
 		return false
 	}
-	switch *cs.Unit {
-	case "8kb", "kB", "MB", "GB", "KB":
+	switch strings.ToLower(*cs.Unit) {
+	case "8kb", "kb", "mb", "gb":
 		return true
 	}
 	return false

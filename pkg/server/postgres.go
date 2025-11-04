@@ -722,6 +722,17 @@ func (p *Postgres) GetCurrentConf() (config.ConfSettings, error) {
 	return config.LoadSettingsFromQuery(results)
 }
 
+func (p *Postgres) Psql(args ...string) *exec.Process {
+	if err := p.ensureBinDir(); err != nil {
+		panic(fmt.Errorf("failed to resolve binary directory: %w", err))
+	}
+	if p.DataDir == "" {
+		panic("DataDir not specified")
+	}
+	cmd := clicky.Exec(filepath.Join(p.BinDir, "psql"), args...)
+	return cmd.Debug()
+}
+
 func (p *Postgres) Pg_ctl(args ...string) *exec.Process {
 	if err := p.ensureBinDir(); err != nil {
 		panic(fmt.Errorf("failed to resolve binary directory: %w", err))

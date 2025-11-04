@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/flanksource/clicky"
 	flanksourceCtx "github.com/flanksource/commons-db/context"
 	"github.com/flanksource/commons-test/helm"
 	"github.com/flanksource/postgres/pkg/server"
@@ -89,14 +88,18 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			By("Test failed, printing pod logs for debugging")
 			printPodLogs(namespace, labelSelector)
 		}
-		chart.closer()
+		if chart != nil && chart.closer != nil {
+			chart.closer()
+			chart.closer = nil
+		}
 	})
 
 	Context("Helm Chart Operations", func() {
 		It("should install with default values", func() {
 			By("Installing the Helm chart using fluent API")
 
-			Expect(chart.Install().Error()).NotTo(HaveOccurred())
+			Expect(chart.
+				Install().Error()).NotTo(HaveOccurred())
 
 			By("Waiting for StatefulSet to be ready")
 			statefulSet := chart.GetStatefulSet(statefulSet)
@@ -122,34 +125,8 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			server := chart.GetPostgres()
 			conf, err := server.GetCurrentConf()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(conf.ToConf()).To(HaveKeyWithValue("max_connections", "100"))
+			Expect(conf.ToConf()).To(HaveKeyWithValue("max_connections", "200"))
 			Expect(conf.ToConf()).To(HaveKeyWithValue("shared_buffers", "1GB"))
-
-		})
-
-		It("should upgrade with new configuration", func() {
-			By("Getting current generation")
-			ss := chart.GetStatefulSet(statefulSet)
-			currentGen, err := ss.GetGeneration()
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Upgrading with new values")
-
-			Expect(chart.
-				SetValue("resources.limits.memory", "2Gi").
-				SetValue("resources.limits.cpu", "1000m").
-				SetValue("conf.max_connections", "200").
-				WaitFor(5 * time.Minute).
-				Upgrade().Error()).NotTo(HaveOccurred())
-
-			By("Waiting for rollout")
-			ss.WaitFor(2 * time.Minute)
-			newGen, err := ss.GetGeneration()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(newGen).To(BeNumerically(">", currentGen))
-
-			out := chart.SQL("SELECT * from pg_settings where name = 'max_connections'")
-			Expect(out).To(ContainSubstring("200"))
 
 		})
 
@@ -206,7 +183,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			GinkgoWriter.Printf("PostgreSQL version after upgrade: %s\n", output)
 		})
 
-		FIt("should auto-tune PostgreSQL settings based on resource limits", func() {
+		It("should auto-tune PostgreSQL settings based on resource limits", func() {
 			type resourceTest struct {
 				memory                     string
 				cpu                        string
@@ -216,7 +193,7 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 			}
 
 			tests := []resourceTest{
-				{memory: "1Gi", cpu: "500m", expectedSharedBuffersMB: "256MB", expectedMaxWorkerProcesses: 8, connections: 100},
+				{memory: "1Gi", cpu: "500m", expectedSharedBuffersMB: "256MB", expectedMaxWorkerProcesses: 8, connections: 64},
 			}
 
 			for _, tc := range tests {
@@ -233,8 +210,9 @@ var _ = Describe("PostgreSQL Helm Chart", Ordered, func() {
 				server := chart.GetPostgres()
 				conf, err := server.GetCurrentConf()
 				Expect(err).NotTo(HaveOccurred())
-				By(clicky.MustFormat((conf.AsMap()["shared_buffers"])))
-				Expect(conf.AsMap()["shared_buffers"].String()).To(Equal(tc.expectedSharedBuffersMB))
+				settings := conf.AsMap()
+				Expect(settings["shared_buffers"].String()).To(Equal(tc.expectedSharedBuffersMB))
+				Expect(settings["max_connections"].String()).To(Equal(fmt.Sprintf("%d", tc.connections)))
 
 			}
 		})

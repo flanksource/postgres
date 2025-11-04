@@ -1,13 +1,17 @@
 package server
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/flanksource/clicky"
+	"github.com/flanksource/clicky/api"
+	"github.com/flanksource/commons/text"
 	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/sysinfo"
 )
@@ -26,6 +30,20 @@ type Checkpoint struct {
 	BytesWritten int64     `json:"bytes_written" pretty:"bytes"`
 }
 
+type DataDirFileInfo struct {
+	Name     string    `json:"name"`
+	Path     string    `json:"path"`
+	Size     int64     `json:"size"`
+	MD5      string    `json:"md5"`
+	Modified time.Time `json:"modified"`
+}
+
+type DataDirTree struct {
+	Label string            `json:"label"`
+	Path  string            `json:"path"`
+	Files []DataDirFileInfo `json:"files"`
+}
+
 type PostgresInfo struct {
 	// e.g. 16 or 17
 	VersionNumber int                `json:"version"`
@@ -38,7 +56,9 @@ type PostgresInfo struct {
 	System        sysinfo.SystemInfo `json:"system,omitempty"`
 
 	// Configuration from disk (postgresql.conf + postgres.auto.conf)
-	Conf config.Conf `json:"conf,omitempty"`
+	Files map[string]config.Conf `json:"conf_files,omitempty"`
+
+	MergedConf config.Conf `json:"merged_conf,omitempty"`
 
 	// Runtime configuration from running instance (only populated if running)
 	RuntimeConf config.Conf `json:"runtime_conf,omitempty"`
@@ -47,6 +67,9 @@ type PostgresInfo struct {
 	DataSize int64 `json:"data_size" pretty:"format=bytes"`
 	// Size of all DBs combined
 	DBSize int64 `json:"db_size" pretty:"format=bytes"`
+
+	// Data directory files tree
+	DataDir string `json:"data_dir_tree,omitempty" `
 
 	// pg_controldata
 	ClusterState     string     `json:"cluster_state"`
@@ -129,6 +152,115 @@ func calculateDBDirectorySize(dataDir string) (int64, error) {
 	return totalSize, err
 }
 
+// Pretty implements the api.Text formatting for DataDirFileInfo
+func (f *DataDirFileInfo) Pretty() api.Text {
+	var icon string
+	ext := strings.ToLower(filepath.Ext(f.Name))
+	switch ext {
+	case ".conf":
+		icon = "📄"
+	case ".opts":
+		icon = "🔧"
+	case ".pid":
+		icon = "🔴"
+	default:
+		icon = "📋"
+	}
+
+	relTime := clicky.Human(time.Since(f.Modified))
+	sizeStr := text.HumanizeBytes(uint64(f.Size))
+
+	content := fmt.Sprintf("%s %s  %s  %s  %s",
+		icon,
+		f.Name,
+		sizeStr,
+		f.MD5,
+		relTime,
+	)
+
+	return api.Text{Content: content}
+}
+
+// GetChildren implements TreeNode interface for DataDirFileInfo
+func (f *DataDirFileInfo) GetChildren() []api.TreeNode {
+	return nil
+}
+
+// Pretty implements the api.Text formatting for DataDirTree
+func (d *DataDirTree) Pretty() api.Text {
+	return api.Text{
+		Content: fmt.Sprintf("📁 %s (%s)", d.Label, d.Path),
+		Style:   "bold",
+	}
+}
+
+// GetChildren implements TreeNode interface for DataDirTree
+func (d *DataDirTree) GetChildren() []api.TreeNode {
+	children := make([]api.TreeNode, len(d.Files))
+	for i := range d.Files {
+		children[i] = &d.Files[i]
+	}
+	return children
+}
+
+// calculateMD5 calculates the MD5 hash of a file and returns first 8 chars
+func calculateMD5(filepath string) (string, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil))[:8], nil
+}
+
+// scanDataDirFiles scans the data directory for configuration and metadata files
+func scanDataDirFiles(dataDir string) (*DataDirTree, error) {
+	tree := &DataDirTree{
+		Label: "",
+		Path:  dataDir,
+		Files: []DataDirFileInfo{},
+	}
+
+	patterns := []string{"*.conf", "*.opts", "*.pid"}
+
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(dataDir, pattern))
+		if err != nil {
+			continue
+		}
+
+		for _, match := range matches {
+			info, err := os.Stat(match)
+			if err != nil {
+				continue
+			}
+
+			md5Hash, err := calculateMD5(match)
+			if err != nil {
+				md5Hash = "error"
+			}
+
+			fileInfo := DataDirFileInfo{
+				Name:     filepath.Base(match),
+				Path:     match,
+				Size:     info.Size(),
+				MD5:      md5Hash,
+				Modified: info.ModTime(),
+			}
+
+			tree.Files = append(tree.Files, fileInfo)
+		}
+	}
+
+	return tree, nil
+}
+
 func (p *Postgres) Info() (*PostgresInfo, error) {
 	if err := p.ensureBinDir(); err != nil {
 		return nil, fmt.Errorf("failed to resolve binary directory: %w", err)
@@ -154,24 +286,16 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 
 	info.Running = p.IsRunning()
 
-	diskConf := p.GetConf()
-	info.Conf = diskConf
+	auto, _ := config.LoadConfFile(filepath.Join(p.DataDir, "postgresql.auto.conf"))
+	tune, _ := config.LoadConfFile(filepath.Join(p.DataDir, "postgresql.tune.conf"))
+	mainConf, _ := config.LoadConfFile(filepath.Join(p.DataDir, "postgresql.conf"))
 
-	if portStr, ok := diskConf["port"]; ok {
-		if port, err := strconv.Atoi(portStr); err == nil {
-			info.Port = port
-		}
+	info.Files = map[string]config.Conf{
+		"postgresql.conf":      mainConf,
+		"postgresql.auto.conf": auto,
+		"postgresql.tune.conf": tune,
 	}
-	if info.Port == 0 {
-		info.Port = 5432
-	}
-
-	if listenAddr, ok := diskConf["listen_addresses"]; ok {
-		info.ListenAddress = listenAddr
-	}
-	if info.ListenAddress == "" {
-		info.ListenAddress = "localhost"
-	}
+	info.MergedConf = mainConf.MergeFrom(tune.MergeFrom(auto))
 
 	if info.Running {
 		if runtimeConf, err := p.GetCurrentConf(); err == nil {
@@ -224,6 +348,10 @@ func (p *Postgres) Info() (*PostgresInfo, error) {
 
 	if sysInfo, err := sysinfo.DetectSystemInfo(); err == nil {
 		info.System = *sysInfo
+	}
+
+	if dataDirFiles, err := scanDataDirFiles(p.DataDir); err == nil {
+		info.DataDir = clicky.MustFormat(dataDirFiles, clicky.FormatOptions{Pretty: true, Tree: true})
 	}
 
 	return info, nil

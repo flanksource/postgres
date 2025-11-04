@@ -9,8 +9,6 @@ import (
 
 	"github.com/flanksource/clicky"
 	"github.com/flanksource/clicky/api/icons"
-	"github.com/flanksource/clicky/exec"
-	"github.com/flanksource/postgres/pkg/config"
 )
 
 func (p *Postgres) Upgrade(targetVersion int) error {
@@ -187,23 +185,6 @@ func (p *Postgres) moveUpgradedData(newDataDir string) error {
 	}
 
 	return nil
-}
-
-func (p *Postgres) GetConf() config.Conf {
-	auto, _ := config.LoadConfFile(filepath.Join(p.DataDir, "postgres.auto.conf"))
-	config, _ := config.LoadConfFile(filepath.Join(p.DataDir, "postgresql.conf"))
-	return auto.MergeFrom(config)
-}
-
-func (p *Postgres) Psql(args ...string) *exec.Process {
-	if err := p.ensureBinDir(); err != nil {
-		panic(fmt.Errorf("failed to resolve binary directory: %w", err))
-	}
-	if p.DataDir == "" {
-		panic("DataDir not specified")
-	}
-	cmd := clicky.Exec(filepath.Join(p.BinDir, "psql"), args...)
-	return cmd.Debug()
 }
 
 // backupDataDirectory creates a backup of the current data directory

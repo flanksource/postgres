@@ -5,7 +5,7 @@ go 1.25.1
 require (
 	github.com/flanksource/commons v1.42.3
 	github.com/flanksource/commons-db v0.1.0
-	github.com/flanksource/commons-test v0.1.0
+	github.com/flanksource/commons-test v0.1.1
 	github.com/flanksource/postgres v0.1.0
 	github.com/onsi/ginkgo/v2 v2.26.0
 	github.com/onsi/gomega v1.38.2
@@ -45,7 +45,7 @@ require (
 	github.com/emirpasic/gods/v2 v2.0.0-alpha // indirect
 	github.com/f-amaral/go-async v0.3.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/flanksource/clicky v1.10.0 // indirect
+	github.com/flanksource/clicky v1.11.0 // indirect
 	github.com/flanksource/gomplate/v3 v3.24.60 // indirect
 	github.com/flanksource/is-healthy v1.0.79 // indirect
 	github.com/flanksource/kubectl-neat v1.0.4 // indirect
@@ -143,9 +143,6 @@ require (
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/ohler55/ojg v1.26.10 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
-	github.com/olekukonko/errors v1.1.0 // indirect
-	github.com/olekukonko/ll v0.0.9 // indirect
-	github.com/olekukonko/tablewriter v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
@@ -247,8 +244,8 @@ require (
 
 replace github.com/flanksource/postgres => ../
 
-replace github.com/flanksource/commons-test => ../../commons-test
+// replace github.com/flanksource/commons-test => ../../commons-test
 
-replace github.com/flanksource/clicky => ../../clicky
+// replace github.com/flanksource/clicky => ../../clicky
 
 // replace github.com/flanksource/commons-db => ../../commons-db

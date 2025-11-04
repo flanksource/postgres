@@ -235,16 +235,22 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to run pg_tune: %w", err)
 		}
 		if postgres.DryRun {
-			clicky.Infof("📄 Generated postgresql.auto.conf by pg_tune:")
+			clicky.Infof("📄 Generated postgresql.tune.conf by pg_tune:")
 
 			fmt.Println(clicky.CodeBlock("properties", content).ANSI())
 		} else {
-			configPath := filepath.Join(opts.DataDir, "postgresql.auto.conf")
+			configPath := filepath.Join(postgres.DataDir, "postgresql.tune.conf")
 			if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
-				return fmt.Errorf("failed to write postgresql.auto.conf: %w", err)
+				return fmt.Errorf("failed to write postgresql.tune.conf: %w", err)
 			}
 			clicky.Infof("✅ pg_tune optimization applied and saved to %s", configPath)
 
+			// Ensure postgresql.conf includes the tune file
+			postgresConfPath := filepath.Join(postgres.DataDir, "postgresql.conf")
+			if err := config.EnsureIncludeDirective(postgresConfPath, "postgresql.tune.conf"); err != nil {
+				return fmt.Errorf("failed to update postgresql.conf: %w", err)
+			}
+			clicky.Infof("✅ postgresql.conf updated to include postgresql.tune.conf")
 		}
 	}
 
