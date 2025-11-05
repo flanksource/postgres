@@ -1,0 +1,8 @@
+# Build artifacts
+.bin/
+node_modules/
+tmp.json
+
+# Generated schemas (generated from values.yaml)
+values.schema.json
+values.schema.deref.json

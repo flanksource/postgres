@@ -1,233 +1,245 @@
-# PostgreSQL Upgrade Helm Chart
+# postgres
 
-A Helm chart for deploying PostgreSQL with automatic upgrade capabilities using Flanksource's PostgreSQL upgrade container.
+A Helm chart for PostgreSQL with automatic upgrade capabilities
+
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 17](https://img.shields.io/badge/AppVersion-17-informational?style=flat-square)
+
+## Chart Information
+
+## Maintainers
+
+| Name | Email | Url |
+| ---- | ------ | --- |
+| Flanksource | <support@flanksource.com> | <https://flanksource.com> |
+
+## Source Code
+
+* <https://github.com/flanksource/postgres>
+
+**Homepage:** <https://github.com/flanksource/postgres>
 
 ## Features
 
-- **Automatic PostgreSQL version upgrades** on startup
-- **Dynamic configuration** based on Kubernetes resource limits
-- **Admin password reset** on startup (optional)
-- **Persistent storage** with configurable storage classes
-- **Security-focused** with non-root containers and security contexts
-- **Comprehensive monitoring** with startup, readiness, and liveness probes
-- **Helm tests** for validation and performance testing
+- 🚀 **Automatic Upgrades**: Built-in support for automatic PostgreSQL version upgrades
+- 🎯 **Auto-tuning**: Automatic performance tuning based on available resources
+- 🔐 **Security**: Runs as non-root user with configurable security contexts
+- 💾 **Persistence**: Optional persistent storage with PVC support
+- 🔧 **Flexible Configuration**: Extensive PostgreSQL configuration options
+- 📊 **Health Checks**: Comprehensive startup, liveness, and readiness probes
 
-## Installation
+## Quick Start
 
-### Add the Helm repository
+### Basic Installation
+
+Install PostgreSQL with default settings:
 
 ```bash
-helm repo add flanksource oci://ghcr.io/flanksource/charts
+helm repo add flanksource https://flanksource.github.io/charts
 helm repo update
+helm install postgres flanksource/postgres
 ```
 
-### Install the chart
+### Installation with Custom Password
 
 ```bash
-helm install my-postgres flanksource/postgres-upgrade \
-  --set postgresql.password=your-secure-password
+kubectl create secret generic postgres-password --from-literal=password=mySecurePassword123
+helm install postgres flanksource/postgres --set passwordRef.create=false
 ```
 
-### Install with custom configuration
+### Installation with Custom Resources
 
 ```bash
-helm install my-postgres flanksource/postgres-upgrade \
-  --set postgresql.password=your-secure-password \
-  --set postgresql.version=17 \
-  --set resources.limits.memory=4Gi \
-  --set persistence.size=50Gi
+helm install postgres flanksource/postgres \
+  --set resources.requests.memory=512Mi \
+  --set resources.requests.cpu=500m \
+  --set resources.limits.memory=2Gi \
+  --set resources.limits.cpu=2000m
 ```
 
-## Configuration
-
-### PostgreSQL Settings
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `postgresql.version` | Target PostgreSQL version | `17` |
-| `postgresql.database` | Default database name | `postgres` |
-| `postgresql.username` | PostgreSQL username | `postgres` |
-| `postgresql.password` | PostgreSQL password (required) | `""` |
-| `postgresql.resetPassword` | Reset password on startup | `false` |
-| `postgresql.autoUpgrade` | Enable automatic upgrades | `true` |
-
-### PostgreSQL Configuration
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `postgresql.config.max_connections` | Maximum connections | `100` |
-| `postgresql.config.shared_buffers` | Shared buffers (auto-calculated if empty) | `""` |
-| `postgresql.config.effective_cache_size` | Effective cache size (auto-calculated if empty) | `""` |
-| `postgresql.config.work_mem` | Work memory (auto-calculated if empty) | `""` |
-| `postgresql.config.maintenance_work_mem` | Maintenance work memory (auto-calculated if empty) | `""` |
-| `postgresql.config.custom` | Custom configuration key-value pairs | `{}` |
-
-### Image Settings
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `image.registry` | Container registry | `ghcr.io` |
-| `image.repository` | Image repository | `flanksource/postgres-upgrade` |
-| `image.tag` | Image tag | `to-17-latest` |
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-
-### Resource Configuration
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `resources.limits.cpu` | CPU limit | `2000m` |
-| `resources.limits.memory` | Memory limit | `4Gi` |
-| `resources.requests.cpu` | CPU request | `500m` |
-| `resources.requests.memory` | Memory request | `1Gi` |
-
-### Persistence
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `persistence.enabled` | Enable persistent storage | `true` |
-| `persistence.storageClass` | Storage class | `""` |
-| `persistence.accessMode` | Access mode | `ReadWriteOnce` |
-| `persistence.size` | Storage size | `10Gi` |
-
-### Service Configuration
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `service.type` | Service type | `ClusterIP` |
-| `service.port` | Service port | `5432` |
-| `service.annotations` | Service annotations | `{}` |
-
-## Dynamic Configuration
-
-The chart automatically calculates optimal PostgreSQL settings based on your Kubernetes resource limits:
-
-- **shared_buffers**: 25% of memory limit
-- **effective_cache_size**: 75% of memory limit
-- **work_mem**: 0.5% of memory limit
-- **maintenance_work_mem**: 6.25% of memory limit
-- **wal_buffers**: 0.78% of memory limit
-
-You can override these by setting explicit values in `postgresql.config.*`.
-
-## Automatic Upgrades
-
-When `postgresql.autoUpgrade` is enabled (default), the container will:
-
-1. Detect the current PostgreSQL version in the data directory
-2. Compare it with the target version (`postgresql.version`)
-3. Automatically run `pg_upgrade` if needed
-4. Preserve all data and configuration during the upgrade
-
-### Supported Upgrade Paths
-
-- PostgreSQL 14 → 15, 16, 17
-- PostgreSQL 15 → 16, 17
-- PostgreSQL 16 → 17
-
-## Testing
-
-Run the included Helm tests to verify your deployment:
+### Installation with Specific PostgreSQL Version
 
 ```bash
-helm test my-postgres
+helm install postgres flanksource/postgres \
+  --set version="16" \
+  --set image.tag="16"
 ```
 
-This will run:
-- Connection tests
-- Basic SQL operations
-- Performance validation
-- Configuration verification
+### Installation with Custom Storage
 
-## Security
+```bash
+helm install postgres flanksource/postgres \
+  --set persistence.size=50Gi \
+  --set persistence.storageClass=fast-ssd
+```
 
-The chart follows security best practices:
+## Connecting to PostgreSQL
 
-- Runs as non-root user (UID 999)
-- Uses read-only root filesystem where possible
-- Drops all capabilities
-- Supports Pod Security Standards
-- Configurable network policies
-- Secure password management
+### From within the cluster
 
-## Monitoring
+Get the connection details:
 
-The chart includes comprehensive health checks:
+```bash
+export POSTGRES_PASSWORD=$(kubectl get secret postgres-password -o jsonpath="{.data.password}" | base64 --decode)
+export POSTGRES_HOST=$(kubectl get service postgres -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
 
-- **Startup probe**: Ensures PostgreSQL starts successfully (up to 5 minutes)
-- **Readiness probe**: Confirms PostgreSQL is ready to accept connections
-- **Liveness probe**: Monitors PostgreSQL health during runtime
+# Connect using psql
+kubectl run postgres-client --rm --tty -i --restart='Never' --image postgres:17 \
+  --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+  --command -- psql -h postgres -U postgres -d postgres
+```
 
-## Examples
+### Port forwarding for local access
 
-### High Availability Setup
+```bash
+kubectl port-forward svc/postgres 5432:5432
+export POSTGRES_PASSWORD=$(kubectl get secret postgres-password -o jsonpath="{.data.password}" | base64 --decode)
+psql -h localhost -U postgres -d postgres
+```
+
+## Configuration Examples
+
+### Disable Auto-upgrade
 
 ```yaml
-resources:
-  limits:
-    cpu: 4000m
-    memory: 8Gi
-  requests:
-    cpu: 1000m
-    memory: 2Gi
-
-persistence:
-  size: 100Gi
-  storageClass: "fast-ssd"
-
-database:
-  config:
-    max_connections: "200"
-    custom:
-      synchronous_commit: "on"
-      wal_level: "replica"
+autoUpgrade:
+  enabled: false
 ```
 
-### Development Environment
+### Custom PostgreSQL Configuration
 
 ```yaml
-resources:
-  limits:
-    cpu: 1000m
-    memory: 2Gi
-  requests:
-    cpu: 200m
-    memory: 512Mi
+conf:
+  max_connections: 200
+  shared_buffers: 2GB
+  effective_cache_size: 6GB
+  log_statement: "all"
+  log_min_duration_statement: "1s"
+```
 
+### Using Existing PVC
+
+```yaml
 persistence:
-  size: 5Gi
-
-database:
-  config:
-    max_connections: "50"
-    custom:
-      log_statement: "all"
-      log_min_duration_statement: "0"
+  enabled: true
+  existingClaim: "my-existing-pvc"
 ```
 
-## Troubleshooting
+### Node Affinity and Tolerations
 
-### Check PostgreSQL logs
+```yaml
+nodeSelector:
+  disktype: ssd
+
+tolerations:
+  - key: "database"
+    operator: "Equal"
+    value: "postgres"
+    effect: "NoSchedule"
+```
+
+## Upgrade Notes
+
+When upgrading the chart, the PostgreSQL version can be automatically upgraded if `autoUpgrade.enabled` is set to `true` (default). The upgrade process is handled by the `postgres-cli` tool which:
+
+1. Detects the current PostgreSQL version
+2. Performs pg_upgrade if needed
+3. Updates the data directory structure
+4. Restarts PostgreSQL with the new version
+
+To upgrade the chart:
 
 ```bash
-kubectl logs -l app.kubernetes.io/name=postgres-upgrade
+helm upgrade postgres flanksource/postgres --set version="17"
 ```
 
-### Check configuration
+## Values
 
-```bash
-kubectl exec -it postgres-upgrade-0 -- psql -U postgres -c "SHOW ALL;"
-```
-
-### Verify upgrade status
-
-```bash
-kubectl exec -it postgres-upgrade-0 -- cat /var/lib/postgresql/data/pgdata/PG_VERSION
-```
-
-## Contributing
-
-Please read our [contributing guidelines](https://github.com/flanksource/postgres/blob/main/CONTRIBUTING.md) before submitting pull requests.
-
-## License
-
-This chart is licensed under the Apache License 2.0. See [LICENSE](https://github.com/flanksource/postgres/blob/main/LICENSE) for details.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| affinity | object | `{}` |  |
+| autoUpgrade.enabled | bool | `true` |  |
+| conf.listen_addresses | string | `"*"` |  |
+| conf.log_autovacuum_min_duration | string | `"10s"` |  |
+| conf.log_connections | string | `"off"` |  |
+| conf.log_destination | string | `"stderr"` |  |
+| conf.log_directory | string | `"/var/log/postgresql"` |  |
+| conf.log_disconnections | string | `"off"` |  |
+| conf.log_file_mode | int | `420` |  |
+| conf.log_filename | string | `"postgresql-%d.log"` |  |
+| conf.log_line_prefix | string | `"%m [%p] %q[user=%u,db=%d,app=%a]"` |  |
+| conf.log_lock_waits | string | `"on"` |  |
+| conf.log_min_duration_statement | string | `"1s"` |  |
+| conf.log_statement | string | `"all"` |  |
+| conf.log_temp_files | string | `"100MB"` |  |
+| conf.log_timezone | string | `"UTC"` |  |
+| conf.logging_collector | string | `"off"` |  |
+| conf.password_encryption | string | `"scram-sha-256"` |  |
+| conf.ssl | string | `"off"` |  |
+| conf.timezone | string | `"UTC"` |  |
+| database.name | string | `"postgres"` |  |
+| database.username | string | `"postgres"` |  |
+| dshmSize | string | `"256Mi"` |  |
+| env | list | `[]` |  |
+| extraVolumeMounts | list | `[]` |  |
+| extraVolumes | list | `[]` |  |
+| fullnameOverride | string | `""` |  |
+| image.pullPolicy | string | `"IfNotPresent"` |  |
+| image.registry | string | `"ghcr.io"` |  |
+| image.repository | string | `"flanksource/postgres"` |  |
+| image.tag | string | `"17"` |  |
+| imagePullSecrets | list | `[]` |  |
+| livenessProbe.enabled | bool | `true` |  |
+| livenessProbe.failureThreshold | int | `3` |  |
+| livenessProbe.initialDelaySeconds | int | `10` |  |
+| livenessProbe.periodSeconds | int | `30` |  |
+| livenessProbe.successThreshold | int | `1` |  |
+| livenessProbe.timeoutSeconds | int | `5` |  |
+| nameOverride | string | `""` |  |
+| nodeSelector | object | `{}` | Node selector |
+| passwordRef.create | bool | `true` |  |
+| passwordRef.key | string | `"password"` |  |
+| passwordRef.secretName | string | `"postgres-password"` |  |
+| persistence.accessMode | string | `"ReadWriteOnce"` |  |
+| persistence.annotations | object | `{}` |  |
+| persistence.enabled | bool | `true` |  |
+| persistence.existingClaim | string | `""` |  |
+| persistence.size | string | `"10Gi"` |  |
+| persistence.storageClass | string | `""` |  |
+| persistence.volumeName | string | `""` |  |
+| podAnnotations | object | `{}` |  |
+| podLabels | object | `{}` |  |
+| podSecurityContext.fsGroup | int | `999` |  |
+| podSecurityContext.fsGroupChangePolicy | string | `"OnRootMismatch"` |  |
+| podSecurityContext.runAsGroup | int | `999` |  |
+| podSecurityContext.runAsUser | int | `999` |  |
+| postgresCliArgs | string | `"--pg-tune --auto-upgrade --auto-reset-password  --auto-init"` | custom arguments to pass to postgres-cli startup |
+| readinessProbe.enabled | bool | `true` |  |
+| readinessProbe.failureThreshold | int | `3` |  |
+| readinessProbe.initialDelaySeconds | int | `5` |  |
+| readinessProbe.periodSeconds | int | `10` |  |
+| readinessProbe.successThreshold | int | `1` |  |
+| readinessProbe.timeoutSeconds | int | `5` |  |
+| resetVolumePermissions | bool | `true` | Change ownership and permissions of mounted volumes on startup |
+| resources.limits.cpu | string | `"2000m"` |  |
+| resources.limits.memory | string | `"4Gi"` |  |
+| resources.requests.cpu | string | `"20m"` |  |
+| resources.requests.memory | string | `"128Mi"` |  |
+| securityContext.allowPrivilegeEscalation | bool | `false` |  |
+| securityContext.capabilities.drop[0] | string | `"ALL"` |  |
+| securityContext.readOnlyRootFilesystem | bool | `false` |  |
+| securityContext.runAsNonRoot | bool | `true` |  |
+| securityContext.runAsUser | int | `999` |  |
+| service.annotations | object | `{}` |  |
+| service.port | int | `5432` |  |
+| service.type | string | `"ClusterIP"` |  |
+| serviceAccount.annotations | object | `{}` |  |
+| serviceAccount.create | bool | `true` |  |
+| serviceAccount.name | string | `""` |  |
+| startupProbe.enabled | bool | `true` |  |
+| startupProbe.failureThreshold | int | `30` |  |
+| startupProbe.initialDelaySeconds | int | `10` |  |
+| startupProbe.periodSeconds | int | `10` |  |
+| startupProbe.successThreshold | int | `1` |  |
+| startupProbe.timeoutSeconds | int | `5` |  |
+| tolerations | list | `[]` |  |
+| version | string | `"17"` | Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime |

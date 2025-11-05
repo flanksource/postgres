@@ -1,0 +1,149 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Chart Information
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Features
+
+- 🚀 **Automatic Upgrades**: Built-in support for automatic PostgreSQL version upgrades
+- 🎯 **Auto-tuning**: Automatic performance tuning based on available resources
+- 🔐 **Security**: Runs as non-root user with configurable security contexts
+- 💾 **Persistence**: Optional persistent storage with PVC support
+- 🔧 **Flexible Configuration**: Extensive PostgreSQL configuration options
+- 📊 **Health Checks**: Comprehensive startup, liveness, and readiness probes
+
+## Quick Start
+
+### Basic Installation
+
+Install PostgreSQL with default settings:
+
+```bash
+helm repo add flanksource https://flanksource.github.io/charts
+helm repo update
+helm install postgres flanksource/postgres
+```
+
+### Installation with Custom Password
+
+```bash
+kubectl create secret generic postgres-password --from-literal=password=mySecurePassword123
+helm install postgres flanksource/postgres --set passwordRef.create=false
+```
+
+### Installation with Custom Resources
+
+```bash
+helm install postgres flanksource/postgres \
+  --set resources.requests.memory=512Mi \
+  --set resources.requests.cpu=500m \
+  --set resources.limits.memory=2Gi \
+  --set resources.limits.cpu=2000m
+```
+
+### Installation with Specific PostgreSQL Version
+
+```bash
+helm install postgres flanksource/postgres \
+  --set version="16" \
+  --set image.tag="16"
+```
+
+### Installation with Custom Storage
+
+```bash
+helm install postgres flanksource/postgres \
+  --set persistence.size=50Gi \
+  --set persistence.storageClass=fast-ssd
+```
+
+## Connecting to PostgreSQL
+
+### From within the cluster
+
+Get the connection details:
+
+```bash
+export POSTGRES_PASSWORD=$(kubectl get secret postgres-password -o jsonpath="{.data.password}" | base64 --decode)
+export POSTGRES_HOST=$(kubectl get service postgres -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+
+# Connect using psql
+kubectl run postgres-client --rm --tty -i --restart='Never' --image postgres:17 \
+  --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+  --command -- psql -h postgres -U postgres -d postgres
+```
+
+### Port forwarding for local access
+
+```bash
+kubectl port-forward svc/postgres 5432:5432
+export POSTGRES_PASSWORD=$(kubectl get secret postgres-password -o jsonpath="{.data.password}" | base64 --decode)
+psql -h localhost -U postgres -d postgres
+```
+
+## Configuration Examples
+
+### Disable Auto-upgrade
+
+```yaml
+autoUpgrade:
+  enabled: false
+```
+
+### Custom PostgreSQL Configuration
+
+```yaml
+conf:
+  max_connections: 200
+  shared_buffers: 2GB
+  effective_cache_size: 6GB
+  log_statement: "all"
+  log_min_duration_statement: "1s"
+```
+
+### Using Existing PVC
+
+```yaml
+persistence:
+  enabled: true
+  existingClaim: "my-existing-pvc"
+```
+
+### Node Affinity and Tolerations
+
+```yaml
+nodeSelector:
+  disktype: ssd
+
+tolerations:
+  - key: "database"
+    operator: "Equal"
+    value: "postgres"
+    effect: "NoSchedule"
+```
+
+## Upgrade Notes
+
+When upgrading the chart, the PostgreSQL version can be automatically upgraded if `autoUpgrade.enabled` is set to `true` (default). The upgrade process is handled by the `postgres-cli` tool which:
+
+1. Detects the current PostgreSQL version
+2. Performs pg_upgrade if needed
+3. Updates the data directory structure
+4. Restarts PostgreSQL with the new version
+
+To upgrade the chart:
+
+```bash
+helm upgrade postgres flanksource/postgres --set version="17"
+```
+
+{{ template "chart.valuesSection" . }}

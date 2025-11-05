@@ -1,0 +1,545 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "affinity": {
+      "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Affinity"
+    },
+    "autoUpgrade": {
+      "additionalProperties": false,
+      "description": "Automatic upgrade configuration",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        }
+      },
+      "title": "autoUpgrade"
+    },
+    "conf": {
+      "additionalProperties": true,
+      "description": "PostgreSQL configuration settings\nIndividual settings - auto-tuned based on resources if empty",
+      "properties": {
+        "listen_addresses": {
+          "default": "*",
+          "title": "listen_addresses",
+          "type": "string"
+        },
+        "log_autovacuum_min_duration": {
+          "default": "10s",
+          "title": "log_autovacuum_min_duration",
+          "type": "string"
+        },
+        "log_connections": {
+          "default": "off",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "title": "log_connections"
+        },
+        "log_destination": {
+          "default": "stderr",
+          "title": "log_destination",
+          "type": "string"
+        },
+        "log_directory": {
+          "default": "/var/log/postgresql",
+          "title": "log_directory",
+          "type": "string"
+        },
+        "log_disconnections": {
+          "default": "off",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "title": "log_disconnections"
+        },
+        "log_file_mode": {
+          "default": 644,
+          "title": "log_file_mode",
+          "type": "integer"
+        },
+        "log_filename": {
+          "default": "postgresql-%d.log",
+          "title": "log_filename",
+          "type": "string"
+        },
+        "log_line_prefix": {
+          "default": "%m [%p] %q[user=%u,db=%d,app=%a]",
+          "title": "log_line_prefix",
+          "type": "string"
+        },
+        "log_lock_waits": {
+          "default": "on",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "title": "log_lock_waits"
+        },
+        "log_min_duration_statement": {
+          "default": "1s",
+          "title": "log_min_duration_statement",
+          "type": "string"
+        },
+        "log_statement": {
+          "default": "all",
+          "description": "log_rotation_age: \"1d\"\nlog_rotation_size: \"100MB\"\nlog_truncate_on_rotation: on",
+          "enum": [
+            "none",
+            "ddl",
+            "mod",
+            "all"
+          ],
+          "title": "log_statement"
+        },
+        "log_temp_files": {
+          "default": "100MB",
+          "title": "log_temp_files",
+          "type": "string"
+        },
+        "log_timezone": {
+          "default": "UTC",
+          "title": "log_timezone",
+          "type": "string"
+        },
+        "logging_collector": {
+          "default": "off",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "title": "logging_collector"
+        },
+        "password_encryption": {
+          "default": "scram-sha-256",
+          "enum": [
+            "md5",
+            "scram-sha-256"
+          ],
+          "title": "password_encryption"
+        },
+        "ssl": {
+          "default": "off",
+          "enum": [
+            "on",
+            "off"
+          ],
+          "title": "ssl"
+        },
+        "timezone": {
+          "default": "UTC",
+          "title": "timezone",
+          "type": "string"
+        }
+      },
+      "title": "conf"
+    },
+    "database": {
+      "additionalProperties": false,
+      "description": "Database configuration",
+      "properties": {
+        "name": {
+          "default": "postgres",
+          "title": "name",
+          "type": "string"
+        },
+        "username": {
+          "default": "postgres",
+          "title": "username",
+          "type": "string"
+        }
+      },
+      "title": "database"
+    },
+    "dshmSize": {
+      "default": "256Mi",
+      "title": "dshmSize",
+      "type": "string"
+    },
+    "env": {
+      "description": "Additional environment variables",
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.EnvVar"
+      },
+      "title": "env",
+      "type": "array"
+    },
+    "extraVolumeMounts": {
+      "description": "Additional volume mounts",
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.VolumeMount"
+      },
+      "title": "extraVolumeMounts",
+      "type": "array"
+    },
+    "extraVolumes": {
+      "description": "Additional volumes",
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Volume"
+      },
+      "title": "extraVolumes",
+      "type": "array"
+    },
+    "fullnameOverride": {
+      "default": "",
+      "description": "Full name override",
+      "title": "fullnameOverride",
+      "type": "string"
+    },
+    "global": {
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "title": "global",
+      "type": "object"
+    },
+    "image": {
+      "additionalProperties": false,
+      "description": "PostgreSQL container image",
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "enum": [
+            "Always",
+            "Never",
+            "IfNotPresent"
+          ],
+          "title": "pullPolicy"
+        },
+        "registry": {
+          "default": "ghcr.io",
+          "title": "registry",
+          "type": "string"
+        },
+        "repository": {
+          "default": "flanksource/postgres",
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "17",
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "title": "image"
+    },
+    "imagePullSecrets": {
+      "description": "Image pull secrets",
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.LocalObjectReference"
+      },
+      "title": "imagePullSecrets",
+      "type": "array"
+    },
+    "livenessProbe": {
+      "additionalProperties": false,
+      "description": "Liveness probe configuration",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "failureThreshold": {
+          "default": 3,
+          "minimum": 1,
+          "title": "failureThreshold",
+          "type": "integer"
+        },
+        "initialDelaySeconds": {
+          "default": 10,
+          "minimum": 0,
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 30,
+          "minimum": 1,
+          "title": "periodSeconds",
+          "type": "integer"
+        },
+        "successThreshold": {
+          "default": 1,
+          "minimum": 1,
+          "title": "successThreshold",
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "default": 5,
+          "minimum": 1,
+          "title": "timeoutSeconds",
+          "type": "integer"
+        }
+      },
+      "title": "livenessProbe"
+    },
+    "nameOverride": {
+      "default": "",
+      "description": "Name override",
+      "title": "nameOverride",
+      "type": "string"
+    },
+    "nodeSelector": {
+      "additionalProperties": true,
+      "description": "Node selector",
+      "title": "nodeSelector"
+    },
+    "passwordRef": {
+      "additionalProperties": false,
+      "description": "Password secret reference",
+      "properties": {
+        "create": {
+          "default": true,
+          "title": "create",
+          "type": "boolean"
+        },
+        "key": {
+          "default": "password",
+          "title": "key",
+          "type": "string"
+        },
+        "secretName": {
+          "default": "postgres-password",
+          "title": "secretName",
+          "type": "string"
+        }
+      },
+      "title": "passwordRef"
+    },
+    "persistence": {
+      "additionalProperties": false,
+      "description": "Persistence configuration",
+      "properties": {
+        "accessMode": {
+          "default": "ReadWriteOnce",
+          "enum": [
+            "ReadWriteOnce",
+            "ReadOnlyMany",
+            "ReadWriteMany",
+            "ReadWriteOncePod"
+          ],
+          "title": "accessMode"
+        },
+        "annotations": {
+          "additionalProperties": true,
+          "title": "annotations"
+        },
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "existingClaim": {
+          "default": "",
+          "description": "Name of existing PVC to use (mutually exclusive with volumeName)",
+          "title": "existingClaim",
+          "type": "string"
+        },
+        "size": {
+          "default": "10Gi",
+          "title": "size",
+          "type": "string"
+        },
+        "storageClass": {
+          "default": "",
+          "title": "storageClass",
+          "type": "string"
+        },
+        "volumeName": {
+          "default": "",
+          "description": "Name of existing PV to bind to (mutually exclusive with existingClaim)",
+          "title": "volumeName",
+          "type": "string"
+        }
+      },
+      "title": "persistence"
+    },
+    "podAnnotations": {
+      "additionalProperties": true,
+      "description": "Pod annotations",
+      "title": "podAnnotations"
+    },
+    "podLabels": {
+      "additionalProperties": true,
+      "description": "Pod labels",
+      "title": "podLabels"
+    },
+    "podSecurityContext": {
+      "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext"
+    },
+    "postgresCliArgs": {
+      "default": "--pg-tune --auto-upgrade --auto-reset-password  --auto-init",
+      "description": "custom arguments to pass to postgres-cli startup",
+      "title": "postgresCliArgs",
+      "type": "string"
+    },
+    "readinessProbe": {
+      "additionalProperties": false,
+      "description": "Readiness probe configuration",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "failureThreshold": {
+          "default": 3,
+          "minimum": 1,
+          "title": "failureThreshold",
+          "type": "integer"
+        },
+        "initialDelaySeconds": {
+          "default": 5,
+          "minimum": 0,
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 10,
+          "minimum": 1,
+          "title": "periodSeconds",
+          "type": "integer"
+        },
+        "successThreshold": {
+          "default": 1,
+          "minimum": 1,
+          "title": "successThreshold",
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "default": 5,
+          "minimum": 1,
+          "title": "timeoutSeconds",
+          "type": "integer"
+        }
+      },
+      "title": "readinessProbe"
+    },
+    "resetVolumePermissions": {
+      "default": true,
+      "description": "Change ownership and permissions of mounted volumes on startup",
+      "title": "resetVolumePermissions",
+      "type": "boolean"
+    },
+    "resources": {
+      "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+    },
+    "securityContext": {
+      "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.SecurityContext"
+    },
+    "service": {
+      "additionalProperties": false,
+      "description": "Service configuration",
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "title": "annotations"
+        },
+        "port": {
+          "default": 5432,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "port",
+          "type": "integer"
+        },
+        "type": {
+          "default": "ClusterIP",
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer",
+            "ExternalName"
+          ],
+          "title": "type"
+        }
+      },
+      "title": "service"
+    },
+    "serviceAccount": {
+      "additionalProperties": false,
+      "description": "ServiceAccount configuration",
+      "properties": {
+        "annotations": {
+          "additionalProperties": true,
+          "title": "annotations"
+        },
+        "create": {
+          "default": true,
+          "title": "create",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "title": "name",
+          "type": "string"
+        }
+      },
+      "title": "serviceAccount"
+    },
+    "startupProbe": {
+      "additionalProperties": false,
+      "description": "Startup probe configuration",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "failureThreshold": {
+          "default": 30,
+          "minimum": 1,
+          "title": "failureThreshold",
+          "type": "integer"
+        },
+        "initialDelaySeconds": {
+          "default": 10,
+          "minimum": 0,
+          "title": "initialDelaySeconds",
+          "type": "integer"
+        },
+        "periodSeconds": {
+          "default": 10,
+          "minimum": 1,
+          "title": "periodSeconds",
+          "type": "integer"
+        },
+        "successThreshold": {
+          "default": 1,
+          "minimum": 1,
+          "title": "successThreshold",
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "default": 5,
+          "minimum": 1,
+          "title": "timeoutSeconds",
+          "type": "integer"
+        }
+      },
+      "title": "startupProbe"
+    },
+    "tolerations": {
+      "description": "Tolerations",
+      "items": {
+        "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Toleration"
+      },
+      "title": "tolerations",
+      "type": "array"
+    },
+    "version": {
+      "default": "17",
+      "description": "Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime",
+      "enum": [
+        "14",
+        "15",
+        "16",
+        "17"
+      ],
+      "title": "version"
+    }
+  },
+  "type": "object"
+}

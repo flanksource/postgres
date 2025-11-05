@@ -1,62 +1,202 @@
+# yaml-language-server: $schema=values.schema.json
+
 # Default values for postgres chart
 
-# Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime
+# @schema
+# enum:
+# - "14"
+# - "15"
+# - "16"
+# - "17"
+# @schema
+# -- Postgres version to run, flanksource/postgres images include multiple versions allowing you to select at runtime
 version: "17"
+
+# @schema
+# additionalProperties: false
+# @schema
 # Automatic upgrade configuration
 autoUpgrade:
+  # @schema
+  # type: boolean
+  # @schema
   enabled: true
 
-## Change ownership and permissions of mounted volumes on startup
+# @schema
+# type: boolean
+# @schema
+# -- Change ownership and permissions of mounted volumes on startup
 resetVolumePermissions: true
 
+# @schema
+# type: string
+# @schema
 dshmSize: 256Mi
 
-# custom arguments to pass to postgres-cli startup
+# @schema
+# type: string
+# @schema
+# -- custom arguments to pass to postgres-cli startup
 postgresCliArgs: "--pg-tune --auto-upgrade --auto-reset-password  --auto-init"
 
+# @schema
+# additionalProperties: false
+# @schema
 # PostgreSQL container image
 image:
+  # @schema
+  # type: string
+  # @schema
   registry: ghcr.io
+  # @schema
+  # type: string
+  # @schema
   repository: flanksource/postgres
+  # @schema
+  # type: string
+  # @schema
   tag: "17"
+  # @schema
+  # enum:
+  # - Always
+  # - Never
+  # - IfNotPresent
+  # @schema
   pullPolicy: IfNotPresent
 
+# @schema
+# additionalProperties: false
+# @schema
 # Database configuration
 database:
+  # @schema
+  # type: string
+  # @schema
   name: postgres
+  # @schema
+  # type: string
+  # @schema
   username: postgres
 
+# @schema
+# additionalProperties: false
+# @schema
 # Password secret reference
 passwordRef:
+  # @schema
+  # type: string
+  # @schema
   secretName: postgres-password
+  # @schema
+  # type: string
+  # @schema
   key: "password"
+  # @schema
+  # type: boolean
+  # @schema
   create: true
 
+# @schema
+# additionalProperties: true
+# @schema
 # PostgreSQL configuration settings
 # Individual settings - auto-tuned based on resources if empty
 conf:
+  # @schema
+  # type: string
+  # @schema
   listen_addresses: "*"
+  # @schema
+  # type: string
+  # @schema
   log_autovacuum_min_duration: 10s # Set to 0 for pgbadger
+  # @schema
+  # enum:
+  # - "on"
+  # - "off"
+  # @schema
   log_connections: off # Set to on for pgbadger
+  # @schema
+  # enum:
+  # - "on"
+  # - "off"
+  # @schema
   log_disconnections: off # Set to on for pgbadger
+  # @schema
+  # type: string
+  # @schema
   log_destination: "stderr"
+  # @schema
+  # type: string
+  # @schema
   log_directory: "/var/log/postgresql"
+  # @schema
+  # type: integer
+  # @schema
   log_file_mode: 0644
+  # @schema
+  # type: string
+  # @schema
   log_filename: "postgresql-%d.log"
+  # @schema
+  # type: string
+  # @schema
   log_line_prefix: "%m [%p] %q[user=%u,db=%d,app=%a]"
+  # @schema
+  # enum:
+  # - "on"
+  # - "off"
+  # @schema
   log_lock_waits: on
+  # @schema
+  # type: string
+  # @schema
   log_min_duration_statement: "1s"
   # log_rotation_age: "1d"
   # log_rotation_size: "100MB"
   # log_truncate_on_rotation: on
+  # @schema
+  # enum:
+  # - "none"
+  # - "ddl"
+  # - "mod"
+  # - "all"
+  # @schema
   log_statement: "all"
+  # @schema
+  # type: string
+  # @schema
   log_temp_files: 100MB # Set to 0 for pgbadger
+  # @schema
+  # type: string
+  # @schema
   log_timezone: "UTC"
+  # @schema
+  # enum:
+  # - "on"
+  # - "off"
+  # @schema
   logging_collector: off
+  # @schema
+  # enum:
+  # - "on"
+  # - "off"
+  # @schema
   ssl: off
+  # @schema
+  # type: string
+  # @schema
   timezone: "UTC"
+  # @schema
+  # enum:
+  # - md5
+  # - scram-sha-256
+  # @schema
   password_encryption: scram-sha-256
 
+# @schema
+# $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements
+# @schema
 # Resource configuration
 resources:
   limits:
@@ -66,30 +206,91 @@ resources:
     cpu: 20m
     memory: 128Mi
 
+# @schema
+# additionalProperties: false
+# @schema
 # Persistence configuration
 persistence:
+  # @schema
+  # type: boolean
+  # @schema
   enabled: true
+  # @schema
+  # type: string
+  # @schema
   # Name of existing PVC to use (mutually exclusive with volumeName)
   existingClaim: ""
+  # @schema
+  # type: string
+  # @schema
   # Name of existing PV to bind to (mutually exclusive with existingClaim)
   volumeName: ""
+  # @schema
+  # type: string
+  # @schema
   storageClass: ""
+  # @schema
+  # enum:
+  # - ReadWriteOnce
+  # - ReadOnlyMany
+  # - ReadWriteMany
+  # - ReadWriteOncePod
+  # @schema
   accessMode: ReadWriteOnce
+  # @schema
+  # type: string
+  # @schema
   size: 10Gi
+  # @schema
+  # additionalProperties: true
+  # @schema
   annotations: {}
 
+# @schema
+# additionalProperties: false
+# @schema
 # Service configuration
 service:
+  # @schema
+  # enum:
+  # - ClusterIP
+  # - NodePort
+  # - LoadBalancer
+  # - ExternalName
+  # @schema
   type: ClusterIP
+  # @schema
+  # type: integer
+  # minimum: 1
+  # maximum: 65535
+  # @schema
   port: 5432
+  # @schema
+  # additionalProperties: true
+  # @schema
   annotations: {}
 
+# @schema
+# additionalProperties: false
+# @schema
 # ServiceAccount configuration
 serviceAccount:
+  # @schema
+  # type: boolean
+  # @schema
   create: true
+  # @schema
+  # additionalProperties: true
+  # @schema
   annotations: {}
+  # @schema
+  # type: string
+  # @schema
   name: ""
 
+# @schema
+# $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.PodSecurityContext
+# @schema
 # Pod security context
 podSecurityContext:
   fsGroup: 999
@@ -97,6 +298,9 @@ podSecurityContext:
   runAsGroup: 999
   fsGroupChangePolicy: "OnRootMismatch"
 
+# @schema
+# $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.SecurityContext
+# @schema
 # Container security context
 securityContext:
   allowPrivilegeEscalation: false
@@ -107,64 +311,185 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 999
 
-# Node selector
+# @schema
+# additionalProperties: true
+# @schema
+# -- Node selector
 nodeSelector: {}
 
+# @schema
+# type: array
+# items:
+#   $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Toleration
+# @schema
 # Tolerations
 tolerations: []
 
+# @schema
+# $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Affinity
+# @schema
 # Affinity
 affinity: {}
 
+# @schema
+# additionalProperties: true
+# @schema
 # Pod annotations
 podAnnotations: {}
 
+# @schema
+# additionalProperties: true
+# @schema
 # Pod labels
 podLabels: {}
 
+# @schema
+# additionalProperties: false
+# @schema
 # Startup probe configuration
 startupProbe:
+  # @schema
+  # type: boolean
+  # @schema
   enabled: true
+  # @schema
+  # type: integer
+  # minimum: 0
+  # @schema
   initialDelaySeconds: 10
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   periodSeconds: 10
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   timeoutSeconds: 5
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   failureThreshold: 30
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   successThreshold: 1
 
+# @schema
+# additionalProperties: false
+# @schema
 # Readiness probe configuration
 readinessProbe:
+  # @schema
+  # type: boolean
+  # @schema
   enabled: true
+  # @schema
+  # type: integer
+  # minimum: 0
+  # @schema
   initialDelaySeconds: 5
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   periodSeconds: 10
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   timeoutSeconds: 5
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   failureThreshold: 3
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   successThreshold: 1
 
+# @schema
+# additionalProperties: false
+# @schema
 # Liveness probe configuration
 livenessProbe:
+  # @schema
+  # type: boolean
+  # @schema
   enabled: true
+  # @schema
+  # type: integer
+  # minimum: 0
+  # @schema
   initialDelaySeconds: 10
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   periodSeconds: 30
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   timeoutSeconds: 5
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   failureThreshold: 3
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
   successThreshold: 1
 
+# @schema
+# type: array
+# items:
+#   $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.EnvVar
+# @schema
 # Additional environment variables
 env: []
 # - name: EXAMPLE_ENV
 #   value: "example-value"
 
+# @schema
+# type: array
+# items:
+#   $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.Volume
+# @schema
 # Additional volumes
 extraVolumes: []
 
+# @schema
+# type: array
+# items:
+#   $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.VolumeMount
+# @schema
 # Additional volume mounts
 extraVolumeMounts: []
 
+# @schema
+# type: array
+# items:
+#   $ref: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.30.0/_definitions.json#/definitions/io.k8s.api.core.v1.LocalObjectReference
+# @schema
 # Image pull secrets
 imagePullSecrets: []
 
+# @schema
+# type: string
+# @schema
 # Name override
 nameOverride: ""
 
+# @schema
+# type: string
+# @schema
 # Full name override
 fullnameOverride: ""

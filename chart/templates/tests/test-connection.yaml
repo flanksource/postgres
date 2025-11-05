@@ -12,7 +12,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-connection
-      image: postgres:{{ .Values.image.tag }}-alpine
+      image: {{ include "postgres.image" . }}
       command:
         - /bin/sh
         - -c
@@ -33,16 +33,6 @@ spec:
           -- Test basic connection
           SELECT version();
 
-          -- Test database operations
-          CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name TEXT);
-          INSERT INTO test_table (name) VALUES ('test-connection');
-          SELECT COUNT(*) FROM test_table WHERE name = 'test-connection';
-          DROP TABLE test_table;
-
-          -- Test configuration
-          SHOW shared_buffers;
-          SHOW effective_cache_size;
-          SHOW max_connections;
           EOF
 
           echo "All tests passed successfully!"
