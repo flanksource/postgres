@@ -314,14 +314,21 @@ jobs:
         run: |
           # Create multi-arch manifest for major version tag
           docker buildx imagetools create -t \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.pg_version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.pg_version }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.pg_version }}-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.pg_version }}-arm64
 
           # Create multi-arch manifest for minor version tag
           docker buildx imagetools create -t \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-arm64
+
           # Create multi-arch manifest for version with SHA
           docker buildx imagetools create -t \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-arm64
 
       - name: Create and push latest tag for PostgreSQL 17
         if: matrix.pg_version == '17'
