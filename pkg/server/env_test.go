@@ -12,14 +12,14 @@ func TestSetupDockerEnv(t *testing.T) {
 	os.Clearenv()
 
 	os.Setenv("POSTGRES_USER", "testuser")
-	os.Setenv("POSTGRES_PASSWORD", "testpass")
+	os.Setenv("PGPASSWORD", "testpass")
 	os.Setenv("POSTGRES_DB", "testdb")
 	os.Setenv("POSTGRES_INITDB_ARGS", "--data-checksums")
 	os.Setenv("POSTGRES_HOST_AUTH_METHOD", "md5")
 
 	defer func() {
 		os.Unsetenv("POSTGRES_USER")
-		os.Unsetenv("POSTGRES_PASSWORD")
+		os.Unsetenv("PGPASSWORD")
 		os.Unsetenv("POSTGRES_DB")
 		os.Unsetenv("POSTGRES_INITDB_ARGS")
 		os.Unsetenv("POSTGRES_HOST_AUTH_METHOD")

@@ -45,7 +45,7 @@ docker run -v your-volume:/var/lib/postgresql/data flanksource/postgres:latest
 ```bash
 docker run -d \
   -v pgdata:/var/lib/postgresql/data \
-  -e POSTGRES_PASSWORD=mypassword \
+  -e PGPASSWORD=mypassword \
   ghcr.io/flanksource/postgres:latest
 ```
 
@@ -113,7 +113,7 @@ helm repo add flanksource https://flanksource.github.io/charts
 helm repo update
 
 # Install
-helm install my-postgres flanksource/postgres-upgrade \
+helm install my-postgres flanksource/postgres \
   --set database.password=your-password
 ```
 
@@ -121,10 +121,9 @@ helm install my-postgres flanksource/postgres-upgrade \
 
 ```bash
 docker run -d \
-  -e POSTGRES_PASSWORD=mypassword \
-  -e POSTGRES_EXTENSIONS="pgvector,pgsodium,pg_cron" \
+  -e PGPASSWORD=mypassword \
   -p 5432:5432 \
-  ghcr.io/flanksource/postgres:17-latest
+  ghcr.io/flanksource/postgres:17
 ```
 
 ### CLI
@@ -220,9 +219,8 @@ The Docker container orchestrates upgrades through a layered approach:
 
 | Image | Description |
 |-------|-------------|
-| `ghcr.io/flanksource/postgres:17-latest` | PostgreSQL 17 with all extensions |
-| `ghcr.io/flanksource/postgres:16-latest` | PostgreSQL 16 with all extensions |
-| `ghcr.io/flanksource/postgres-upgrade:to-17` | Upgrade-only image to PostgreSQL 17 |
+| `ghcr.io/flanksource/postgres:17` | PostgreSQL 17 with the ability to upgrade from 14 |
+| `ghcr.io/flanksource/postgres:16` | PostgreSQL 16 with the ability to upgrade from 14 |
 
 ## Automatic Performance Tuning
 
@@ -268,7 +266,7 @@ Password recovery without data loss:
 ### Kubernetes
 
 ```bash
-helm upgrade my-postgres flanksource/postgres-upgrade \
+helm upgrade my-postgres flanksource/postgres \
   --set database.resetPassword=true \
   --set database.password=new-password \
   --reuse-values
@@ -280,7 +278,7 @@ helm upgrade my-postgres flanksource/postgres-upgrade \
 docker run --rm \
   -v postgres_data:/var/lib/postgresql/data \
   -e RESET_PASSWORD=true \
-  -e POSTGRES_PASSWORD=new-password \
+  -e PGPASSWORD=new-password \
   ghcr.io/flanksource/postgres:17-latest
 ```
 
@@ -336,136 +334,25 @@ walg:
 ### Deploy
 
 ```bash
-helm install my-postgres flanksource/postgres-upgrade -f values.yaml
+helm install my-postgres flanksource/postgres -f values.yaml
 ```
 
 ### Upgrade PostgreSQL Version
 
 ```bash
-helm upgrade my-postgres flanksource/postgres-upgrade \
+helm upgrade my-postgres flanksource/postgres \
   --set database.version=17 \
   --reuse-values
 
 kubectl rollout restart statefulset/my-postgres
 ```
 
-## PostgreSQL Extensions
-
-Pre-compiled extensions available:
-
-| Extension | Purpose | Usage |
-|-----------|---------|-------|
-| `pgvector` | Vector similarity search | `CREATE EXTENSION pgvector;` |
-| `pgsodium` | Cryptography | `CREATE EXTENSION pgsodium;` |
-| `pg_cron` | Job scheduler | `CREATE EXTENSION pg_cron;` |
-| `pgaudit` | Audit logging | `CREATE EXTENSION pgaudit;` |
-| `pg_stat_monitor` | Query monitoring | `CREATE EXTENSION pg_stat_monitor;` |
-| `pgjwt` | JWT authentication | `CREATE EXTENSION pgjwt;` |
-| `pg_net` | HTTP client | `CREATE EXTENSION pg_net;` |
-| `pg_jsonschema` | JSON validation | `CREATE EXTENSION pg_jsonschema;` |
-| `pg_hashids` | Short IDs | `CREATE EXTENSION pg_hashids;` |
-| `pg-safeupdate` | Require WHERE clause | `CREATE EXTENSION pg-safeupdate;` |
-| `wal2json` | CDC output | `CREATE EXTENSION wal2json;` |
-| `pg_repack` | Table reorganization | `CREATE EXTENSION pg_repack;` |
-| `pg_plan_filter` | Query plan filtering | `CREATE EXTENSION pg_plan_filter;` |
-| `pg_tle` | Trusted Language Extensions | `CREATE EXTENSION pg_tle;` |
-| `index_advisor` | Index recommendations | `CREATE EXTENSION index_advisor;` |
-
-### Enable Extensions
-
-```bash
-# Environment variable
-POSTGRES_EXTENSIONS="pgvector,pgsodium,pg_cron"
-
-# Helm values
-extensions:
-  enabled: "pgvector,pgsodium,pg_cron"
-```
-
-## Docker Usage
-
-### Production Configuration
-
-```bash
-docker run -d \
-  --name postgres \
-  --memory="8g" \
-  --cpus="4" \
-  -e POSTGRES_PASSWORD=mypassword \
-  -e POSTGRES_EXTENSIONS="pgvector,pgsodium" \
-  -e PGBOUNCER_ENABLED=true \
-  -e POSTGREST_ENABLED=true \
-  -e WALG_ENABLED=true \
-  -e WALG_S3_PREFIX=s3://bucket/backups \
-  -e AWS_ACCESS_KEY_ID=$AWS_KEY \
-  -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET \
-  -p 5432:5432 \
-  -p 6432:6432 \
-  -p 3000:3000 \
-  -v postgres_data:/var/lib/postgresql/data \
-  ghcr.io/flanksource/postgres:17-latest
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: ghcr.io/flanksource/postgres:17-latest
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-          cpus: '4'
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_EXTENSIONS: pgvector,pgsodium,pg_cron
-      PGBOUNCER_ENABLED: "true"
-      POSTGREST_ENABLED: "true"
-    ports:
-      - "5432:5432"
-      - "6432:6432"
-      - "3000:3000"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-```
 
 ## Automatic Upgrades
 
 The postgres-cli orchestrates safe, sequential PostgreSQL upgrades with full data preservation:
 
-### Supported Upgrade Paths
 
-| From | To | Process | Backup Location |
-|------|-----|---------|-----------------|
-| PostgreSQL 14 | PostgreSQL 17 | Sequential: 14→15→16→17 | `/data/backups/data-14` |
-| PostgreSQL 15 | PostgreSQL 17 | Sequential: 15→16→17 | `/data/backups/data-15` |
-| PostgreSQL 16 | PostgreSQL 17 | Direct: 16→17 | `/data/backups/data-16` |
-
-### Technical Implementation
-
-The upgrade process is managed by `pkg/server/postgres.go:Upgrade()`:
-
-```go
-// Simplified upgrade flow
-func (p *Postgres) Upgrade(targetVersion int) error {
-    // 1. Detect current version from PG_VERSION file
-    currentVersion := p.DetectVersion()
-
-    // 2. Create backup of original data
-    backupPath := fmt.Sprintf("/data/backups/data-%d", currentVersion)
-    p.backupDataDirectory(backupPath)
-
-    // 3. Sequential upgrades through each version
-    for v := currentVersion; v < targetVersion; v++ {
-        p.upgradeSingle(v, v+1)  // Handles pg_upgrade orchestration
-    }
-}
-```
 
 ### Upgrade Orchestration Details
 
@@ -520,139 +407,228 @@ If an upgrade fails:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_PASSWORD` | Database password | Required |
-| `POSTGRES_USER` | Database user | `postgres` |
-| `POSTGRES_DB` | Default database | `postgres` |
-| `POSTGRES_EXTENSIONS` | Comma-separated extensions | None |
-| `PG_VERSION` | Target PostgreSQL version | `17` |
-| `AUTO_UPGRADE` | Enable automatic upgrades | `true` |
-| `RESET_PASSWORD` | Reset password on startup | `false` |
-| `PGBOUNCER_ENABLED` | Enable PgBouncer | `false` |
-| `POSTGREST_ENABLED` | Enable PostgREST | `false` |
-| `WALG_ENABLED` | Enable WAL-G backups | `false` |
+#### PostgreSQL Core Settings
 
-## Backup and Recovery
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `PG_VERSION` | Target PostgreSQL version (14-17) | `17` | `16` |
+| `PGDATA` | PostgreSQL data directory | `/var/lib/postgresql/data` | Custom path |
+| `POSTGRES_DB` | Default database name | `postgres` | `myapp` |
+| `POSTGRES_USER` | Database superuser username | `postgres` | `admin` |
+| `PGPASSWORD` | Database password (direct) | - | `mySecurePassword` |
+| `PGPASSWORD_FILE` | Path to file containing password | - | `/run/secrets/db_password` |
 
-### WAL-G Configuration
 
-```yaml
-walg:
-  enabled: true
-  s3:
-    bucket: postgres-backups
-    region: us-east-1
-  schedule: "0 2 * * *"
-```
+#### Auto-Configuration
 
-### Backup Operations
+| Variable | Description | Default | Values |
+|----------|-------------|---------|--------|
+| `PG_TUNE` | Alias for PGCONFIG_AUTO_TUNE | `true` | `true`, `false` |
+| `POSTGRES_CLI_ARGS` | Custom postgres-cli arguments | See below | `--dry-run --pg-tune` |
+| `UPGRADE_ONLY` | Exit after upgrade (no start) | `false` | `true`, `false` |
 
-```bash
-# Create backup
-kubectl exec -it my-postgres-0 -- wal-g backup-push
+#### Performance Tuning (pg_tune)
 
-# List backups
-kubectl exec -it my-postgres-0 -- wal-g backup-list
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `PG_TUNE_MAX_CONNECTIONS` | Override max connections | Auto-calculated | `200` |
+| `PG_TUNE_MEMORY` | Override memory in MB | Auto-detected | `8192` |
+| `PG_TUNE_CPUS` | Override CPU count | Auto-detected | `4` |
+| `PG_AUTH_METHOD` | Authentication method | `scram-sha-256` | `md5`, `trust` |
 
-# Restore
-kubectl exec -it my-postgres-0 -- wal-g backup-fetch /restore/path LATEST
-```
 
-## Health Monitoring
 
-### Kubernetes Probes
+## postgres-cli Reference
 
-```yaml
-startupProbe:
-  exec:
-    command: ["pg_isready", "-U", "postgres"]
-  initialDelaySeconds: 10
-  periodSeconds: 10
-  failureThreshold: 30
+The `postgres-cli` tool provides comprehensive PostgreSQL management. It's included in the Docker image and can be installed standalone.
 
-readinessProbe:
-  exec:
-    command: ["pg_isready", "-U", "postgres"]
-  periodSeconds: 10
-
-livenessProbe:
-  exec:
-    command: ["pg_isready", "-U", "postgres"]
-  periodSeconds: 30
-```
-
-### Health Check
+### Installation
 
 ```bash
-# Kubernetes
-kubectl exec my-postgres-0 -- pg_isready
+# Install CLI tool
+go install github.com/flanksource/postgres/cmd@latest
 
-# Docker
-docker exec postgres pg_isready
+# Or use Docker image
+docker run --rm ghcr.io/flanksource/postgres:17 postgres-cli --help
 ```
 
-## Troubleshooting
+### Global Flags
 
-### Check Logs
+Available for all commands:
+
+| Flag | Short | Description | Default | Example |
+|------|-------|-------------|---------|---------|
+| `--username` | `-U` | PostgreSQL username | `postgres` or `$PG_USER` | `-U admin` |
+| `--password` | `-W` | PostgreSQL password | `$PGPASSWORD` or `$PGPASSWORD_FILE` | `-W mypass` |
+| `--database` | `-d` | Database name | `postgres` or `$PG_DATABASE` | `-d myapp` |
+| `--host` | | PostgreSQL host | `localhost` or `$PG_HOST` | `--host db.example.com` |
+| `--port` | `-p` | PostgreSQL port | `5432` or `$PG_PORT` | `-p 5433` |
+| `--data-dir` | | Data directory path | `$PGDATA` or auto-detected | `--data-dir /pgdata` |
+| `--bin-dir` | | PostgreSQL binary directory | Auto-detected | `--bin-dir /usr/lib/postgresql/17/bin` |
+| `--config` | `-c` | Configuration file path | - | `-c /etc/postgresql.conf` |
+| `--locale` | | Database locale | `C` | `--locale en_US.UTF-8` |
+| `--encoding` | | Database encoding | `UTF8` | `--encoding UTF8` |
+| `--dry-run` | | Simulate without changes | `false` | `--dry-run` |
+
+### Commands
+
+#### auto-start
+
+Automatically start PostgreSQL with optional pre-start tasks.
 
 ```bash
-# Kubernetes
-kubectl logs my-postgres-0
-kubectl logs my-postgres-0 --previous
-
-# Docker
-docker logs postgres
+postgres-cli auto-start [flags]
 ```
 
-### Common Issues
+**Flags:**
 
-#### Password Reset Failed
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--auto-init` | Initialize database if not exists | `true` |
+| `--auto-upgrade` | Upgrade PostgreSQL if version mismatch | `true` |
+| `--auto-reset-password` | Reset password on startup | `true` |
+| `--pg-tune` | Run pg_tune optimization | `true` |
+| `--upgrade-to <N>` | Target PostgreSQL version | `0` (auto-detect latest) |
+| `--max-connections` | Max connections for pg_tune | `0` (auto-calculate) |
+| `--memory` | Override memory in MB | `0` (auto-detect) |
+| `--cpus` | Override CPU count | `0` (auto-detect) |
+| `--type` | Database type for pg_tune | `web` |
+| `--auth-method` | pg_hba.conf auth method | `scram-sha-256` |
+
+**Examples:**
+
 ```bash
-# Check single-user mode logs
-kubectl logs my-postgres-0 -c password-reset
+# Start with all auto features
+postgres-cli auto-start
 
-# Verify permissions
-ls -la /var/lib/postgresql/data/pgdata
+# Initialize new database and start
+postgres-cli auto-start --auto-init
+
+# Upgrade to version 17 without starting
+postgres-cli auto-start --upgrade-to=17 --dry-run
+
+# Start with custom tuning
+postgres-cli auto-start --pg-tune --max-connections=200 --memory=8192
 ```
 
-#### Upgrade Failed
+#### server Commands
+
+Manage PostgreSQL server instances:
+
 ```bash
-# Check pg_upgrade logs
-kubectl exec my-postgres-0 -- cat /var/lib/postgresql/pg_upgrade_output.d/pg_upgrade_server.log
-
-# Verify versions
-kubectl exec my-postgres-0 -- cat /var/lib/postgresql/data/pgdata/PG_VERSION
+postgres-cli server <subcommand> [flags]
 ```
 
-#### Performance Issues
+**Subcommands:**
+
+| Command | Description |
+|---------|-------------|
+| `status` | Show comprehensive PostgreSQL status |
+| `health` | Perform health check |
+| `start` | Start PostgreSQL server |
+| `stop` | Stop PostgreSQL server gracefully |
+| `restart` | Restart PostgreSQL server |
+| `initdb` | Initialize PostgreSQL data directory |
+| `reset-password` | Reset PostgreSQL superuser password |
+| `upgrade` | Upgrade PostgreSQL to target version |
+| `backup` | Create PostgreSQL backup using pg_dump |
+| `sql` | Execute SQL query |
+
+**Examples:**
+
 ```bash
-# Check current settings
-kubectl exec my-postgres-0 -- psql -c "SHOW ALL;" | grep -E "shared_buffers|work_mem|effective_cache"
+# Check PostgreSQL status
+postgres-cli server status
 
-# Monitor connections
-kubectl exec my-postgres-0 -- psql -c "SELECT count(*) FROM pg_stat_activity;"
+# Initialize new cluster
+postgres-cli server initdb --data-dir=/pgdata
+
+# Reset password
+postgres-cli server reset-password --password=newpass
+
+# Upgrade to version 17
+postgres-cli server upgrade --target-version=17
+
+# Execute SQL query
+postgres-cli server sql --query="SELECT version();"
+
+# Execute SQL from file
+postgres-cli server sql --file=/path/to/script.sql
 ```
 
-## Additional Services
+#### version
 
-### PgBouncer
-Connection pooler on port 6432:
-- Transaction pooling mode
-- Configurable max connections
-- Automatic user/database discovery
+Show version information:
 
-### PostgREST
-REST API on port 3000:
-- Auto-generates OpenAPI spec
-- JWT authentication
-- Row-level security support
+```bash
+postgres-cli version
+```
 
-### WAL-G
-Backup tool:
-- Incremental backups
-- Point-in-time recovery
-- S3/GCS/Azure support
+### Usage Examples
+
+#### Docker Container Usage
+
+The docker-entrypoint.sh automatically calls `postgres-cli auto-start`:
+
+```bash
+# Default behavior (all features enabled)
+docker run ghcr.io/flanksource/postgres:17
+
+# Custom postgres-cli arguments
+docker run -e POSTGRES_CLI_ARGS="--pg-tune --dry-run" \
+  ghcr.io/flanksource/postgres:17
+
+# Upgrade only (no start)
+docker run -e UPGRADE_ONLY=true \
+  -v pgdata:/var/lib/postgresql/data \
+  ghcr.io/flanksource/postgres:17
+```
+
+#### Standalone CLI Usage
+
+```bash
+# Check status of local PostgreSQL
+postgres-cli server status --data-dir=/var/lib/postgresql/data
+
+# Upgrade local PostgreSQL installation
+postgres-cli server upgrade \
+  --target-version=17 \
+  --data-dir=/var/lib/postgresql/data
+
+# Generate optimized configuration
+postgres-cli auto-start \
+  --pg-tune \
+  --memory=8192 \
+  --max-connections=200 \
+  --dry-run
+
+# Connect to remote PostgreSQL
+postgres-cli server sql \
+  --host=db.example.com \
+  --port=5432 \
+  --username=admin \
+  --query="SELECT count(*) FROM users;"
+```
+
+#### Password Management
+
+```bash
+# Reset password using environment variable
+export PGPASSWORD=oldpass
+export POSTGRES_PASSWORD=newpass
+postgres-cli server reset-password
+
+# Reset password using file
+echo "newpassword" > /tmp/password
+postgres-cli server reset-password \
+  --password=$(cat /tmp/password)
+rm /tmp/password
+
+# Reset via auto-start
+postgres-cli auto-start --auto-reset-password
+```
+
+
 
 ## Documentation
 

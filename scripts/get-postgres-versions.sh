@@ -9,7 +9,7 @@ echo "🔍 Detecting PostgreSQL versions from built images..."
 # Function to get version from built Docker image
 get_version_from_image() {
     local major_version=$1
-    local image_tag="postgres-upgrade:$major_version"
+    local image_tag="postgres:$major_version"
 
     echo "🔧 Detecting PostgreSQL $major_version version from image $image_tag..." >&2
 
@@ -52,7 +52,7 @@ get_latest_version() {
     local major_version=$1
 
     # Try to get from built image first
-    if docker image inspect "postgres-upgrade:$major_version" >/dev/null 2>&1; then
+    if docker image inspect "postgres:$major_version" >/dev/null 2>&1; then
         version=$(get_version_from_image "$major_version" 2>/dev/null)
         if [ -n "$version" ]; then
             echo "$version"
@@ -79,7 +79,7 @@ get_latest_version() {
             esac
         fi
     else
-        echo "⚠️  Image postgres-upgrade:$major_version not found, using hardcoded version" >&2
+        echo "⚠️  Image postgres:$major_version not found, using hardcoded version" >&2
         # Fallback to hardcoded versions
         case $major_version in
             14)
