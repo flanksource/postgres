@@ -107,7 +107,7 @@ jobs:
           docker save postgres:${{ matrix.pg_version }} > postgres-${{ matrix.pg_version }}.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: postgres-${{ matrix.pg_version }}
           path: postgres-${{ matrix.pg_version }}.tar
@@ -187,7 +187,7 @@ jobs:
           go build -ldflags "-s -w -X main.version=${VERSION_NO_V}" -o ${{ matrix.binary }} ./cmd
 
       - name: Upload binary (${{ matrix.binary }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.binary }}
           path: ${{ matrix.binary }}
