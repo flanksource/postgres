@@ -15,7 +15,7 @@ includes:
 tasks:
   # Build shortcuts
   build:
-    desc: Build the postgres-upgrade Docker image
+    desc: Build the postgres Docker image
     cmds:
       - task: build:build
 

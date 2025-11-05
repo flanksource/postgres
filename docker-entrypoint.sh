@@ -22,7 +22,7 @@ if [ "$CURRENT_USER" = "0" ]; then
             echo "Fixing PGDATA ownership: $PGDATA (currently owned by UID $PGDATA_OWNER)"
             chown -R postgres:postgres "$PGDATA" "$PGCONFIG_CONFIG_DIR" /var/lib/postgresql 2>/dev/null || true
             echo "Permissions fixed. Please restart the container without --user root flag."
-            echo "Example: docker run -v <volume>:/var/lib/postgresql/data flanksource/postgres:latest"
+            echo "Example: docker run -v <volume>:/var/lib/postgresql/data flanksource/postgres:17"
             exit 0
         fi
     fi

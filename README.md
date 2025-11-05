@@ -37,7 +37,7 @@ docker run --rm -v your-volume:/data alpine ls -la /data
 docker run --rm --user root -v your-volume:/data alpine chown -R 999:999 /data
 
 # Then start normally (will run as postgres user)
-docker run -v your-volume:/var/lib/postgresql/data flanksource/postgres:latest
+docker run -v your-volume:/var/lib/postgresql/data flanksource/postgres:17
 ```
 
 **Recommended**: Use named volumes (Docker handles permissions automatically):
@@ -46,7 +46,7 @@ docker run -v your-volume:/var/lib/postgresql/data flanksource/postgres:latest
 docker run -d \
   -v pgdata:/var/lib/postgresql/data \
   -e PGPASSWORD=mypassword \
-  ghcr.io/flanksource/postgres:latest
+  ghcr.io/flanksource/postgres:17
 ```
 
 #### For Kubernetes Users
@@ -63,7 +63,7 @@ spec:
     fsGroup: 999  # Ensures PVC is owned by postgres
   containers:
   - name: postgres
-    image: ghcr.io/flanksource/postgres:latest
+    image: ghcr.io/flanksource/postgres:17
     volumeMounts:
     - name: pgdata
       mountPath: /var/lib/postgresql/data
@@ -77,12 +77,12 @@ If you need to fix permissions on existing volumes, temporarily run as root:
 # Run once as root to fix permissions
 docker run --user root \
   -v your-volume:/var/lib/postgresql/data \
-  ghcr.io/flanksource/postgres:latest
+  ghcr.io/flanksource/postgres:17
 
 # Container will detect wrong ownership, fix it, and exit
 # Then restart without --user flag (runs as postgres by default)
 docker run -v your-volume:/var/lib/postgresql/data \
-  ghcr.io/flanksource/postgres:latest
+  ghcr.io/flanksource/postgres:17
 ```
 
 #### Validation
@@ -93,7 +93,7 @@ Use `--dry-run` to validate permissions before starting:
 docker run --rm \
   -v your-volume:/var/lib/postgresql/data \
   --entrypoint postgres-cli \
-  ghcr.io/flanksource/postgres:latest \
+  ghcr.io/flanksource/postgres:17 \
   auto-start --dry-run --data-dir /var/lib/postgresql/data
 ```
 
@@ -130,7 +130,7 @@ docker run -d \
 
 ```bash
 # Install
-go install github.com/flanksource/postgres/cmd@latest
+go install github.com/flanksource/postgres/cmd@17
 
 # Generate configuration
 postgres-cli generate conf --memory=4GB --connections=200
@@ -279,7 +279,7 @@ docker run --rm \
   -v postgres_data:/var/lib/postgresql/data \
   -e RESET_PASSWORD=true \
   -e PGPASSWORD=new-password \
-  ghcr.io/flanksource/postgres:17-latest
+  ghcr.io/flanksource/postgres:17-17
 ```
 
 ### Implementation
@@ -446,7 +446,7 @@ The `postgres-cli` tool provides comprehensive PostgreSQL management. It's inclu
 
 ```bash
 # Install CLI tool
-go install github.com/flanksource/postgres/cmd@latest
+go install github.com/flanksource/postgres/cmd@17
 
 # Or use Docker image
 docker run --rm ghcr.io/flanksource/postgres:17 postgres-cli --help
@@ -488,7 +488,7 @@ postgres-cli auto-start [flags]
 | `--auto-upgrade` | Upgrade PostgreSQL if version mismatch | `true` |
 | `--auto-reset-password` | Reset password on startup | `true` |
 | `--pg-tune` | Run pg_tune optimization | `true` |
-| `--upgrade-to <N>` | Target PostgreSQL version | `0` (auto-detect latest) |
+| `--upgrade-to <N>` | Target PostgreSQL version | `0` (auto-detect 17) |
 | `--max-connections` | Max connections for pg_tune | `0` (auto-calculate) |
 | `--memory` | Override memory in MB | `0` (auto-detect) |
 | `--cpus` | Override CPU count | `0` (auto-detect) |

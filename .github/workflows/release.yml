@@ -330,11 +330,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-amd64 \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor_version }}-${{ steps.versions.outputs.sha_short }}-arm64
 
-      - name: Create and push latest tag for PostgreSQL 17
-        if: matrix.pg_version == '17'
-        run: |
-          docker buildx imagetools create -t \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
   create-release:
     needs: [determine-version, build-postgres-cli, merge-manifests, get-postgres-versions]
     runs-on: ubuntu-latest
@@ -381,7 +376,6 @@ jobs:
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:17\` - Latest PostgreSQL 17 major version
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}\` - Specific minor version
           - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.get-postgres-versions.outputs.pg17_version }}-${{ steps.versions.outputs.sha_short }}\` - Version with commit SHA
-          - \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\` - Points to PostgreSQL 17
 
           ## Usage
 
