@@ -102,7 +102,7 @@ ENV PG17BIN=/usr/lib/postgresql/17/bin
 ENV PG_VERSION=17
 
 RUN curl -fsSL https://repo.pigsty.io/pig | bash && \
-    dpkg -i /tmp/pig_0.6.1-1_arm64.deb && \
+    dpkg -i /tmp/pig_0.6.1-1_${TARGETARCH}.deb && \
     /usr/bin/pig repo add pigsty  --update && \
     for ver in 14 15 16 17; do \
       /usr/bin/pig install -y --version $ver pgsodium pg_stat_statements pg_partman pg_jsonschema pg_hashids pg_tle pgjwt;  \
