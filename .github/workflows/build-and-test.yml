@@ -89,6 +89,9 @@ jobs:
             test: { from: 15, to: 17, name: "15 to 17 (multi-step)" }
           - platform: linux/amd64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
+          # Supabase PostgreSQL upgrade test
+          - platform: linux/amd64
+            test: { from: "supabase-14", to: 17, name: "Supabase 14.1.0.89 to 17", image: "public.ecr.aws/supabase/postgres:14.1.0.89" }
           # ARM64 test - just one to verify it works
           - platform: linux/arm64
             test: { from: 14, to: 17, name: "14 to 17 (full upgrade)" }
@@ -130,7 +133,7 @@ jobs:
             -v $PWD/test-data/${{ matrix.test.from }}:/var/lib/postgresql/data \
             -e POSTGRES_PASSWORD=testpass \
             -e POSTGRES_DB=testdb \
-            postgres:${{ matrix.test.from }}-bookworm \
+            ${{ matrix.test.image || format('postgres:{0}-bookworm', matrix.test.from) }} \
             bash -c "
               set -e
               set -o pipefail
