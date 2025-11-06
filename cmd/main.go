@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/flanksource/clicky"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
-	"github.com/flanksource/clicky"
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/pgtune"
@@ -19,7 +19,6 @@ import (
 
 var (
 	postgres   server.Postgres
-	createDb   string
 	configFile string
 	encoding   string
 	locale     string
@@ -53,7 +52,7 @@ func getPostgresPassword() utils.SensitiveString {
 }
 
 func main() {
-	clicky.Infof(GetVersionInfo())
+	clicky.Infof("%s", GetVersionInfo())
 	rootCmd := &cobra.Command{
 		Use:   "postgres-cli",
 		Short: "PostgreSQL Management CLI",
@@ -97,7 +96,7 @@ This unified tool combines PostgreSQL server management, configuration generatio
 
 	rootCmd.PersistentFlags().StringVarP(&postgres.Username, "username", "U", lo.CoalesceOrEmpty(os.Getenv("PG_USER"), "postgres"), "PostgreSQL username")
 	rootCmd.PersistentFlags().StringP("password", "W", "", "PostgreSQL password if not specied  PGPASSWORD or PGPASSWORD_FILE env variable")
-	rootCmd.PersistentFlags().StringVarP(&postgres.Database, "database", "d", lo.CoalesceOrEmpty(os.Getenv("PG_DATABASE"), "postgres"), "PostgreSQL database name")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Database, "database", "d", lo.CoalesceOrEmpty(os.Getenv("PG_DATABASE"), "postgres"), "PostgreSQL database name to connect to for running commands (env: PG_DATABASE)")
 	rootCmd.PersistentFlags().StringVarP(&postgres.Host, "host", "", lo.CoalesceOrEmpty(os.Getenv("PG_HOST"), "localhost"), "PostgreSQL host")
 	rootCmd.PersistentFlags().IntVarP(&postgres.Port, "port", "p", lo.CoalesceOrEmpty(getIntVar("PG_PORT"), 5432), "PostgreSQL port")
 	rootCmd.PersistentFlags().StringVar(&postgres.DataDir, "data-dir", os.Getenv("PGDATA"), "PostgreSQL data directory (auto-detected if not specified)")
@@ -135,6 +134,7 @@ This command can automatically:
 - Upgrade PostgreSQL to a target version if needed
 - Optimize configuration using pg_tune
 - Reset the superuser password
+- Create a custom database
 
 Examples:
   postgres-cli auto-start                           Start PostgreSQL normally
@@ -143,6 +143,7 @@ Examples:
   postgres-cli auto-start --auto-upgrade            Upgrade if needed, then start
   postgres-cli auto-start --auto-reset-password     Reset password, then start
   postgres-cli auto-start --auto-init --pg-tune     Initialize, optimize, then start
+  postgres-cli auto-start --create-db myapp         Create 'myapp' database after init
   postgres-cli auto-start --dry-run                 Validate permissions without starting`,
 		RunE: runAutoStart,
 	}
@@ -157,6 +158,7 @@ Examples:
 	cmd.Flags().Bool("auto-reset-password", true, "Reset postgres superuser password on start")
 	cmd.Flags().Bool("auto-init", true, "Automatically initialize database if data directory doesn't exist")
 	cmd.Flags().Int("upgrade-to", 0, "Target PostgreSQL version for upgrade (default: auto-detect latest)")
+	cmd.Flags().String("create-db", os.Getenv("POSTGRES_DB"), "Create a new database with this name during startup initialization (env: POSTGRES_DB, skips if 'postgres' or empty)")
 
 	return cmd
 }
@@ -167,6 +169,7 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 	autoUpgrade, _ := cmd.Flags().GetBool("auto-upgrade")
 	autoResetPassword, _ := cmd.Flags().GetBool("auto-reset-password")
 	upgradeTo, _ := cmd.Flags().GetInt("upgrade-to")
+	createDb, _ := cmd.Flags().GetString("create-db")
 
 	// Log current user context
 	uid, gid, username, err := utils.GetCurrentUserInfo()
@@ -181,6 +184,7 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 		"auto-reset-password": autoResetPassword,
 		"upgrade-to":          upgradeTo,
 		"database":            postgres.Database,
+		"create-db":           createDb,
 		"uid":                 uid,
 		"gid":                 gid,
 		"username":            username,
@@ -268,12 +272,15 @@ func runAutoStart(cmd *cobra.Command, args []string) error {
 
 	}
 
-	if createDb != "" {
-
+	// Step 5: Create custom database if requested
+	if createDb != "" && createDb != "postgres" {
+		clicky.Infof("Creating database '%s'", createDb)
 		if err := postgres.CreateDatabase(createDb); err != nil {
 			//FIXME
 			fmt.Printf("❌ Failed to create database '%s': %v\n", createDb, err)
 			// return fmt.Errorf("failed to create database '%s': %w", createDb, err)
+		} else {
+			clicky.Infof("✅ Database '%s' created successfully", createDb)
 		}
 	}
 

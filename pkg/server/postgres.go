@@ -17,6 +17,7 @@ import (
 	"github.com/flanksource/clicky/exec"
 	"github.com/flanksource/commons/logger"
 	"github.com/flanksource/commons/properties"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 
 	"github.com/flanksource/postgres/pkg"
@@ -504,7 +505,8 @@ func (p *Postgres) CreateDatabase(name string) error {
 		clicky.Infof("[DRYRUN] skipping database creation for '%s'", name)
 		return nil
 	}
-	_, err := p.SQL("CREATE DATABASE ?", name)
+
+	_, err := p.SQL(fmt.Sprintf("CREATE DATABASE %s", pq.QuoteIdentifier(name)))
 	return err
 }
 
@@ -798,7 +800,7 @@ func (p *Postgres) Start() error {
 
 	res := p.Pg_ctl("start").WithTimeout(5 * time.Second).Run().Result()
 	if res.Error != nil {
-		fmt.Println("failed to start PostgreSQL: %w, continuing anyway", res.Error)
+		fmt.Printf("failed to start PostgreSQL: %v, continuing anyway", res.Error)
 	}
 	fmt.Println(res.Pretty().ANSI())
 
