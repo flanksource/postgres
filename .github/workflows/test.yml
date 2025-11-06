@@ -13,6 +13,9 @@ on:
 
 jobs:
   test-builds:
+    # Disabled: This workflow tries to run Go tests that don't exist.
+    # Use build-and-test.yml instead which provides comprehensive Docker-based testing.
+    if: false
     runs-on: ubuntu-latest
     strategy:
       matrix:
