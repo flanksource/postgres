@@ -1,0 +1,20 @@
+services:
+  postgres:
+    container_name: "pg_test"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PG_VERSION: 17
+    image: flanksource/postgres:17
+    environment:
+      POSTGRES_DB: mc
+      POSTGRES_USER: flanksource
+      POSTGRES_PASSWORD: testpassword
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg-data-test:/var/lib/postgresql/data
+
+volumes:
+  pg-data-test:
