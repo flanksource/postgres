@@ -1,17 +1,158 @@
-name: Test PostgreSQL Upgrade Images
+name: Test
 
 on:
   push:
     branches:
       - main
-      - master
   pull_request:
     branches:
       - main
-      - master
   workflow_dispatch:
 
+env:
+  TEST_DB: mission_control
+  TEST_USER: testuser
+  TEST_PASSWORD: testpass123
+
 jobs:
+  test-env-variables:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (amd64 only)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: postgres-test:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start PostgreSQL with environment variables
+        run: |
+          echo "Starting PostgreSQL container with:"
+          echo "  POSTGRES_DB=${{ env.TEST_DB }}"
+          echo "  POSTGRES_USER=${{ env.TEST_USER }}"
+          echo "  POSTGRES_PASSWORD=${{ env.TEST_PASSWORD }}"
+
+          CONTAINER_ID=$(docker run -d \
+            -e POSTGRES_DB=${{ env.TEST_DB }} \
+            -e POSTGRES_USER=${{ env.TEST_USER }} \
+            -e POSTGRES_PASSWORD=${{ env.TEST_PASSWORD }} \
+            postgres-test:local)
+
+          echo "CONTAINER_ID=$CONTAINER_ID" >> $GITHUB_ENV
+          echo "Container started: $CONTAINER_ID"
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          echo "Waiting for PostgreSQL to start..."
+          sleep 15
+
+          echo "=== Container Logs ==="
+          docker logs ${{ env.CONTAINER_ID }}
+          echo "======================"
+
+      - name: Check if custom database was created
+        run: |
+          echo "Checking if database '${{ env.TEST_DB }}' exists..."
+
+          DATABASES=$(docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -t -c "\l" 2>&1)
+
+          echo "=== All Databases ==="
+          echo "$DATABASES"
+          echo "====================="
+
+          if echo "$DATABASES" | grep -q "${{ env.TEST_DB }}"; then
+            echo "✅ PASS: Database '${{ env.TEST_DB }}' exists"
+          else
+            echo "❌ FAIL: Database '${{ env.TEST_DB }}' was NOT created"
+            echo "Only these databases exist:"
+            docker exec ${{ env.CONTAINER_ID }} \
+              psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -t -c "SELECT datname FROM pg_database;"
+            exit 1
+          fi
+
+      - name: Check if custom user was created
+        run: |
+          echo "Checking if user '${{ env.TEST_USER }}' exists..."
+
+          USERS=$(docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -t -c "SELECT usename FROM pg_user;")
+
+          echo "=== All Users ==="
+          echo "$USERS"
+          echo "================="
+
+          if echo "$USERS" | grep -q "${{ env.TEST_USER }}"; then
+            echo "✅ PASS: User '${{ env.TEST_USER }}' exists"
+          else
+            echo "❌ FAIL: User '${{ env.TEST_USER }}' was NOT created"
+            exit 1
+          fi
+
+      - name: Test authentication with custom credentials
+        run: |
+          echo "Testing authentication as '${{ env.TEST_USER }}' to database '${{ env.TEST_DB }}'..."
+
+          if docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -c "SELECT version();" > /dev/null 2>&1; then
+            echo "✅ PASS: Authentication successful"
+          else
+            echo "❌ FAIL: Could not authenticate with provided credentials"
+            exit 1
+          fi
+
+      - name: Verify database permissions
+        run: |
+          echo "Verifying user can create tables in the database..."
+
+          docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -c \
+            "CREATE TABLE test_table (id SERIAL PRIMARY KEY, data TEXT);"
+
+          docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -c \
+            "INSERT INTO test_table (data) VALUES ('test data');"
+
+          RESULT=$(docker exec ${{ env.CONTAINER_ID }} \
+            psql -h localhost -U ${{ env.TEST_USER }} -d ${{ env.TEST_DB }} -t -c \
+            "SELECT data FROM test_table WHERE id = 1;")
+
+          if echo "$RESULT" | grep -q "test data"; then
+            echo "✅ PASS: User has correct permissions"
+          else
+            echo "❌ FAIL: User permissions issue"
+            exit 1
+          fi
+
+      - name: Show final status
+        if: always()
+        run: |
+          echo "========================================="
+          echo "Environment Variable Test Results"
+          echo "========================================="
+          echo ""
+          echo "Test Configuration:"
+          echo "  POSTGRES_DB: ${{ env.TEST_DB }}"
+          echo "  POSTGRES_USER: ${{ env.TEST_USER }}"
+          echo "  POSTGRES_PASSWORD: ********"
+          echo ""
+          docker logs ${{ env.CONTAINER_ID }} 2>&1 | tail -50
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop ${{ env.CONTAINER_ID }} || true
+          docker rm ${{ env.CONTAINER_ID }} || true
+
   test-builds:
     # Disabled: This workflow tries to run Go tests that don't exist.
     # Use build-and-test.yml instead which provides comprehensive Docker-based testing.
