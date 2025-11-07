@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/flanksource/clicky"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
-	"github.com/flanksource/clicky"
 	"github.com/flanksource/postgres/pkg"
 	"github.com/flanksource/postgres/pkg/config"
 	"github.com/flanksource/postgres/pkg/pgtune"
@@ -53,7 +53,8 @@ func getPostgresPassword() utils.SensitiveString {
 }
 
 func main() {
-	clicky.Infof(GetVersionInfo())
+	clicky.Infof("%s", GetVersionInfo())
+
 	rootCmd := &cobra.Command{
 		Use:   "postgres-cli",
 		Short: "PostgreSQL Management CLI",
@@ -66,11 +67,12 @@ This unified tool combines PostgreSQL server management, configuration generatio
 
 			// Load configuration if specified
 			if configFile != "" {
-				if pconfig, err := config.LoadPostgresConf(configFile); err == nil {
-					return err
-				} else {
-					postgres.Config = pconfig
+				pconfig, err := config.LoadPostgresConf(configFile)
+				if err != nil {
+					return fmt.Errorf("failed to load postgres config file(%s): %w", configFile, err)
 				}
+
+				postgres.Config = pconfig
 			} else if postgres.Config == nil {
 				postgres.Config = config.DefaultPostgresConf()
 			}
