@@ -154,7 +154,7 @@ Examples:
 	cmd.Flags().StringVar(&authMethod, "auth-method", lo.CoalesceOrEmpty(os.Getenv("PG_AUTH_METHOD"), string(pkg.AuthScramSHA)), "Authentication method for pg_hba.conf (auto-detected if not specified)")
 	cmd.Flags().BoolVar(&opts.Enabled, "pg-tune", true, "Run pg_tune to optimize postgresql.conf before starting")
 	cmd.Flags().Bool("auto-upgrade", true, "Automatically upgrade PostgreSQL if version mismatch detected")
-	cmd.Flags().Bool("auto-reset-password", true, "Reset postgres superuser password on start")
+	cmd.Flags().Bool("auto-reset-password", false, "Reset postgres superuser password on start")
 	cmd.Flags().Bool("auto-init", true, "Automatically initialize database if data directory doesn't exist")
 	cmd.Flags().Int("upgrade-to", 0, "Target PostgreSQL version for upgrade (default: auto-detect latest)")
 

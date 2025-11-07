@@ -32,12 +32,34 @@ fi
 
 export PGBIN=/usr/lib/postgresql/${PG_VERSION}/bin
 
+# Set defaults for PostgreSQL environment variables
+POSTGRES_USER="${POSTGRES_USER:-postgres}"
+POSTGRES_DB="${POSTGRES_DB:-$POSTGRES_USER}"
 
 if [ ! -f $PGDATA/PG_VERSION ]; then
     echo "Initializing database cluster at $PGDATA ..."
-    # starting and stopping the DB to initialize the directory for tuning
-    $PGBIN/initdb -D $PGDATA
+    echo "Using POSTGRES_USER: $POSTGRES_USER"
+
+    # Initialize database with specified user and password
+    if [ -n "$POSTGRES_PASSWORD" ]; then
+        echo "Initializing with password authentication"
+        $PGBIN/initdb -D $PGDATA -U "$POSTGRES_USER" --pwfile=<(printf "%s\n" "$POSTGRES_PASSWORD")
+    else
+        echo "WARNING: No password set. Initializing without password authentication."
+        $PGBIN/initdb -D $PGDATA -U "$POSTGRES_USER"
+    fi
+
+    # Start PostgreSQL temporarily to create database
     $PGBIN/pg_ctl start -D $PGDATA --wait
+
+    # Create custom database if specified and different from default
+    if [ "$POSTGRES_DB" != "postgres" ]; then
+        echo "Creating database: $POSTGRES_DB"
+        $PGBIN/psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<-EOSQL
+			CREATE DATABASE "$POSTGRES_DB" OWNER "$POSTGRES_USER";
+		EOSQL
+    fi
+
     $PGBIN/pg_ctl stop -D $PGDATA --wait
 else
     echo "Database cluster already initialized at $PGDATA with version $(cat $PGDATA/PG_VERSION)"
