@@ -4,14 +4,14 @@ go 1.25.1
 
 require (
 	github.com/flanksource/clicky v1.11.0
-	github.com/flanksource/commons v1.42.3
+	github.com/flanksource/commons v1.43.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/invisionapp/go-health v2.1.0+incompatible
 	github.com/knadh/koanf/parsers/yaml v1.1.0
 	github.com/knadh/koanf/providers/env v1.1.0
 	github.com/knadh/koanf/providers/file v1.2.0
 	github.com/knadh/koanf/providers/rawbytes v1.0.0
-	github.com/knadh/koanf/v2 v2.2.2
+	github.com/knadh/koanf/v2 v2.3.0
 	github.com/lib/pq v1.10.9
 	github.com/samber/lo v1.52.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -59,7 +59,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
