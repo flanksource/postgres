@@ -38,10 +38,10 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.6.1
+        uses: helm/chart-testing-action@v2.8.0
 
       - name: Create kind cluster
-        uses: helm/kind-action@v1.8.0
+        uses: helm/kind-action@v1.13.0
         with:
           cluster_name: postgres-upgrade-test
 
