@@ -16,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o pgconfig ./cmd
 
 # Main stage
-FROM postgres:17-bookworm
+FROM postgres:18-bookworm
 
 # Get architecture information
 ARG TARGETARCH
