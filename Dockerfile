@@ -3,7 +3,7 @@
 # Supports both AMD64 and ARM64 architectures
 
 # Build stage for pgconfig binary
-FROM golang:1.25-bookworm AS pgconfig-builder
+FROM golang:1.26.1-bookworm@sha256:ab3d6955bbc813a0f3fdf220c1d817dd89c0b3f283777db8ece4a32fe7858edd AS pgconfig-builder
 
 # Build arguments for version information
 ARG VERSION=dev
