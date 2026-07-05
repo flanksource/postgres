@@ -12,8 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flanksource/commons/deps"
-
+	"github.com/flanksource/deps"
 	"github.com/flanksource/postgres/pkg/jwt"
 	"github.com/flanksource/postgres/pkg/utils"
 )
@@ -410,12 +409,14 @@ func (p *PostgREST) Install(version, targetDir string) error {
 	if targetDir == "" {
 		targetDir = "/usr/local/bin"
 	}
-	return deps.Install("postgrest", version, deps.WithBinDir(targetDir))
+	_, err := deps.Install("postgrest", version, deps.WithBinDir(targetDir))
+	return err
 }
 
 // IsInstalled checks if PostgREST is installed in PATH
 func (p *PostgREST) IsInstalled() bool {
-	return deps.Which("postgrest")
+	_, err := exec.LookPath("postgrest")
+	return err == nil
 }
 
 // InstalledVersion returns the installed PostgREST version
