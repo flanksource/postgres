@@ -14,6 +14,9 @@ env:
   TEST_USER: testuser
   TEST_PASSWORD: testpass123
 
+permissions:
+  contents: read
+
 jobs:
   test-env-variables:
     runs-on: ubuntu-latest
