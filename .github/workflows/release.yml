@@ -17,6 +17,9 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/postgres
 
+permissions:
+  contents: read
+
 jobs:
   determine-version:
     runs-on: ubuntu-latest
