@@ -3,7 +3,7 @@ module github.com/flanksource/postgres/test
 go 1.26.1
 
 require (
-	github.com/flanksource/commons v1.52.0
+	github.com/flanksource/commons v1.53.1
 	github.com/flanksource/commons-db v0.1.13
 	github.com/flanksource/commons-test v0.1.14
 	github.com/flanksource/postgres v0.1.0

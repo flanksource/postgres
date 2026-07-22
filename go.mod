@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/flanksource/clicky v1.21.1
-	github.com/flanksource/commons v1.52.0
+	github.com/flanksource/commons v1.53.1
 	github.com/flanksource/deps v1.0.36
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/invisionapp/go-health v2.1.0+incompatible
