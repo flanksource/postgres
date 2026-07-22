@@ -6,7 +6,7 @@ require (
 	github.com/flanksource/commons v1.53.1
 	github.com/flanksource/commons-db v0.1.20
 	github.com/flanksource/commons-test v0.1.15
-	github.com/flanksource/postgres v0.1.0
+	github.com/flanksource/postgres v1.0.20
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 )
