@@ -3,7 +3,7 @@ module github.com/flanksource/postgres
 go 1.26.1
 
 require (
-	github.com/flanksource/clicky v1.21.44
+	github.com/flanksource/clicky v1.21.45
 	github.com/flanksource/commons v1.53.1
 	github.com/flanksource/deps v1.0.36
 	github.com/golang-jwt/jwt/v5 v5.3.0
