@@ -6,7 +6,7 @@ require (
 	github.com/flanksource/commons v1.53.1
 	github.com/flanksource/commons-db v0.1.21
 	github.com/flanksource/commons-test v0.1.15
-	github.com/flanksource/postgres v1.0.22
+	github.com/flanksource/postgres v1.0.23
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 )
@@ -57,7 +57,7 @@ require (
 	github.com/emirpasic/gods/v2 v2.0.0-alpha // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/flanksource/clicky v1.21.43 // indirect
+	github.com/flanksource/clicky v1.21.44 // indirect
 	github.com/flanksource/deps v1.0.36 // indirect
 	github.com/flanksource/gomplate/v3 v3.24.84 // indirect
 	github.com/flanksource/is-healthy v1.0.88 // indirect
