@@ -36,6 +36,12 @@ func getIntVar(name string) int {
 	return result
 }
 
+// defaultUsername falls back to POSTGRES_USER because docker-entrypoint.sh
+// runs initdb with it, so it is the only role guaranteed to exist.
+func defaultUsername() string {
+	return lo.CoalesceOrEmpty(os.Getenv("PG_USER"), os.Getenv("POSTGRES_USER"), "postgres")
+}
+
 func getPostgresPassword() utils.SensitiveString {
 	password := os.Getenv("PGPASSWORD")
 	if password != "" {
@@ -97,7 +103,7 @@ This unified tool combines PostgreSQL server management, configuration generatio
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVarP(&postgres.Username, "username", "U", lo.CoalesceOrEmpty(os.Getenv("PG_USER"), "postgres"), "PostgreSQL username")
+	rootCmd.PersistentFlags().StringVarP(&postgres.Username, "username", "U", defaultUsername(), "PostgreSQL username")
 	rootCmd.PersistentFlags().StringP("password", "W", "", "PostgreSQL password if not specied  PGPASSWORD or PGPASSWORD_FILE env variable")
 	rootCmd.PersistentFlags().StringVarP(&postgres.Database, "database", "d", lo.CoalesceOrEmpty(os.Getenv("PG_DATABASE"), "postgres"), "PostgreSQL database name")
 	rootCmd.PersistentFlags().StringVarP(&postgres.Host, "host", "", lo.CoalesceOrEmpty(os.Getenv("PG_HOST"), "localhost"), "PostgreSQL host")
