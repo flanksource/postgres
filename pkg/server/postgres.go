@@ -796,9 +796,13 @@ func (p *Postgres) Start() error {
 
 	fmt.Println(clicky.Text("").Add(icons.Start).Appendf("Starting Postgres.. %s", p.DataDir).Styles("text-green-500").ANSI())
 
-	res := p.Pg_ctl("start").WithTimeout(5 * time.Second).Run().Result()
+	// The server writes to a log file: without -l the daemonised postgres
+	// inherits pg_ctl's stdout and holds the pipe open, so Run never returns.
+	logFile := filepath.Join(os.TempDir(), "postgres.log")
+	res := p.Pg_ctl("start", "-l", logFile).WithTimeout(5 * time.Second).Run().Result()
 	if res.Error != nil {
-		fmt.Println("failed to start PostgreSQL: %w, continuing anyway", res.Error)
+		serverLog, _ := os.ReadFile(logFile)
+		fmt.Printf("failed to start PostgreSQL: %v, continuing anyway\n%s\n", res.Error, serverLog)
 	}
 	fmt.Println(res.Pretty().ANSI())
 
@@ -809,7 +813,8 @@ func (p *Postgres) Start() error {
 			break
 		}
 		if time.Since(startTime) > timeout {
-			return fmt.Errorf("timeout waiting for PostgreSQL to start")
+			serverLog, _ := os.ReadFile(logFile)
+			return fmt.Errorf("timeout waiting for PostgreSQL to start, server log %s:\n%s", logFile, serverLog)
 		}
 		time.Sleep(1 * time.Second)
 	}
