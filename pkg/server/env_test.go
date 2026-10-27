@@ -3,13 +3,29 @@ package server
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/flanksource/postgres/pkg/utils"
 )
 
-func TestSetupDockerEnv(t *testing.T) {
+// clearEnv empties the environment for one test and restores it afterwards,
+// so later tests in the package still see PATH.
+func clearEnv(t *testing.T) {
+	saved := os.Environ()
 	os.Clearenv()
+	t.Cleanup(func() {
+		os.Clearenv()
+		for _, kv := range saved {
+			if k, v, ok := strings.Cut(kv, "="); ok {
+				os.Setenv(k, v)
+			}
+		}
+	})
+}
+
+func TestSetupDockerEnv(t *testing.T) {
+	clearEnv(t)
 
 	os.Setenv("POSTGRES_USER", "testuser")
 	os.Setenv("PGPASSWORD", "testpass")
@@ -52,7 +68,7 @@ func TestSetupDockerEnv(t *testing.T) {
 }
 
 func TestSetupDockerEnvDefaults(t *testing.T) {
-	os.Clearenv()
+	clearEnv(t)
 
 	env, err := SetupDockerEnv()
 	if err != nil {
